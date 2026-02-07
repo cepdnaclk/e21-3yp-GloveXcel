@@ -1,11 +1,9 @@
 ---
 layout: home
 permalink: index.html
-
 repository-name: e21-3yp-RehabGlove
 title: RehabGlove: Smart Rehabilitation at Home
 ---
-
 # RehabGlove: Smart Rehabilitation at Home
 
 ---
@@ -40,10 +38,11 @@ Rehabilitation for conditions like stroke, arthritis, and post-surgery often com
 - **Inconsistent Tracking**: It’s hard to measure and adjust therapy plans when progress isn’t tracked effectively.
 
 ### **The Solution**
-RehabGlove provides a wearable solution that uses motion sensors and real-time feedback to guide patients through rehabilitation exercises at home. Key features include:
-- **Motion Tracking**: Accurate tracking of hand and finger movements.
+**RehabGlove** provides a wearable solution that uses motion sensors and real-time feedback to guide patients through rehabilitation exercises at home. Key features include:
+- **Motion Tracking**: Accurate tracking of hand and finger movements using embedded sensors.
 - **Real-Time Feedback**: Instant notifications through vibration motors when movements deviate from prescribed therapy.
 - **Remote Therapist Monitoring**: Therapists can monitor progress and adjust therapy via a mobile app.
+- **Self-Guided Mode**: Patients can follow pre-programmed exercises and upload progress data for later review by their therapists.
 
 ### **Impact**
 RehabGlove empowers patients to carry out rehabilitation exercises effectively at home while ensuring real-time feedback and progress tracking. It reduces the need for frequent clinic visits, making rehabilitation more accessible and efficient.

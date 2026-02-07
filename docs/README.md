@@ -1,8 +1,8 @@
 ---
 layout: home
 permalink: index.html
-repository-name: e21-3yp-GloveXcel
-title: GloveXcel: Smart Rehabilitation at Home
+repository-name: "e21-3yp-GloveXcel"
+title: "GloveXcel: Smart Rehabilitation at Home"
 ---
 
 # RehabGlove: Smart Rehabilitation at Home

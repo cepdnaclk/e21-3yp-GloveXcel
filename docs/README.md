@@ -2,14 +2,14 @@
 layout: home
 permalink: index.html
 
-# Please update this with your repository name and project title
-repository-name: e21-3yp-Drivora
-title: Drivora
+
+repository-name: e21-3yp-GloveXcel
+title: GloveXcel
 ---
 
 [comment]: # "This is the standard layout for the project, but you can clean this and use your own template"
 
-# Drivora: Distributed Universal Advanced Driver Assistance System
+# GloveXcel: Smart Monitoring for Home Rehabilitation
 
 ---
 

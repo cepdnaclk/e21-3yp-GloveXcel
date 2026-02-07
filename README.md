@@ -23,7 +23,7 @@ The RehabGlove system is built around several key hardware components that ensur
 - **Cloud Sync**: Session data is logged locally, then synchronized to the cloud for remote monitoring and analysis.
 - **Patient & Therapist Interaction**: Both parties can interact through the mobile app to adjust therapy parameters, monitor progress, and review reports.
 
-🛠️ **Installation & Wiring**
+**Installation & Wiring**
 The system utilizes a multi-core, shielded communication backbone (Power, Ground, CAN_H, CAN_L) to connect all units seamlessly.
 
 Developed as a 3rd Year Undergraduate Project in Computer Engineering.

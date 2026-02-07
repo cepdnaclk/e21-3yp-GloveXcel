@@ -5,7 +5,7 @@ repository-name: "e21-3yp-GloveXcel"
 title: "GloveXcel: Smart Rehabilitation at Home"
 ---
 
-# RehabGlove: Smart Rehabilitation at Home
+# GloveXcel: Smart Rehabilitation at Home
 
 ---
 

@@ -4,7 +4,7 @@
 #include <BLE2902.h> // The magic subscription fix!
 
 // The 5 safe ADC1 pins for your fingers
-const int potPins[] = {32, 33, 34, 35, 36}; // Thumb, Index, Middle, Ring, Pinky
+const int potPins[] = {39, 32, 34, 35, 36}; // Thumb, Index, Middle, Ring, Pinky
 
 #define SERVICE_UUID        "12345678-1234-1234-1234-1234567890ab"
 #define CHARACTERISTIC_UUID "87654321-4321-4321-4321-9876543210ab"

@@ -9,6 +9,12 @@
         .finger { padding: 20px; border-radius: 10px; background: #f4f4f4; width: 100px; }
         .finger h3 { margin: 0 0 10px 0; font-size: 18px; color: #555; }
         .finger h1 { margin: 0; font-size: 40px; color: #222; }
+        /* Loaded session card */
+        .loaded-card { margin: 20px auto; max-width: 640px; background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); display: none; }
+        .loaded-row { display:flex; justify-content:space-between; gap:12px; margin-top:12px; }
+        .loaded-tile { flex:1; background:#eef2ff; padding:10px; border-radius:8px; }
+        .loaded-tile h4{margin:0;color:#333}
+        .loaded-meta{font-size:14px;color:#666;margin-bottom:8px}
     </style>
 </head>
 <body>
@@ -22,6 +28,23 @@
         <div class="finger"><h3>Middle</h3><h1 id="valMiddle">--</h1></div>
         <div class="finger"><h3>Ring</h3><h1 id="valRing">--</h1></div>
         <div class="finger"><h3>Pinky</h3><h1 id="valPinky">--</h1></div>
+    </div>
+
+    <div style="margin-top:20px;">
+        <input id="patientSearchId" type="text" value="patient_001" placeholder="Patient ID" style="padding:8px;font-size:16px;">
+        <button id="loadSavedBtn" style="margin-left:8px;">Load Saved Data</button>
+        <button id="configBtn" style="margin-left:8px;">Configuration</button>
+    </div>
+
+    <div id="loadedCard" class="loaded-card">
+        <div class="loaded-meta">Loaded session: <span id="loadedTimestamp">-</span></div>
+        <div class="loaded-row">
+            <div class="loaded-tile"><h4>Thumb</h4><div id="loadedThumb">-</div></div>
+            <div class="loaded-tile"><h4>Index</h4><div id="loadedIndex">-</div></div>
+            <div class="loaded-tile"><h4>Middle</h4><div id="loadedMiddle">-</div></div>
+            <div class="loaded-tile"><h4>Ring</h4><div id="loadedRing">-</div></div>
+            <div class="loaded-tile"><h4>Pinky</h4><div id="loadedPinky">-</div></div>
+        </div>
     </div>
 
     <script>
@@ -57,6 +80,61 @@
                 alert("Connection failed! Check console for details.");
             }
         });
+
+        // Load saved data button handler
+        document.getElementById('loadSavedBtn').addEventListener('click', fetchSavedData);
+        // Configuration page button
+        document.getElementById('configBtn').addEventListener('click', () => {
+            window.location.href = 'configur.html';
+        });
+
+        async function fetchSavedData() {
+            const patientId = document.getElementById('patientSearchId').value;
+            if (!patientId) { alert('Please enter a Patient ID.'); return; }
+
+            const btn = document.getElementById('loadSavedBtn');
+            const orig = btn ? btn.innerText : 'Load Saved Data';
+            if (btn) { btn.disabled = true; btn.innerText = 'Loading...'; }
+
+            try {
+                const res = await fetch(`http://localhost:3000/api/data/${encodeURIComponent(patientId)}`);
+                if (!res.ok) throw new Error('Server responded ' + res.status);
+                const sessions = await res.json();
+
+                if (!Array.isArray(sessions) || sessions.length === 0) {
+                        // Hide loaded card and show message
+                        const loadedCard = document.getElementById('loadedCard');
+                        if (loadedCard) loadedCard.style.display = 'none';
+                        alert('No previous sessions found for ' + patientId);
+                        return;
+                }
+
+                const latest = sessions[0];
+                    // Populate live display
+                    document.getElementById('valThumb').innerText = latest.thumb ?? 0;
+                    document.getElementById('valIndex').innerText = latest.index ?? 0;
+                    document.getElementById('valMiddle').innerText = latest.middle ?? 0;
+                    document.getElementById('valRing').innerText = latest.ring ?? 0;
+                    document.getElementById('valPinky').innerText = latest.pinky ?? 0;
+
+                    // Populate loaded session card
+                    const ts = latest.timestamp ? new Date(latest.timestamp).toLocaleString() : 'unknown';
+                    document.getElementById('loadedTimestamp').innerText = ts;
+                    document.getElementById('loadedThumb').innerText = latest.thumb ?? 0;
+                    document.getElementById('loadedIndex').innerText = latest.index ?? 0;
+                    document.getElementById('loadedMiddle').innerText = latest.middle ?? 0;
+                    document.getElementById('loadedRing').innerText = latest.ring ?? 0;
+                    document.getElementById('loadedPinky').innerText = latest.pinky ?? 0;
+
+                    const loadedCard = document.getElementById('loadedCard');
+                    if (loadedCard) loadedCard.style.display = 'block';
+            } catch (err) {
+                console.error('Error loading saved data:', err);
+                alert('Failed to load saved data. Is the Node server running?');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerText = orig; }
+            }
+        }
     </script>
 </body>
 </html>

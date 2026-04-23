@@ -26,7 +26,7 @@
         <div class="finger"><h3>Pinky</h3><h1 id="valPinky">--</h1></div>
     </div>
 
-    <button onclick="sendFingerData()">Send Finger Data</button>
+    <button id="sendBtn">Send Finger Data</button>
 
     <script>
         document.getElementById('connectBtn').addEventListener('click', async () => {
@@ -62,34 +62,48 @@
             }
         });
 
-        function sendFingerData() {
-            // Example data for each finger
-            const fingerData = {
-                thumb: 10,
-                index: 20,
-                middle: 30,
-                ring: 40,
-                pinky: 50
+        async function sendFingerData() {
+            const sendBtn = document.getElementById('sendBtn');
+            const originalText = sendBtn ? sendBtn.innerText : 'Send';
+            if (sendBtn) { sendBtn.disabled = true; sendBtn.innerText = 'Sending...'; }
+
+            const parseOrZero = (id) => {
+                const el = document.getElementById(id);
+                const raw = el ? String(el.innerText).trim() : '';
+                const n = parseInt(raw, 10);
+                return Number.isFinite(n) ? n : 0;
             };
 
-            // Sending data to the backend API
-            fetch('https://example.com/api/finger-data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(fingerData)
-            })
-            .then(response => response.json())
-            .then(data => {
+            const fingerData = {
+                patient_id: 'patient_001',
+                thumb: parseOrZero('valThumb'),
+                index: parseOrZero('valIndex'),
+                middle: parseOrZero('valMiddle'),
+                ring: parseOrZero('valRing'),
+                pinky: parseOrZero('valPinky')
+            };
+
+            try {
+                const res = await fetch('http://localhost:3000/api/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(fingerData)
+                });
+
+                if (!res.ok) throw new Error('Server responded with ' + res.status);
+                const data = await res.json();
                 console.log('Success:', data);
-                alert('Finger data sent successfully!');
-            })
-            .catch((error) => {
+                alert('Finger data saved to MongoDB!');
+            } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to send finger data.');
-            });
+                alert('Failed to save data. Is your Node server running?');
+            } finally {
+                if (sendBtn) { sendBtn.disabled = false; sendBtn.innerText = originalText; }
+            }
         }
+
+        // Attach handler to the send button
+        document.getElementById('sendBtn').addEventListener('click', sendFingerData);
     </script>
 </body>
 </html>

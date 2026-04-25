@@ -11,6 +11,10 @@
         .finger { padding: 20px; border-radius: 10px; background: #f4f4f4; width: 100px; }
         .finger h3 { margin: 0 0 10px 0; font-size: 18px; color: #555; }
         .finger h1 { margin: 0; font-size: 40px; color: #222; }
+        .force-panel { margin-top: 25px; }
+        #forceLevel { padding: 10px; font-size: 18px; width: 90px; margin-right: 10px; }
+        #setForceBtn { background: #6c757d; }
+        #forceStatus { margin-top: 8px; color: #333; }
     </style>
 </head>
 <body>
@@ -26,55 +30,145 @@
         <div class="finger"><h3>Pinky</h3><h1 id="valPinky">--</h1></div>
     </div>
 
+    <div class="force-panel">
+        <h3>Motor Force Level (1-10)</h3>
+        <input type="number" id="forceLevel" min="1" max="10" value="1">
+        <button id="setForceBtn">Set Force Level</button>
+        <p id="forceStatus">Not sent yet.</p>
+    </div>
+
     <button id="sendBtn">Send Finger Data</button>
 
     <script>
+        const SERVICE_UUID = '12345678-1234-1234-1234-1234567890ab';
+        const SENSOR_CHAR_UUID = '87654321-4321-4321-4321-9876543210ab';
+        const MOTOR_CMD_UUID = '11111111-2222-3333-4444-555555555555';
+
+        let device = null;
+        let server = null;
+        let sensorCharacteristic = null;
+        let motorCmdCharacteristic = null;
+        let keepAliveInterval = null;
+
         document.getElementById('connectBtn').addEventListener('click', async () => {
             try {
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: ['12345678-1234-1234-1234-1234567890ab'] }]
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }]
                 });
 
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService('12345678-1234-1234-1234-1234567890ab');
-                const characteristic = await service.getCharacteristic('87654321-4321-4321-4321-9876543210ab');
+                device.addEventListener('gattserverdisconnected', onDisconnected);
 
-                await characteristic.startNotifications();
-                
-                // This triggers every 100ms when the ESP32 sends the array
-                characteristic.addEventListener('characteristicvaluechanged', (event) => {
-                    const value = event.target.value;
-                    
-                    // Unpack the 5 bytes and update the HTML text
-                    document.getElementById('valThumb').innerText = value.getUint8(0);
-                    document.getElementById('valIndex').innerText = value.getUint8(1);
-                    document.getElementById('valMiddle').innerText = value.getUint8(2);
-                    document.getElementById('valRing').innerText = value.getUint8(3);
-                    document.getElementById('valPinky').innerText = value.getUint8(4);
-                });
-                
+                server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+
+                // SENSOR
+                try {
+                    sensorCharacteristic = await service.getCharacteristic(SENSOR_CHAR_UUID);
+                } catch {
+                    sensorCharacteristic = null;
+                }
+
+                // MOTOR
+                motorCmdCharacteristic = await service.getCharacteristic(MOTOR_CMD_UUID);
+
+                // 🔥 Force pairing/authentication
+                await motorCmdCharacteristic.writeValueWithResponse(new Uint8Array([0]));
+
+                // SENSOR notifications
+                if (sensorCharacteristic) {
+                    await sensorCharacteristic.startNotifications();
+
+                    sensorCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
+                        const value = event.target.value;
+
+                        document.getElementById('valThumb').innerText = value.getUint8(0);
+                        document.getElementById('valIndex').innerText = value.getUint8(1);
+                        document.getElementById('valMiddle').innerText = value.getUint8(2);
+                        document.getElementById('valRing').innerText = value.getUint8(3);
+                        document.getElementById('valPinky').innerText = value.getUint8(4);
+                    });
+                }
+
+                // ✅ KEEP-ALIVE (VERY IMPORTANT)
+                startKeepAlive();
+
                 document.getElementById('connectBtn').innerText = "Connected!";
                 document.getElementById('connectBtn').style.background = "#28a745";
 
-            } catch(error) {
-                console.error('Connection failed!', error);
-                alert("Connection failed! Check console for details.");
+                document.getElementById('forceStatus').innerText = sensorCharacteristic
+                    ? 'Connected. Ready to send level.'
+                    : 'Connected for motor control. Sensor unavailable.';
+
+            } catch (error) {
+                console.error(error);
+                alert("Connection failed. Try again.");
             }
         });
 
-        async function sendFingerData() {
-            const sendBtn = document.getElementById('sendBtn');
-            const originalText = sendBtn ? sendBtn.innerText : 'Send';
-            if (sendBtn) { sendBtn.disabled = true; sendBtn.innerText = 'Sending...'; }
+        // 🔥 KEEP ALIVE FUNCTION
+        function startKeepAlive() {
+            if (keepAliveInterval) clearInterval(keepAliveInterval);
 
+            keepAliveInterval = setInterval(async () => {
+                if (motorCmdCharacteristic) {
+                    try {
+                        await motorCmdCharacteristic.writeValueWithoutResponse(new Uint8Array([0]));
+                    } catch (e) {
+                        console.warn("Keep-alive failed");
+                    }
+                }
+            }, 3000); // every 3 seconds
+        }
+
+        // 🔥 AUTO DISCONNECT HANDLER
+        function onDisconnected() {
+            console.warn("BLE Disconnected");
+
+            document.getElementById('connectBtn').innerText = "Reconnect";
+            document.getElementById('connectBtn').style.background = "#dc3545";
+            document.getElementById('forceStatus').innerText = "Disconnected. Reconnect.";
+
+            if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+                keepAliveInterval = null;
+            }
+
+            motorCmdCharacteristic = null;
+            sensorCharacteristic = null;
+        }
+
+        async function sendForceLevel() {
+            const level = parseInt(document.getElementById('forceLevel').value, 10);
+
+            if (!motorCmdCharacteristic) {
+                alert('Connect first');
+                return;
+            }
+
+            try {
+                await motorCmdCharacteristic.writeValueWithResponse(new Uint8Array([level]));
+
+                await fetch('http://localhost:3000/api/forces', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ level })
+                });
+
+                document.getElementById('forceStatus').innerText = `Force ${level} sent`;
+
+            } catch (error) {
+                console.error(error);
+                alert('Send failed');
+            }
+        }
+
+        async function sendFingerData() {
             const parseOrZero = (id) => {
-                const el = document.getElementById(id);
-                const raw = el ? String(el.innerText).trim() : '';
-                const n = parseInt(raw, 10);
+                const n = parseInt(document.getElementById(id).innerText, 10);
                 return Number.isFinite(n) ? n : 0;
             };
 
-            const fingerData = {
+            const data = {
                 patient_id: 'patient_001',
                 thumb: parseOrZero('valThumb'),
                 index: parseOrZero('valIndex'),
@@ -84,26 +178,22 @@
             };
 
             try {
-                const res = await fetch('http://localhost:3000/api/data', {
+                await fetch('http://localhost:3000/api/data', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(fingerData)
+                    body: JSON.stringify(data)
                 });
 
-                if (!res.ok) throw new Error('Server responded with ' + res.status);
-                const data = await res.json();
-                console.log('Success:', data);
-                alert('Finger data saved to MongoDB!');
+                alert('Data saved');
+
             } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to save data. Is your Node server running?');
-            } finally {
-                if (sendBtn) { sendBtn.disabled = false; sendBtn.innerText = originalText; }
+                alert('Save failed');
             }
         }
 
-        // Attach handler to the send button
+        document.getElementById('setForceBtn').addEventListener('click', sendForceLevel);
         document.getElementById('sendBtn').addEventListener('click', sendFingerData);
+
     </script>
 </body>
 </html>

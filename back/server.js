@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const dataRoutes = require('./routes/dataRoutes');
 const doctorCalRoutes = require('./routes/doctorCalRoutes');
 const patientCalRoutes = require('./routes/patientCalRoutes');
+const forceRoutes = require('./routes/forceRoutes');
 
 const app = express();
 app.use(cors());
@@ -21,6 +22,7 @@ mongoose.connect(process.env.MONGO_URI, { family: 4 })
 app.use('/api/data', dataRoutes);
 app.use('/api/doctor-cal', doctorCalRoutes);
 app.use('/api/patient-cal', patientCalRoutes);
+app.use('/api/forces', forceRoutes);
 
 // Start Server
 const PORT = process.env.PORT || 3000;

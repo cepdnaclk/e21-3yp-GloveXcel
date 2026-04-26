@@ -1,0 +1,52 @@
+CREATE TABLE Hospitals (
+    hospital_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255)
+);
+
+CREATE TABLE Doctors (
+    doctor_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    hospital_id VARCHAR(50),
+    FOREIGN KEY (hospital_id) REFERENCES Hospitals(hospital_id)
+);
+
+CREATE TABLE Patients (
+    patient_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    age INT,
+    primary_hospital_id VARCHAR(50),
+    FOREIGN KEY (primary_hospital_id) REFERENCES Hospitals(hospital_id)
+);
+
+CREATE TABLE Exercises (
+    exercise_id VARCHAR(50) PRIMARY KEY,
+    description TEXT,
+    level INT,
+    target_reps INT NOT NULL,
+    target_sets INT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL
+);
+
+CREATE TABLE Therapy_Plans (
+    plan_id VARCHAR(50) PRIMARY KEY,
+    doctor_id VARCHAR(50) NOT NULL,
+    patient_id VARCHAR(50) NOT NULL,
+    exercise_id VARCHAR(50) NOT NULL,
+    FOREIGN KEY (doctor_id) REFERENCES Doctors(doctor_id),
+    FOREIGN KEY (patient_id) REFERENCES Patients(patient_id),
+    FOREIGN KEY (exercise_id) REFERENCES Exercises(exercise_id)
+);
+
+CREATE TABLE Therapy_Sessions (
+    session_id VARCHAR(50) PRIMARY KEY,
+    plan_id VARCHAR(50) NOT NULL,
+    session_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_reps INT,
+    over_reps INT,
+    under_reps INT,
+    completed_sets INT,
+    status VARCHAR(20) DEFAULT 'completed',
+    FOREIGN KEY (plan_id) REFERENCES Therapy_Plans(plan_id)
+);

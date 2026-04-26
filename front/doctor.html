@@ -34,6 +34,7 @@
         <h3>Motor Force Level (1-10)</h3>
         <input type="number" id="forceLevel" min="1" max="10" value="1">
         <button id="setForceBtn">Set Force Level</button>
+        <button id="saveForceBtn">Save Force</button>
         <p id="forceStatus">Not sent yet.</p>
     </div>
 
@@ -148,17 +149,29 @@
             try {
                 await motorCmdCharacteristic.writeValueWithResponse(new Uint8Array([level]));
 
+                document.getElementById('forceStatus').innerText = `Force ${level} applied`;
+
+            } catch (error) {
+                console.error(error);
+                alert('Send failed');
+            }
+        }
+
+        async function saveForceLevel() {
+            const level = parseInt(document.getElementById('forceLevel').value, 10);
+
+            try {
                 await fetch('http://localhost:3000/api/forces', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ level })
                 });
 
-                document.getElementById('forceStatus').innerText = `Force ${level} sent`;
+                document.getElementById('forceStatus').innerText = `Force ${level} saved`;
 
             } catch (error) {
                 console.error(error);
-                alert('Send failed');
+                alert('Save failed');
             }
         }
 
@@ -192,6 +205,7 @@
         }
 
         document.getElementById('setForceBtn').addEventListener('click', sendForceLevel);
+        document.getElementById('saveForceBtn').addEventListener('click', saveForceLevel);
         document.getElementById('sendBtn').addEventListener('click', sendFingerData);
 
     </script>

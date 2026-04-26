@@ -5,105 +5,921 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Doctor Page</title>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 30px; }
-        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; margin-bottom: 20px;}
-        .finger-container { display: flex; justify-content: center; gap: 40px; margin-top: 30px; }
-        .finger { padding: 20px; border-radius: 10px; background: #f4f4f4; width: 100px; }
-        .finger h3 { margin: 0 0 10px 0; font-size: 18px; color: #555; }
-        .finger h1 { margin: 0; font-size: 40px; color: #222; }
+        :root {
+            --bg: #edf1f7;
+            --card: #ffffff;
+            --ink: #1f2a38;
+            --muted: #627188;
+            --line: #dbe2ed;
+            --brand: #007bff;
+            --ok: #28a745;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            margin: 0;
+            background: radial-gradient(circle at top left, #f8fbff, var(--bg));
+            color: var(--ink);
+        }
+
+        .page {
+            max-width: 1100px;
+            margin: 24px auto;
+            padding: 0 16px 24px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 420px;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .right-column {
+            position: sticky;
+            top: 16px;
+        }
+
+        h2 {
+            margin: 0 0 12px;
+            text-align: center;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 16px;
+            color: var(--muted);
+            min-height: 20px;
+        }
+
+        .section {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 24px rgba(16, 32, 60, 0.07);
+            margin-bottom: 14px;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 10px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            background: var(--brand);
+            color: white;
+            border: none;
+            border-radius: 8px;
+        }
+
+        button.secondary {
+            background: #6c7a90;
+        }
+
+        button.success {
+            background: var(--ok);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .finger-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .finger {
+            padding: 12px;
+            border-radius: 10px;
+            background: #f7fafe;
+            border: 1px solid #e0e8f5;
+            text-align: center;
+        }
+
+        .finger h3 {
+            margin: 0 0 8px;
+            font-size: 15px;
+            color: #4b5d78;
+        }
+
+        .raw {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .angle {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .calibration-grid,
+        .exercise-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }
+
+        .mini-card {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px;
+            background: #fafcff;
+            font-size: 13px;
+        }
+
+        .mini-card strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .mini-value {
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .exercise-head {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        #exerciseList {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        #exerciseList li {
+            margin: 8px 0;
+        }
+
+        .note {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        #doctorRendererContainer {
+            height: 420px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #dfe7f5;
+            overflow: hidden;
+        }
+
+        #modelStatus {
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .right-column {
+                position: static;
+            }
+
+            #doctorRendererContainer {
+                height: 300px;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="page">
+        <h2>Doctor Console</h2>
+        <div id="status" class="status">Connect the glove for live view and exercise capture.</div>
 
-    <h2>Rehabilitation Glove Live Data</h2>
-    <button id="connectBtn">Connect to Glove</button>
-    
-    <div class="finger-container">
-        <div class="finger"><h3>Thumb</h3><h1 id="valThumb">--</h1></div>
-        <div class="finger"><h3>Index</h3><h1 id="valIndex">--</h1></div>
-        <div class="finger"><h3>Middle</h3><h1 id="valMiddle">--</h1></div>
-        <div class="finger"><h3>Ring</h3><h1 id="valRing">--</h1></div>
-        <div class="finger"><h3>Pinky</h3><h1 id="valPinky">--</h1></div>
+        <div class="layout">
+            <div class="left-column">
+
+            <section class="section">
+                <div class="actions">
+                    <button id="connectBtn">Connect to Glove</button>
+                    <button id="openCalibrationBtn" class="secondary" type="button">Open Calibration Page</button>
+                </div>
+                <div class="note">Calibration is now done in a separate page with two passes: non-thumb and thumb-only.</div>
+            </section>
+
+            <section class="section">
+                <h3>Live Raw and Calibrated Angles</h3>
+                <div class="finger-container">
+                    <div class="finger"><h3>Thumb</h3><p class="raw" id="valThumb">--</p><p class="angle" id="angThumb">-- deg</p></div>
+                    <div class="finger"><h3>Index</h3><p class="raw" id="valIndex">--</p><p class="angle" id="angIndex">-- deg</p></div>
+                    <div class="finger"><h3>Middle</h3><p class="raw" id="valMiddle">--</p><p class="angle" id="angMiddle">-- deg</p></div>
+                    <div class="finger"><h3>Ring</h3><p class="raw" id="valRing">--</p><p class="angle" id="angRing">-- deg</p></div>
+                    <div class="finger"><h3>Pinky</h3><p class="raw" id="valPinky">--</p><p class="angle" id="angPinky">-- deg</p></div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h3>Calibration Snapshot</h3>
+                <div class="calibration-grid">
+                    <div class="mini-card"><strong>Thumb</strong><div id="calThumb">Min: -- | Max: --</div></div>
+                    <div class="mini-card"><strong>Index</strong><div id="calIndex">Min: -- | Max: --</div></div>
+                    <div class="mini-card"><strong>Middle</strong><div id="calMiddle">Min: -- | Max: --</div></div>
+                    <div class="mini-card"><strong>Ring</strong><div id="calRing">Min: -- | Max: --</div></div>
+                    <div class="mini-card"><strong>Pinky</strong><div id="calPinky">Min: -- | Max: --</div></div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h3>Add Exercise</h3>
+                <div class="exercise-head">
+                    <label for="exerciseName">Exercise Name</label>
+                    <input id="exerciseName" type="text" placeholder="e.g. Finger Flexion Set A">
+                </div>
+
+                <div class="exercise-grid">
+                    <div class="mini-card">
+                        <strong>Thumb Max</strong>
+                        <div class="mini-value" id="exerciseThumb">-- deg</div>
+                    </div>
+                    <div class="mini-card">
+                        <strong>Index Max</strong>
+                        <div class="mini-value" id="exerciseIndex">-- deg</div>
+                    </div>
+                    <div class="mini-card">
+                        <strong>Middle Max</strong>
+                        <div class="mini-value" id="exerciseMiddle">-- deg</div>
+                    </div>
+                    <div class="mini-card">
+                        <strong>Ring Max</strong>
+                        <div class="mini-value" id="exerciseRing">-- deg</div>
+                    </div>
+                    <div class="mini-card">
+                        <strong>Pinky Max</strong>
+                        <div class="mini-value" id="exercisePinky">-- deg</div>
+                    </div>
+                </div>
+
+                <div class="actions" style="margin-top: 10px; justify-content: flex-start;">
+                    <button id="captureAllExerciseBtn" class="secondary" disabled>Capture All 5 from Current Pose</button>
+                    <button id="resetExerciseCaptureBtn" class="secondary">Reset Captured Max</button>
+                    <button id="saveExerciseBtn" class="success" disabled>Save Exercise Locally</button>
+                    <button id="exportExerciseBtn" class="secondary">Export Exercises JSON</button>
+                </div>
+                <div class="note">Exercise max angles are captured in one shot from the current live glove pose. Database is unavailable now, so records are stored in browser localStorage.</div>
+            </section>
+
+            <section class="section">
+                <h3>Saved Exercises</h3>
+                <ol id="exerciseList"></ol>
+            </section>
+            </div>
+
+            <aside class="right-column">
+                <section class="section">
+                    <h3>Live 3D Hand Preview</h3>
+                    <div id="modelStatus">Model loading...</div>
+                    <div id="doctorRendererContainer"></div>
+                    <div class="note">Preview uses saved calibration from the calibration page and live glove packets.</div>
+                </section>
+            </aside>
+        </div>
     </div>
 
-    <button id="sendBtn">Send Finger Data</button>
-
     <script>
-        document.getElementById('connectBtn').addEventListener('click', async () => {
-            try {
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: ['12345678-1234-1234-1234-1234567890ab'] }]
-                });
-
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService('12345678-1234-1234-1234-1234567890ab');
-                const characteristic = await service.getCharacteristic('87654321-4321-4321-4321-9876543210ab');
-
-                await characteristic.startNotifications();
-                
-                // This triggers every 100ms when the ESP32 sends the array
-                characteristic.addEventListener('characteristicvaluechanged', (event) => {
-                    const value = event.target.value;
-                    
-                    // Unpack the 5 bytes and update the HTML text
-                    document.getElementById('valThumb').innerText = value.getUint8(0);
-                    document.getElementById('valIndex').innerText = value.getUint8(1);
-                    document.getElementById('valMiddle').innerText = value.getUint8(2);
-                    document.getElementById('valRing').innerText = value.getUint8(3);
-                    document.getElementById('valPinky').innerText = value.getUint8(4);
-                });
-                
-                document.getElementById('connectBtn').innerText = "Connected!";
-                document.getElementById('connectBtn').style.background = "#28a745";
-
-            } catch(error) {
-                console.error('Connection failed!', error);
-                alert("Connection failed! Check console for details.");
-            }
-        });
-
-        async function sendFingerData() {
-            const sendBtn = document.getElementById('sendBtn');
-            const originalText = sendBtn ? sendBtn.innerText : 'Send';
-            if (sendBtn) { sendBtn.disabled = true; sendBtn.innerText = 'Sending...'; }
-
-            const parseOrZero = (id) => {
-                const el = document.getElementById(id);
-                const raw = el ? String(el.innerText).trim() : '';
-                const n = parseInt(raw, 10);
-                return Number.isFinite(n) ? n : 0;
-            };
-
-            const fingerData = {
-                patient_id: 'patient_001',
-                thumb: parseOrZero('valThumb'),
-                index: parseOrZero('valIndex'),
-                middle: parseOrZero('valMiddle'),
-                ring: parseOrZero('valRing'),
-                pinky: parseOrZero('valPinky')
-            };
-
-            try {
-                const res = await fetch('http://localhost:3000/api/data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(fingerData)
-                });
-
-                if (!res.ok) throw new Error('Server responded with ' + res.status);
-                const data = await res.json();
-                console.log('Success:', data);
-                alert('Finger data saved to MongoDB!');
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to save data. Is your Node server running?');
-            } finally {
-                if (sendBtn) { sendBtn.disabled = false; sendBtn.innerText = originalText; }
+        function setModelStatusMessage(message) {
+            const modelStatusEl = document.getElementById('modelStatus');
+            if (modelStatusEl) {
+                modelStatusEl.textContent = message;
             }
         }
 
-        // Attach handler to the send button
-        document.getElementById('sendBtn').addEventListener('click', sendFingerData);
+        if (window.location.protocol === 'file:') {
+            setModelStatusMessage('Model may not load on file:// origin. Open this page through a local server (for example http://localhost).');
+        }
+
+        window.addEventListener('error', (event) => {
+            const message = String(event?.message || '');
+            if (message.includes('Failed to resolve module specifier') || message.includes('Importing a module script failed')) {
+                setModelStatusMessage(`Module import failed: ${message}. Check internet access to unpkg and browser module support.`);
+            }
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            const reason = event?.reason;
+            const text = typeof reason === 'string' ? reason : (reason?.message || 'Unknown module/runtime error');
+            setModelStatusMessage(`Runtime error: ${text}`);
+        });
+
+        const BLE_SERVICE_UUID = '12345678-1234-1234-1234-1234567890ab';
+        const BLE_CHARACTERISTIC_UUID = '87654321-4321-4321-4321-9876543210ab';
+        const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+        const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+        const DEFAULT_RELAXED_PACKET = [255, 255, 255, 255, 255];
+        const CALIBRATION_STORAGE_KEY = 'doctorCalibrationV1';
+        const CALIBRATION_STORAGE_KEY_V2 = 'doctorCalibrationV2';
+        const EXERCISE_STORAGE_KEY = 'doctorExercisesV1';
+        const CROSS_PAGE_CHANNEL_KEY = 'gloveCrossPageV1';
+
+        const connectBtn = document.getElementById('connectBtn');
+        const openCalibrationBtn = document.getElementById('openCalibrationBtn');
+        const statusEl = document.getElementById('status');
+        const saveExerciseBtn = document.getElementById('saveExerciseBtn');
+        const exportExerciseBtn = document.getElementById('exportExerciseBtn');
+        const captureAllExerciseBtn = document.getElementById('captureAllExerciseBtn');
+        const resetExerciseCaptureBtn = document.getElementById('resetExerciseCaptureBtn');
+        const exerciseListEl = document.getElementById('exerciseList');
+        const exerciseValueEls = {
+            thumb: document.getElementById('exerciseThumb'),
+            index: document.getElementById('exerciseIndex'),
+            middle: document.getElementById('exerciseMiddle'),
+            ring: document.getElementById('exerciseRing'),
+            pinky: document.getElementById('exercisePinky')
+        };
+
+        let bleDevice = null;
+        let bleCharacteristic = null;
+        let latestPacket = [...DEFAULT_RELAXED_PACKET];
+        let calibration = loadCalibration();
+        let remoteCalibrationConnected = false;
+        const crossPageChannel = typeof BroadcastChannel !== 'undefined'
+            ? new BroadcastChannel(CROSS_PAGE_CHANNEL_KEY)
+            : null;
+        let exercises = loadExercises();
+        let exerciseDraft = {
+            thumb: null,
+            index: null,
+            middle: null,
+            ring: null,
+            pinky: null
+        };
+
+        window.doctorShared = window.doctorShared || {
+            latestPacket: [...DEFAULT_RELAXED_PACKET],
+            angles: [null, null, null, null, null],
+            calibrationReady: false
+        };
+
+        function setStatus(message) {
+            statusEl.textContent = message;
+        }
+
+        function isAnyDataSourceConnected() {
+            return isBleConnected() || remoteCalibrationConnected;
+        }
+
+        function broadcastDoctorState() {
+            if (!crossPageChannel) {
+                return;
+            }
+
+            crossPageChannel.postMessage({
+                type: 'doctor-state',
+                connected: isBleConnected(),
+                latestPacket: [...latestPacket],
+                calibrationReady: Boolean(calibration.min && calibration.max),
+                timestamp: Date.now()
+            });
+        }
+
+        if (crossPageChannel) {
+            crossPageChannel.addEventListener('message', (event) => {
+                const data = event?.data || {};
+                if (data.type === 'request-doctor-state') {
+                    broadcastDoctorState();
+                    return;
+                }
+
+                if (data.type !== 'calibration-state') {
+                    return;
+                }
+
+                remoteCalibrationConnected = Boolean(data.connected);
+
+                if (!isBleConnected() && Array.isArray(data.latestPacket) && data.latestPacket.length >= 5) {
+                    latestPacket = data.latestPacket.slice(0, 5).map((value) => {
+                        const num = Number(value);
+                        return Number.isFinite(num) ? num : 0;
+                    });
+                    updateLiveCards();
+                }
+
+                if (remoteCalibrationConnected && !isBleConnected()) {
+                    setStatus('Using live glove stream from calibration page. No second BLE connection needed.');
+                }
+
+                setConnectedState(isAnyDataSourceConnected());
+            });
+
+            crossPageChannel.postMessage({ type: 'request-calibration-state' });
+        }
+
+        function loadCalibration() {
+            try {
+                const rawV2 = localStorage.getItem(CALIBRATION_STORAGE_KEY_V2);
+                if (rawV2) {
+                    const parsedV2 = JSON.parse(rawV2);
+                    const min = Array.isArray(parsedV2.finalMin) ? parsedV2.finalMin : null;
+                    const max = Array.isArray(parsedV2.finalMax) ? parsedV2.finalMax : null;
+                    return {
+                        min,
+                        max,
+                        nonThumbMin: Array.isArray(parsedV2.nonThumbMin) ? parsedV2.nonThumbMin : null,
+                        nonThumbMax: Array.isArray(parsedV2.nonThumbMax) ? parsedV2.nonThumbMax : null,
+                        thumbMin: Array.isArray(parsedV2.thumbMin) ? parsedV2.thumbMin : null,
+                        thumbMax: Array.isArray(parsedV2.thumbMax) ? parsedV2.thumbMax : null,
+                        capturedAt: parsedV2.capturedAt || null,
+                        version: 2
+                    };
+                }
+
+                const raw = localStorage.getItem(CALIBRATION_STORAGE_KEY);
+                if (!raw) {
+                    return {
+                        min: null,
+                        max: null,
+                        nonThumbMin: null,
+                        nonThumbMax: null,
+                        thumbMin: null,
+                        thumbMax: null,
+                        capturedAt: null,
+                        version: 1
+                    };
+                }
+                const parsed = JSON.parse(raw);
+                return {
+                    min: Array.isArray(parsed.min) ? parsed.min : null,
+                    max: Array.isArray(parsed.max) ? parsed.max : null,
+                    nonThumbMin: null,
+                    nonThumbMax: null,
+                    thumbMin: null,
+                    thumbMax: null,
+                    capturedAt: parsed.capturedAt || null,
+                    version: 1
+                };
+            } catch (error) {
+                console.warn('Calibration load failed:', error);
+                return {
+                    min: null,
+                    max: null,
+                    nonThumbMin: null,
+                    nonThumbMax: null,
+                    thumbMin: null,
+                    thumbMax: null,
+                    capturedAt: null,
+                    version: 1
+                };
+            }
+        }
+
+        function loadExercises() {
+            try {
+                const raw = localStorage.getItem(EXERCISE_STORAGE_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch (error) {
+                console.warn('Exercise load failed:', error);
+                return [];
+            }
+        }
+
+        function saveExercises() {
+            localStorage.setItem(EXERCISE_STORAGE_KEY, JSON.stringify(exercises));
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function rawToAngle(rawValue, minValue, maxValue) {
+            if (minValue === null || maxValue === null || minValue === maxValue) {
+                return null;
+            }
+            const t = (rawValue - minValue) / (maxValue - minValue);
+            return clamp(t * 90, 0, 90);
+        }
+
+        function updateLiveCards() {
+            const ids = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+
+            for (let i = 0; i < ids.length; i++) {
+                const rawId = `val${ids[i]}`;
+                const angleId = `ang${ids[i]}`;
+                document.getElementById(rawId).textContent = String(latestPacket[i]);
+
+                const minValue = calibration.min ? calibration.min[i] : null;
+                const maxValue = calibration.max ? calibration.max[i] : null;
+                const angle = rawToAngle(latestPacket[i], minValue, maxValue);
+                document.getElementById(angleId).textContent = angle === null
+                    ? '-- deg'
+                    : `${angle.toFixed(1)} deg`;
+            }
+
+            publishDoctorSharedState();
+            broadcastDoctorState();
+        }
+
+        function updateCalibrationCards() {
+            for (let i = 0; i < FINGER_LABELS.length; i++) {
+                const id = `cal${FINGER_LABELS[i]}`;
+                const minV = calibration.min ? calibration.min[i] : '--';
+                const maxV = calibration.max ? calibration.max[i] : '--';
+                document.getElementById(id).textContent = `Min: ${minV} | Max: ${maxV}`;
+            }
+
+            updateExerciseCaptureUI();
+            publishDoctorSharedState();
+        }
+
+        function publishDoctorSharedState() {
+            const shared = window.doctorShared || {};
+            shared.latestPacket = [...latestPacket];
+            shared.angles = getCurrentAngles();
+            shared.calibrationReady = Boolean(calibration.min && calibration.max);
+            window.doctorShared = shared;
+        }
+
+        function isBleConnected() {
+            return Boolean(bleDevice && bleDevice.gatt && bleDevice.gatt.connected);
+        }
+
+        function getCurrentAngles() {
+            return FINGER_KEYS.map((_, index) => {
+                const minValue = calibration.min ? calibration.min[index] : null;
+                const maxValue = calibration.max ? calibration.max[index] : null;
+                const angle = rawToAngle(latestPacket[index], minValue, maxValue);
+                return angle === null ? null : Number(angle.toFixed(1));
+            });
+        }
+
+        function allExerciseAnglesCaptured() {
+            return FINGER_KEYS.every((finger) => exerciseDraft[finger] !== null);
+        }
+
+        function updateExerciseCaptureUI() {
+            const calibrationReady = Boolean(calibration.min && calibration.max);
+            const canCapture = calibrationReady && isAnyDataSourceConnected();
+
+            FINGER_KEYS.forEach((finger) => {
+                const value = exerciseDraft[finger];
+                exerciseValueEls[finger].textContent = value === null ? '-- deg' : `${value.toFixed(1)} deg`;
+            });
+
+            captureAllExerciseBtn.disabled = !canCapture;
+            saveExerciseBtn.disabled = !calibrationReady || !allExerciseAnglesCaptured();
+        }
+
+        function renderExerciseList() {
+            exerciseListEl.innerHTML = '';
+
+            if (!exercises.length) {
+                const li = document.createElement('li');
+                li.textContent = 'No exercises saved yet.';
+                exerciseListEl.appendChild(li);
+                return;
+            }
+
+            exercises.forEach((exercise) => {
+                const li = document.createElement('li');
+                li.textContent = `${exercise.name} | Thumb:${exercise.maxAngles.thumb} Index:${exercise.maxAngles.index} Middle:${exercise.maxAngles.middle} Ring:${exercise.maxAngles.ring} Pinky:${exercise.maxAngles.pinky} | ${exercise.createdAt}`;
+                exerciseListEl.appendChild(li);
+            });
+        }
+
+        function setConnectedState(isConnected) {
+            updateExerciseCaptureUI();
+
+            const localConnected = isBleConnected();
+
+            if (localConnected) {
+                connectBtn.textContent = 'Connected (This Page)';
+                connectBtn.classList.add('success');
+                connectBtn.disabled = true;
+            } else if (remoteCalibrationConnected) {
+                connectBtn.textContent = 'Using Calibration Connection';
+                connectBtn.classList.add('success');
+                connectBtn.disabled = true;
+            } else {
+                connectBtn.disabled = false;
+                connectBtn.classList.remove('success');
+                connectBtn.textContent = 'Reconnect to Glove';
+            }
+        }
+
+        async function connectGlove() {
+            if (remoteCalibrationConnected && !isBleConnected()) {
+                setStatus('Already receiving live glove data from calibration page. You can continue without reconnecting.');
+                setConnectedState(true);
+                return;
+            }
+
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Connecting...';
+            setStatus('Requesting BLE device...');
+
+            try {
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'ESP32' }, { services: [BLE_SERVICE_UUID] }],
+                    optionalServices: [BLE_SERVICE_UUID]
+                });
+
+                bleDevice.addEventListener('gattserverdisconnected', () => {
+                    setStatus('Disconnected');
+                    setConnectedState(false);
+                    broadcastDoctorState();
+                });
+
+                const server = await bleDevice.gatt.connect();
+                const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+                bleCharacteristic = await service.getCharacteristic(BLE_CHARACTERISTIC_UUID);
+
+                await bleCharacteristic.startNotifications();
+                bleCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
+                    const value = event.target.value;
+                    if (!value || value.byteLength < 5) {
+                        return;
+                    }
+
+                    latestPacket = [
+                        value.getUint8(0),
+                        value.getUint8(1),
+                        value.getUint8(2),
+                        value.getUint8(3),
+                        value.getUint8(4)
+                    ];
+
+                    updateLiveCards();
+                });
+
+                setConnectedState(true);
+                setStatus('Connected. Live view active. Use calibration page if calibration values need updates.');
+            } catch (error) {
+                console.error('BLE connection failed:', error);
+                setStatus(`BLE connection failed: ${error.name || 'Error'} - ${error.message || 'Unknown error'}`);
+                connectBtn.textContent = 'Connect to Glove';
+                connectBtn.disabled = false;
+                connectBtn.classList.remove('success');
+            }
+        }
+
+        function captureAllExerciseAngles() {
+            if (!isAnyDataSourceConnected()) {
+                alert('Connect the glove first (either in doctor page or calibration page).');
+                return;
+            }
+
+            if (!calibration.min || !calibration.max) {
+                alert('Complete calibration first in calibration page (two-pass non-thumb and thumb-only).');
+                return;
+            }
+
+            const angles = getCurrentAngles();
+            const hasInvalid = angles.some((angle) => angle === null);
+            if (hasInvalid) {
+                alert('Current angles are not available. Check calibration values.');
+                return;
+            }
+
+            FINGER_KEYS.forEach((finger, index) => {
+                exerciseDraft[finger] = angles[index];
+            });
+
+            updateExerciseCaptureUI();
+            setStatus('All 5 exercise max angles captured in one shot from current pose.');
+        }
+
+        function resetExerciseCapture() {
+            exerciseDraft = {
+                thumb: null,
+                index: null,
+                middle: null,
+                ring: null,
+                pinky: null
+            };
+            updateExerciseCaptureUI();
+            setStatus('Captured exercise max angles cleared.');
+        }
+
+        function saveExercise() {
+            const name = document.getElementById('exerciseName').value.trim();
+            if (!name) {
+                alert('Please enter an exercise name.');
+                return;
+            }
+
+            if (!allExerciseAnglesCaptured()) {
+                alert('Capture max angles from live movement for all fingers before saving.');
+                return;
+            }
+
+            const record = {
+                id: `ex_${Date.now()}`,
+                name,
+                maxAngles: { ...exerciseDraft },
+                createdAt: new Date().toLocaleString()
+            };
+
+            exercises.push(record);
+            saveExercises();
+            renderExerciseList();
+            setStatus(`Exercise "${name}" saved locally.`);
+
+            document.getElementById('exerciseName').value = '';
+            resetExerciseCapture();
+        }
+
+        function exportExercises() {
+            const json = JSON.stringify(exercises, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'doctor-exercises.json';
+            a.click();
+
+            URL.revokeObjectURL(url);
+        }
+
+        connectBtn.addEventListener('click', connectGlove);
+        openCalibrationBtn.addEventListener('click', () => {
+            window.open('./calibration.html', '_blank', 'noopener');
+        });
+        captureAllExerciseBtn.addEventListener('click', captureAllExerciseAngles);
+        resetExerciseCaptureBtn.addEventListener('click', resetExerciseCapture);
+        saveExerciseBtn.addEventListener('click', saveExercise);
+        exportExerciseBtn.addEventListener('click', exportExercises);
+
+        updateCalibrationCards();
+        updateLiveCards();
+        updateExerciseCaptureUI();
+        renderExerciseList();
+        publishDoctorSharedState();
+        broadcastDoctorState();
+    </script>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+      }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from "three";
+        import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+        import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+        import { HandRigController } from "./js/handRigController.js";
+        import { FINGER_MAPPING_TABLE, mapPacketToFingerPose } from "./js/mappingTable.js";
+
+        const MODEL_URL = "./models/hand.glb";
+        const INVERT_CALIBRATED_ANGLE_FOR_MODEL = true;
+        const container = document.getElementById("doctorRendererContainer");
+        const modelStatusEl = document.getElementById("modelStatus");
+
+        if (container) {
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color("#e8edf3");
+
+            const width = Math.max(container.clientWidth, 320);
+            const height = Math.max(container.clientHeight, 240);
+
+            const camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 100);
+            camera.position.set(0.2, 0.2, 0.8);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.target.set(0, 0.1, 0);
+
+            scene.add(new THREE.AmbientLight("#ffffff", 0.9));
+            const keyLight = new THREE.DirectionalLight("#ffffff", 1.2);
+            keyLight.position.set(1, 1, 1);
+            scene.add(keyLight);
+
+            const floor = new THREE.Mesh(
+                new THREE.CircleGeometry(2, 64),
+                new THREE.MeshStandardMaterial({ color: "#d2dae6", roughness: 0.9, metalness: 0.0 })
+            );
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -0.2;
+            scene.add(floor);
+
+            function frameObject(object3D) {
+                const box = new THREE.Box3().setFromObject(object3D);
+                if (box.isEmpty()) {
+                    return;
+                }
+
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                const maxSize = Math.max(size.x, size.y, size.z);
+                const fitHeightDistance = maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+                const fitWidthDistance = fitHeightDistance / camera.aspect;
+                const distance = 1.3 * Math.max(fitHeightDistance, fitWidthDistance);
+
+                controls.target.copy(center);
+                camera.position.set(center.x + distance * 0.7, center.y + distance * 0.35, center.z + distance);
+                camera.near = Math.max(0.01, distance / 100);
+                camera.far = distance * 100;
+                camera.updateProjectionMatrix();
+                controls.update();
+            }
+
+            let handController = null;
+            const loader = new GLTFLoader();
+            loader.load(
+                MODEL_URL,
+                (gltf) => {
+                    const handRoot = gltf.scene;
+                    scene.add(handRoot);
+                    frameObject(handRoot);
+                    handController = new HandRigController(handRoot, FINGER_MAPPING_TABLE);
+                    if (modelStatusEl) {
+                        modelStatusEl.textContent = "Model loaded. Live glove movement will animate this preview.";
+                    }
+                },
+                undefined,
+                (error) => {
+                    console.error(error);
+                    if (modelStatusEl) {
+                        const detail = error?.message || error?.toString?.() || "Unknown GLTF load error";
+                        const absoluteModelPath = new URL(MODEL_URL, window.location.href).href;
+                        modelStatusEl.textContent = `Failed to load model: ${detail}. URL: ${absoluteModelPath}`;
+                    }
+                }
+            );
+
+            function renderLoop() {
+                requestAnimationFrame(renderLoop);
+
+                if (handController) {
+                    const shared = window.doctorShared || {};
+                    const packet = Array.isArray(shared.latestPacket) ? shared.latestPacket : [...DEFAULT_RELAXED_PACKET];
+
+                    let pose;
+                    if (shared.calibrationReady && Array.isArray(shared.angles)) {
+                        pose = FINGER_MAPPING_TABLE.map((row, index) => {
+                            const rawCalibratedAngle = Number.isFinite(shared.angles[index]) ? shared.angles[index] : 0;
+                            const baseAngle = INVERT_CALIBRATED_ANGLE_FOR_MODEL
+                                ? Math.max(0, Math.min(90, 90 - rawCalibratedAngle))
+                                : rawCalibratedAngle;
+                            const spreadSign = row.spreadInvert ? -1 : 1;
+                            return {
+                                fingerName: row.fingerName,
+                                rawValue: packet[index] ?? 0,
+                                baseAngle,
+                                midAngle: baseAngle * row.midRatio,
+                                tipAngle: baseAngle * row.tipRatio,
+                                spreadAngle: row.isThumb ? row.spreadAmount * spreadSign : 0
+                            };
+                        });
+                    } else {
+                        pose = mapPacketToFingerPose(packet, FINGER_MAPPING_TABLE);
+                    }
+
+                    handController.applyFingerPose(pose);
+                }
+
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+            renderLoop();
+
+            window.addEventListener("resize", () => {
+                const nextWidth = Math.max(container.clientWidth, 320);
+                const nextHeight = Math.max(container.clientHeight, 240);
+                camera.aspect = nextWidth / nextHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(nextWidth, nextHeight);
+            });
+        }
     </script>
 </body>
 </html>

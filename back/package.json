@@ -1,9 +1,15 @@
 {
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongodb": "3.7",
-    "mongoose": "^9.5.0"
+    "mongoose": "^9.5.0",
+    "pg": "^8.16.3"
   }
 }

@@ -1,0 +1,5 @@
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+◇ injected env (10) from ..\env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+✅ Connected to MongoDB Atlas!
+✅ Connected to PostgreSQL (Supabase)!
+🚀 Server running on http://localhost:3000

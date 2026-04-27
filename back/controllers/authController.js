@@ -1,7 +1,21 @@
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const { getPool } = require('../config/supabaseDb');
 
 const pool = getPool();
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+const ensureJwtConfigured = (res) => {
+    if (!JWT_SECRET) {
+        res.status(500).json({ message: 'JWT is not configured on the server.' });
+        return false;
+    }
+    return true;
+};
+
+const signAuthToken = (payload) =>
+    jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
 const isDoctorVerified = (verificationValue) =>
     (verificationValue || '').trim().toLowerCase() === 'yes';
@@ -242,6 +256,10 @@ const patientSignup = async (req, res) => {
 
 const doctorLogin = async (req, res) => {
     try {
+        if (!ensureJwtConfigured(res)) {
+            return;
+        }
+
         const { email, password } = req.body;
         const normalizedEmail = (email || '').trim().toLowerCase();
 
@@ -274,8 +292,15 @@ const doctorLogin = async (req, res) => {
             return res.status(403).json({ message: getDoctorVerificationMessage(doctor.verification) });
         }
 
+        const token = signAuthToken({
+            sub: doctor.doctor_id,
+            role: 'doctor',
+            email: doctor.email
+        });
+
         return res.status(200).json({
             message: 'Doctor login successful.',
+            token,
             doctor: {
                 doctor_id: doctor.doctor_id,
                 name: doctor.name,
@@ -292,6 +317,10 @@ const doctorLogin = async (req, res) => {
 
 const adminLogin = async (req, res) => {
     try {
+        if (!ensureJwtConfigured(res)) {
+            return;
+        }
+
         const { email, password } = req.body;
         const normalizedEmail = (email || '').trim().toLowerCase();
 
@@ -320,8 +349,15 @@ const adminLogin = async (req, res) => {
             return res.status(401).json({ message: 'Invalid email or password.' });
         }
 
+        const token = signAuthToken({
+            sub: admin.admin_id,
+            role: 'admin',
+            email: admin.email
+        });
+
         return res.status(200).json({
             message: 'Admin login successful.',
+            token,
             admin: {
                 admin_id: admin.admin_id,
                 name: admin.name,
@@ -338,10 +374,11 @@ const getPendingDoctorRequests = async (req, res) => {
     try {
         const pendingRequests = await pool.query(
             `
-            SELECT doctor_id, name, email, hospital_id, "Verification" AS verification
-            FROM public.doctors
-            WHERE LOWER(COALESCE("Verification", 'pending')) = 'pending'
-            ORDER BY doctor_id DESC
+            SELECT d.doctor_id, d.name, d.email, d.hospital_id, h.name AS hospital_name, d."Verification" AS verification
+            FROM public.doctors d
+            LEFT JOIN public.hospitals h ON h.hospital_id = d.hospital_id
+            WHERE LOWER(COALESCE(d."Verification", 'pending')) = 'pending'
+            ORDER BY d.doctor_id DESC
             `
         );
 
@@ -351,6 +388,27 @@ const getPendingDoctorRequests = async (req, res) => {
     } catch (error) {
         console.error('GET_PENDING_DOCTOR_REQUESTS_ERROR:', error);
         return res.status(500).json({ message: 'Failed to load pending doctor requests.' });
+    }
+};
+
+const getApprovedDoctors = async (req, res) => {
+    try {
+        const approvedDoctors = await pool.query(
+            `
+            SELECT d.doctor_id, d.name, d.email, d.hospital_id, h.name AS hospital_name, d."Verification" AS verification
+            FROM public.doctors d
+            LEFT JOIN public.hospitals h ON h.hospital_id = d.hospital_id
+            WHERE LOWER(COALESCE(d."Verification", 'pending')) = 'yes'
+            ORDER BY d.doctor_id DESC
+            `
+        );
+
+        return res.status(200).json({
+            doctors: approvedDoctors.rows
+        });
+    } catch (error) {
+        console.error('GET_APPROVED_DOCTORS_ERROR:', error);
+        return res.status(500).json({ message: 'Failed to load approved doctors.' });
     }
 };
 
@@ -405,6 +463,10 @@ const updateDoctorVerificationStatus = async (req, res) => {
 
 const patientLogin = async (req, res) => {
     try {
+        if (!ensureJwtConfigured(res)) {
+            return;
+        }
+
         const { email, password } = req.body;
         const normalizedEmail = (email || '').trim().toLowerCase();
 
@@ -433,8 +495,15 @@ const patientLogin = async (req, res) => {
             return res.status(401).json({ message: 'Invalid email or password.' });
         }
 
+        const token = signAuthToken({
+            sub: patient.patient_id,
+            role: 'patient',
+            email: patient.email
+        });
+
         return res.status(200).json({
             message: 'Patient login successful.',
+            token,
             patient: {
                 patient_id: patient.patient_id,
                 name: patient.name,
@@ -451,6 +520,10 @@ const patientLogin = async (req, res) => {
 
 const login = async (req, res) => {
     try {
+        if (!ensureJwtConfigured(res)) {
+            return;
+        }
+
         const { email, password, role } = req.body;
         const normalizedEmail = (email || '').trim().toLowerCase();
         const normalizedRole = (role || '').trim().toLowerCase();
@@ -485,9 +558,16 @@ const login = async (req, res) => {
                 return res.status(401).json({ message: 'Invalid email or password.' });
             }
 
+            const token = signAuthToken({
+                sub: admin.admin_id,
+                role: 'admin',
+                email: admin.email
+            });
+
             return res.status(200).json({
                 message: 'Admin login successful.',
                 role: 'admin',
+                token,
                 profile: {
                     admin_id: admin.admin_id,
                     name: admin.name,
@@ -522,9 +602,16 @@ const login = async (req, res) => {
                 return res.status(403).json({ message: getDoctorVerificationMessage(doctor.verification) });
             }
 
+            const token = signAuthToken({
+                sub: doctor.doctor_id,
+                role: 'doctor',
+                email: doctor.email
+            });
+
             return res.status(200).json({
                 message: 'Doctor login successful.',
                 role: 'doctor',
+                token,
                 profile: {
                     doctor_id: doctor.doctor_id,
                     name: doctor.name,
@@ -557,9 +644,16 @@ const login = async (req, res) => {
                 return res.status(401).json({ message: 'Invalid email or password.' });
             }
 
+            const token = signAuthToken({
+                sub: patient.patient_id,
+                role: 'patient',
+                email: patient.email
+            });
+
             return res.status(200).json({
                 message: 'Patient login successful.',
                 role: 'patient',
+                token,
                 profile: {
                     patient_id: patient.patient_id,
                     name: patient.name,
@@ -588,9 +682,16 @@ const login = async (req, res) => {
                 return res.status(401).json({ message: 'Invalid email or password.' });
             }
 
+            const token = signAuthToken({
+                sub: admin.admin_id,
+                role: 'admin',
+                email: admin.email
+            });
+
             return res.status(200).json({
                 message: 'Admin login successful.',
                 role: 'admin',
+                token,
                 profile: {
                     admin_id: admin.admin_id,
                     name: admin.name,
@@ -621,9 +722,16 @@ const login = async (req, res) => {
                 return res.status(403).json({ message: getDoctorVerificationMessage(doctor.verification) });
             }
 
+            const token = signAuthToken({
+                sub: doctor.doctor_id,
+                role: 'doctor',
+                email: doctor.email
+            });
+
             return res.status(200).json({
                 message: 'Doctor login successful.',
                 role: 'doctor',
+                token,
                 profile: {
                     doctor_id: doctor.doctor_id,
                     name: doctor.name,
@@ -655,9 +763,16 @@ const login = async (req, res) => {
             return res.status(401).json({ message: 'Invalid email or password.' });
         }
 
+        const token = signAuthToken({
+            sub: patient.patient_id,
+            role: 'patient',
+            email: patient.email
+        });
+
         return res.status(200).json({
             message: 'Patient login successful.',
             role: 'patient',
+            token,
             profile: {
                 patient_id: patient.patient_id,
                 name: patient.name,
@@ -678,6 +793,7 @@ module.exports = {
     adminSignup,
     adminLogin,
     getPendingDoctorRequests,
+    getApprovedDoctors,
     updateDoctorVerificationStatus,
     doctorSignup,
     patientSignup,

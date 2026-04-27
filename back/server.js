@@ -15,6 +15,9 @@ const doctorCalRoutes = require('./routes/doctorCalRoutes');
 const patientCalRoutes = require('./routes/patientCalRoutes');
 const forceRoutes = require('./routes/forceRoutes');
 const authRoutes = require('./routes/authRoutes');
+const therapyRoutes = require('./routes/therapyRoutes');
+const exerciseRoutes = require('./routes/exerciseRoutes');
+const therapySessionRoutes = require('./routes/therapySessionRoutes');
 
 const app = express();
 app.use(cors());
@@ -50,6 +53,9 @@ app.use('/api/doctor-cal', doctorCalRoutes);
 app.use('/api/patient-cal', patientCalRoutes);
 app.use('/api/forces', forceRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/therapy-plans', therapyRoutes);
+app.use('/api/exercises', exerciseRoutes);
+app.use('/api/therapy-sessions', therapySessionRoutes);
 
 // Start Server
 const PORT = process.env.PORT || 3000;

@@ -376,6 +376,17 @@
       });
     }
 
+    function broadcastCalibrationDataUpdated() {
+      if (!crossPageChannel) {
+        return;
+      }
+
+      crossPageChannel.postMessage({
+        type: 'calibration-data-updated',
+        timestamp: Date.now()
+      });
+    }
+
     function emptyArray() {
       return [null, null, null, null, null];
     }
@@ -444,12 +455,15 @@
         max: calibration.finalMax,
         capturedAt: nowIso
       }));
+
+      broadcastCalibrationDataUpdated();
     }
 
     function clearCalibration() {
       calibration = withDefaults({});
       localStorage.removeItem(CALIBRATION_STORAGE_KEY_V2);
       localStorage.removeItem(CALIBRATION_STORAGE_KEY_V1);
+      broadcastCalibrationDataUpdated();
       renderAll();
       setStatus('Calibration cleared. Capture both passes again.');
     }
@@ -492,12 +506,12 @@
       if (previewMode === 'thumb-min' || previewMode === 'thumb-max') {
         angles[0] = previewMode === 'thumb-min' ? 0 : 90;
         NON_THUMB_INDEXES.forEach((index) => {
-          angles[index] = 0;
+          angles[index] = 90;
         });
       }
 
       if (previewMode === 'non-thumb-min' || previewMode === 'non-thumb-max') {
-        angles[THUMB_INDEX] = 0;
+        angles[THUMB_INDEX] = 90;
         const targetAngle = previewMode === 'non-thumb-min' ? 0 : 90;
         NON_THUMB_INDEXES.forEach((index) => {
           angles[index] = targetAngle;
@@ -527,10 +541,10 @@
 
     function updatePreviewStatusText() {
       const labelByMode = {
-        'thumb-min': 'Thumb Min Pose (thumb relaxed, other fingers neutral)',
-        'thumb-max': 'Thumb Max Pose (thumb fully bent, other fingers neutral)',
-        'non-thumb-min': 'Non-Thumb Min Pose (Index/Middle/Ring/Pinky relaxed, thumb neutral)',
-        'non-thumb-max': 'Non-Thumb Max Pose (Index/Middle/Ring/Pinky fully bent, thumb neutral)'
+        'thumb-min': 'Thumb Min Pose (thumb relaxed, all other fingers fully flexed)',
+        'thumb-max': 'Thumb Max Pose (all fingers fully flexed)',
+        'non-thumb-min': 'Non-Thumb Min Pose (Index/Middle/Ring/Pinky relaxed, thumb fully flexed)',
+        'non-thumb-max': 'Non-Thumb Max Pose (all fingers fully flexed)'
       };
       if (!previewMode) {
         setModelStatusMessage('Model loaded. No preview selected: full-flex reference pose is shown.');

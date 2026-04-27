@@ -5,62 +5,949 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Patient Exercise</title>
   <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      font-family: "Segoe UI", Tahoma, sans-serif;
-      background: radial-gradient(circle at top left, #eef7ff 0%, #f8fbfd 62%);
-      color: #23344d;
+    :root {
+      --bg: #edf1f7;
+      --card: #ffffff;
+      --ink: #1f2a38;
+      --muted: #627188;
+      --line: #dbe2ed;
+      --brand: #007bff;
+      --ok: #28a745;
+      --secondary: #6c7a90;
     }
 
-    .card {
-      width: min(760px, 92vw);
-      background: #ffffff;
-      border: 1px solid #d8e3f2;
-      border-radius: 14px;
-      padding: 20px;
-      box-shadow: 0 12px 30px rgba(25, 45, 79, 0.1);
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      margin: 0;
+      background: radial-gradient(circle at top left, #f8fbff, var(--bg));
+      color: var(--ink);
+    }
+
+    .page {
+      max-width: 1220px;
+      margin: 24px auto;
+      padding: 0 16px 24px;
     }
 
     h1 {
-      margin: 0 0 10px;
-      font-size: 24px;
+      margin: 0 0 12px;
+      font-size: 28px;
     }
 
-    p {
+    .status {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--brand);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 460px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .right-column {
+      position: sticky;
+      top: 16px;
+    }
+
+    .section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 24px rgba(16, 32, 60, 0.07);
+    }
+
+    .section h3 {
       margin: 0 0 10px;
-      color: #4a607f;
-      line-height: 1.5;
+      font-size: 18px;
     }
 
     .actions {
-      margin-top: 14px;
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    button,
+    input,
+    select {
+      border-radius: 8px;
+      font-size: 14px;
     }
 
     button {
       border: none;
-      border-radius: 10px;
       padding: 10px 14px;
-      font-size: 14px;
       cursor: pointer;
+      background: var(--brand);
       color: #fff;
-      background: #2266d8;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: var(--secondary);
+    }
+
+    button.success {
+      background: var(--ok);
+    }
+
+    input,
+    select {
+      border: 1px solid var(--line);
+      padding: 8px 9px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .note {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background: #f7fafe;
+      color: #3d4f67;
+      font-weight: 700;
+    }
+
+    td input {
+      width: 86px;
+      text-align: center;
+      padding: 6px;
+    }
+
+    .pill {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid;
+      color: #166f3f;
+      background: #e8f7ef;
+      border-color: #b7e3c9;
+    }
+
+    .computed-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: #fafcff;
+      font-size: 13px;
+      color: #394d6b;
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .match-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .match-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: #fafcff;
+      font-size: 12px;
+      color: #394d6b;
+    }
+
+    .match-card strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 10px;
+      background: #e6ecf7;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 6px 0;
+      border: 1px solid #d7e0f0;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #d94e4e;
+      transition: width 0.2s linear, background-color 0.2s linear;
+    }
+
+    .match-hero {
+      border: 2px solid #c5d9fb;
+      background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
+    }
+
+    #rendererContainer {
+      height: 560px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #dfe7f5;
+      overflow: hidden;
+    }
+
+    #modelStatus {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .right-column {
+        position: static;
+      }
+
+      #rendererContainer {
+        height: 360px;
+      }
     }
   </style>
 </head>
 <body>
-  <section class="card">
-    <h1>Patient Exercise</h1>
-    <p>This page is reserved for the dedicated patient exercise workflow.</p>
-    <p>Requested feature noted: exercise should run in a separate page from patient dashboard.</p>
-    <div class="actions">
-      <button type="button" onclick="window.location.href='./glove_test.html'">Back to Patient Dashboard</button>
+  <div class="page">
+    <h1>Patient Exercise Console</h1>
+    <div id="status" class="status">Set doctor data manually (temporary DB simulation), then start loop.</div>
+
+    <div class="layout">
+      <div class="left-column">
+        <section class="section">
+          <h3>Navigation and Data Source</h3>
+          <div class="actions">
+            <button id="backBtn" class="secondary" type="button">Back to Patient Page</button>
+            <button id="connectGloveBtn" type="button">Connect Patient Glove</button>
+            <button id="loadDoctorBtn" type="button">Load Doctor Data (Local)</button>
+            <button id="loadPatientCalibBtn" type="button">Load Patient Calibration</button>
+            <button id="saveManualBtn" class="success" type="button">Save Manual Values</button>
+          </div>
+          <p id="gloveStatus" class="note">Patient glove status: Not connected.</p>
+          <p id="patientCalibStatus" class="note">Patient calibration status: Not loaded.</p>
+          <p class="note">For now, this simulates DB fetch with editable manual values. Later, replace this with real API/database calls.</p>
+        </section>
+
+        <section class="section match-hero">
+          <h3>Patient Movement Match (Main)</h3>
+          <span id="overallMatchBadge" class="pill">Overall Match: --</span>
+          <div id="matchGrid" class="match-grid"></div>
+          <p class="note">Bars compare patient glove movement against doctor loop target in real time. Green means correct movement.</p>
+        </section>
+
+        <section class="section">
+          <h3>Doctor Values (Manual for Now)</h3>
+          <div class="actions">
+            <label for="levelSelect">Doctor Level</label>
+            <select id="levelSelect">
+              <option value="1">Level 1</option>
+              <option value="2">Level 2</option>
+              <option value="3">Level 3</option>
+              <option value="4">Level 4</option>
+              <option value="5">Level 5</option>
+              <option value="6">Level 6</option>
+            </select>
+
+            <label for="cycleMsInput">Loop Cycle (ms)</label>
+            <input id="cycleMsInput" type="number" min="1000" max="10000" step="100" value="3200" />
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Finger</th>
+                <th>Doctor Calib Min</th>
+                <th>Doctor Calib Max</th>
+                <th>Exercise Max Angle</th>
+              </tr>
+            </thead>
+            <tbody id="doctorDataBody"></tbody>
+          </table>
+          <p id="levelInfo" class="note">Selected doctor level target angle: 0deg.</p>
+        </section>
+
+        <section class="section">
+          <h3>Loop Control</h3>
+          <div class="actions">
+            <button id="startLoopBtn" type="button">Start Loop</button>
+            <button id="stopLoopBtn" class="secondary" type="button">Stop Loop</button>
+            <button id="resetPoseBtn" class="secondary" type="button">Reset Pose</button>
+          </div>
+          <span id="loopBadge" class="pill">Loop Running</span>
+          <p class="note">Loop movement: min -> doctor targets -> min continuously, based on doctor level and exercise max values.</p>
+        </section>
+
+        <section class="section">
+          <h3>Computed Targets</h3>
+          <div id="targetGrid" class="computed-grid"></div>
+          <p class="note">Target per finger = min(exercise max angle, level angle).</p>
+        </section>
+
+      </div>
+
+      <aside class="right-column">
+        <section class="section">
+          <h3>Live Exercise Loop Preview</h3>
+          <p id="modelStatus">Model loading...</p>
+          <div id="rendererContainer"></div>
+          <p class="note">This preview loops the same movement pattern according to configured doctor values.</p>
+        </section>
+      </aside>
     </div>
-  </section>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+    import { BleGloveClient } from "./js/bleGloveClient.js";
+    import { HandRigController } from "./js/handRigController.js";
+    import { FINGER_MAPPING_TABLE } from "./js/mappingTable.js";
+
+    const FINGER_KEYS = ["thumb", "index", "middle", "ring", "pinky"];
+    const FINGER_LABELS = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
+
+    const MANUAL_STORAGE_KEY = "patientExerciseManualDbV1";
+    const PATIENT_CALIB_KEY = "patientCalibrationV1";
+    const DOCTOR_CALIB_V2_KEY = "doctorCalibrationV2";
+    const DOCTOR_CALIB_V1_KEY = "doctorCalibrationV1";
+    const DOCTOR_EXERCISE_KEY = "doctorExercisesV1";
+
+    const statusEl = document.getElementById("status");
+    const modelStatusEl = document.getElementById("modelStatus");
+    const levelInfoEl = document.getElementById("levelInfo");
+    const loopBadgeEl = document.getElementById("loopBadge");
+    const doctorDataBody = document.getElementById("doctorDataBody");
+    const targetGridEl = document.getElementById("targetGrid");
+    const matchGridEl = document.getElementById("matchGrid");
+    const overallMatchBadgeEl = document.getElementById("overallMatchBadge");
+    const gloveStatusEl = document.getElementById("gloveStatus");
+    const patientCalibStatusEl = document.getElementById("patientCalibStatus");
+
+    const backBtn = document.getElementById("backBtn");
+    const connectGloveBtn = document.getElementById("connectGloveBtn");
+    const loadDoctorBtn = document.getElementById("loadDoctorBtn");
+    const loadPatientCalibBtn = document.getElementById("loadPatientCalibBtn");
+    const saveManualBtn = document.getElementById("saveManualBtn");
+    const startLoopBtn = document.getElementById("startLoopBtn");
+    const stopLoopBtn = document.getElementById("stopLoopBtn");
+    const resetPoseBtn = document.getElementById("resetPoseBtn");
+    const levelSelect = document.getElementById("levelSelect");
+    const cycleMsInput = document.getElementById("cycleMsInput");
+
+    let doctorData = loadManualData();
+    let isLoopRunning = true;
+    let loopStartMs = performance.now();
+    let animatedAngles = [0, 0, 0, 0, 0];
+    let latestLoopAngles = [0, 0, 0, 0, 0];
+    let patientPacket = [0, 0, 0, 0, 0];
+    let patientCalibration = {
+      min: [null, null, null, null, null],
+      max: [null, null, null, null, null],
+      capturedAt: null,
+      ready: false
+    };
+
+    const gloveClient = new BleGloveClient();
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setModelStatus(text) {
+      modelStatusEl.textContent = text;
+    }
+
+    function emptyArray(value = 0) {
+      return [value, value, value, value, value];
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function levelToAngle(level) {
+      const normalized = clamp(Number(level) || 1, 1, 6) - 1;
+      return Math.round((normalized * 90) / 5);
+    }
+
+    function defaultManualData() {
+      return {
+        level: 4,
+        cycleMs: 3200,
+        calibMin: [20, 18, 16, 15, 14],
+        calibMax: [210, 220, 222, 226, 230],
+        exerciseMax: [65, 70, 68, 66, 62]
+      };
+    }
+
+    function loadManualData() {
+      try {
+        const raw = localStorage.getItem(MANUAL_STORAGE_KEY);
+        if (!raw) {
+          return defaultManualData();
+        }
+        const parsed = JSON.parse(raw);
+        return {
+          level: Number.isFinite(parsed.level) ? parsed.level : 4,
+          cycleMs: Number.isFinite(parsed.cycleMs) ? parsed.cycleMs : 3200,
+          calibMin: Array.isArray(parsed.calibMin) ? parsed.calibMin.map((v) => Number(v) || 0) : emptyArray(0),
+          calibMax: Array.isArray(parsed.calibMax) ? parsed.calibMax.map((v) => Number(v) || 255) : emptyArray(255),
+          exerciseMax: Array.isArray(parsed.exerciseMax) ? parsed.exerciseMax.map((v) => Number(v) || 0) : emptyArray(0)
+        };
+      } catch (error) {
+        console.warn("Failed to load manual doctor data:", error);
+        return defaultManualData();
+      }
+    }
+
+    function saveManualData() {
+      localStorage.setItem(MANUAL_STORAGE_KEY, JSON.stringify(doctorData));
+    }
+
+    function getCurrentLevelAngle() {
+      return levelToAngle(doctorData.level);
+    }
+
+    function getTargetAngles() {
+      const levelAngle = getCurrentLevelAngle();
+      return doctorData.exerciseMax.map((value) => clamp(Math.min(value, levelAngle), 0, 90));
+    }
+
+    function loadPatientCalibration() {
+      try {
+        const raw = localStorage.getItem(PATIENT_CALIB_KEY);
+        if (!raw) {
+          patientCalibration = {
+            min: [null, null, null, null, null],
+            max: [null, null, null, null, null],
+            capturedAt: null,
+            ready: false
+          };
+          return;
+        }
+
+        const parsed = JSON.parse(raw);
+        const min = Array.isArray(parsed.finalMin) ? parsed.finalMin : [null, null, null, null, null];
+        const max = Array.isArray(parsed.finalMax) ? parsed.finalMax : [null, null, null, null, null];
+        const ready = min.every(Number.isFinite) && max.every(Number.isFinite);
+
+        patientCalibration = {
+          min,
+          max,
+          capturedAt: parsed.capturedAt || null,
+          ready
+        };
+      } catch (error) {
+        console.warn("Failed to load patient calibration:", error);
+        patientCalibration = {
+          min: [null, null, null, null, null],
+          max: [null, null, null, null, null],
+          capturedAt: null,
+          ready: false
+        };
+      }
+    }
+
+    function renderPatientCalibrationStatus() {
+      if (!patientCalibration.ready) {
+        patientCalibStatusEl.textContent = "Patient calibration status: Missing. Open patient calibration page and capture min/max first.";
+        return;
+      }
+
+      patientCalibStatusEl.textContent = `Patient calibration status: Ready (captured: ${patientCalibration.capturedAt || "unknown"}).`;
+    }
+
+    function packetToPatientAngles(packet) {
+      const targets = getTargetAngles();
+      return packet.map((raw, index) => {
+        const min = Number(patientCalibration.min[index]);
+        const max = Number(patientCalibration.max[index]);
+        const target = Number(targets[index]);
+
+        if (!Number.isFinite(raw) || !Number.isFinite(min) || !Number.isFinite(max) || min === max || !Number.isFinite(target)) {
+          return null;
+        }
+
+        const t = clamp((raw - min) / (max - min), 0, 1);
+        return t * target;
+      });
+    }
+
+    function renderTargetGrid() {
+      const levelAngle = getCurrentLevelAngle();
+      const targets = getTargetAngles();
+
+      levelInfoEl.textContent = `Selected doctor level target angle: ${levelAngle}deg.`;
+      targetGridEl.innerHTML = "";
+      for (let i = 0; i < FINGER_LABELS.length; i += 1) {
+        const card = document.createElement("div");
+        card.className = "mini-card";
+        card.innerHTML = `<strong>${FINGER_LABELS[i]}</strong><div>Exercise Max: ${doctorData.exerciseMax[i].toFixed(1)}deg</div><div>Loop Target: ${targets[i].toFixed(1)}deg</div>`;
+        targetGridEl.appendChild(card);
+      }
+
+      renderMatchGrid();
+    }
+
+    function getBarColor(score) {
+      if (score >= 0.75) {
+        return "#28a745";
+      }
+      if (score >= 0.45) {
+        return "#d18a00";
+      }
+      return "#d94e4e";
+    }
+
+    function renderMatchGrid() {
+      if (!patientCalibration.ready) {
+        matchGridEl.innerHTML = "";
+        overallMatchBadgeEl.textContent = "Overall Match: Need Patient Calibration";
+        overallMatchBadgeEl.style.color = "#9a6700";
+        overallMatchBadgeEl.style.background = "#fff7e0";
+        overallMatchBadgeEl.style.borderColor = "#f0d491";
+        return;
+      }
+
+      const patientAngles = packetToPatientAngles(patientPacket);
+      const expectedAngles = isLoopRunning ? latestLoopAngles : animatedAngles;
+      matchGridEl.innerHTML = "";
+
+      let sumScore = 0;
+      let validCount = 0;
+
+      for (let i = 0; i < FINGER_LABELS.length; i += 1) {
+        const expected = Number(expectedAngles[i]) || 0;
+        const actual = patientAngles[i];
+
+        let score = 0;
+        let diffText = "--";
+
+        if (Number.isFinite(actual)) {
+          const tolerance = Math.max(6, expected * 0.2);
+          const diff = Math.abs(actual - expected);
+          score = clamp(1 - diff / (tolerance * 2), 0, 1);
+          diffText = `${diff.toFixed(1)}deg`;
+          sumScore += score;
+          validCount += 1;
+        }
+
+        const card = document.createElement("div");
+        card.className = "match-card";
+
+        const fill = document.createElement("div");
+        fill.className = "bar-fill";
+        fill.style.width = `${(score * 100).toFixed(0)}%`;
+        fill.style.backgroundColor = getBarColor(score);
+
+        const track = document.createElement("div");
+        track.className = "bar-track";
+        track.appendChild(fill);
+
+        card.innerHTML = `<strong>${FINGER_LABELS[i]}</strong><div>Expected: ${expected.toFixed(1)}deg</div><div>Patient: ${Number.isFinite(actual) ? actual.toFixed(1) : "--"}deg</div><div>Error: ${diffText}</div>`;
+        card.appendChild(track);
+        matchGridEl.appendChild(card);
+      }
+
+      if (validCount === 0) {
+        overallMatchBadgeEl.textContent = "Overall Match: --";
+        overallMatchBadgeEl.style.color = "#9a6700";
+        overallMatchBadgeEl.style.background = "#fff7e0";
+        overallMatchBadgeEl.style.borderColor = "#f0d491";
+        return;
+      }
+
+      const overall = sumScore / validCount;
+      overallMatchBadgeEl.textContent = `Overall Match: ${(overall * 100).toFixed(0)}%`;
+      overallMatchBadgeEl.style.color = overall >= 0.75 ? "#166f3f" : (overall >= 0.45 ? "#9a6700" : "#8a1f1f");
+      overallMatchBadgeEl.style.background = overall >= 0.75 ? "#e8f7ef" : (overall >= 0.45 ? "#fff7e0" : "#fdecec");
+      overallMatchBadgeEl.style.borderColor = overall >= 0.75 ? "#b7e3c9" : (overall >= 0.45 ? "#f0d491" : "#f2b7b7");
+    }
+
+    function buildDoctorTable() {
+      doctorDataBody.innerHTML = "";
+      for (let i = 0; i < FINGER_LABELS.length; i += 1) {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${FINGER_LABELS[i]}</td>
+          <td><input type="number" data-kind="min" data-index="${i}" min="0" max="255" step="1" value="${doctorData.calibMin[i]}" /></td>
+          <td><input type="number" data-kind="max" data-index="${i}" min="0" max="255" step="1" value="${doctorData.calibMax[i]}" /></td>
+          <td><input type="number" data-kind="exercise" data-index="${i}" min="0" max="90" step="0.1" value="${doctorData.exerciseMax[i]}" /></td>
+        `;
+        doctorDataBody.appendChild(row);
+      }
+    }
+
+    function pullInputsIntoState() {
+      const inputs = doctorDataBody.querySelectorAll("input[data-kind]");
+      inputs.forEach((input) => {
+        const kind = input.dataset.kind;
+        const index = Number(input.dataset.index);
+        const value = Number(input.value);
+
+        if (kind === "min") {
+          doctorData.calibMin[index] = clamp(value, 0, 255);
+        }
+
+        if (kind === "max") {
+          doctorData.calibMax[index] = clamp(value, 0, 255);
+        }
+
+        if (kind === "exercise") {
+          doctorData.exerciseMax[index] = clamp(value, 0, 90);
+        }
+      });
+
+      doctorData.level = clamp(Number(levelSelect.value), 1, 6);
+      doctorData.cycleMs = clamp(Number(cycleMsInput.value), 1000, 10000);
+    }
+
+    function applyStateToInputs() {
+      levelSelect.value = String(doctorData.level);
+      cycleMsInput.value = String(doctorData.cycleMs);
+      buildDoctorTable();
+      renderTargetGrid();
+    }
+
+    function setLoopBadge() {
+      loopBadgeEl.textContent = isLoopRunning ? "Loop Running" : "Loop Stopped";
+      loopBadgeEl.style.color = isLoopRunning ? "#166f3f" : "#9a6700";
+      loopBadgeEl.style.background = isLoopRunning ? "#e8f7ef" : "#fff7e0";
+      loopBadgeEl.style.borderColor = isLoopRunning ? "#b7e3c9" : "#f0d491";
+    }
+
+    function loadDoctorFromLocalStorage() {
+      try {
+        const rawCalibV2 = localStorage.getItem(DOCTOR_CALIB_V2_KEY);
+        if (rawCalibV2) {
+          const parsed = JSON.parse(rawCalibV2);
+          if (Array.isArray(parsed.finalMin)) {
+            doctorData.calibMin = parsed.finalMin.map((v) => Number(v) || 0);
+          }
+          if (Array.isArray(parsed.finalMax)) {
+            doctorData.calibMax = parsed.finalMax.map((v) => Number(v) || 255);
+          }
+        } else {
+          const rawCalibV1 = localStorage.getItem(DOCTOR_CALIB_V1_KEY);
+          if (rawCalibV1) {
+            const parsed = JSON.parse(rawCalibV1);
+            if (Array.isArray(parsed.min)) {
+              doctorData.calibMin = parsed.min.map((v) => Number(v) || 0);
+            }
+            if (Array.isArray(parsed.max)) {
+              doctorData.calibMax = parsed.max.map((v) => Number(v) || 255);
+            }
+          }
+        }
+
+        const rawExercises = localStorage.getItem(DOCTOR_EXERCISE_KEY);
+        if (rawExercises) {
+          const parsed = JSON.parse(rawExercises);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const latest = parsed[parsed.length - 1];
+            const maxAngles = latest?.maxAngles || {};
+            doctorData.exerciseMax = [
+              Number(maxAngles.thumb) || doctorData.exerciseMax[0],
+              Number(maxAngles.index) || doctorData.exerciseMax[1],
+              Number(maxAngles.middle) || doctorData.exerciseMax[2],
+              Number(maxAngles.ring) || doctorData.exerciseMax[3],
+              Number(maxAngles.pinky) || doctorData.exerciseMax[4]
+            ];
+          }
+        }
+
+        applyStateToInputs();
+        saveManualData();
+        setStatus("Doctor data loaded from local storage. You can adjust values manually.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Failed to load doctor data from local storage. Keeping current manual values.");
+      }
+    }
+
+    backBtn.addEventListener("click", () => {
+      window.location.href = "./glove_test.html";
+    });
+
+    loadDoctorBtn.addEventListener("click", () => {
+      loadDoctorFromLocalStorage();
+      renderMatchGrid();
+    });
+
+    loadPatientCalibBtn.addEventListener("click", () => {
+      loadPatientCalibration();
+      renderPatientCalibrationStatus();
+      renderMatchGrid();
+      setStatus(patientCalibration.ready
+        ? "Patient calibration loaded. Match bars now use patient calibration values."
+        : "Patient calibration not found. Please calibrate patient hand first.");
+    });
+
+    saveManualBtn.addEventListener("click", () => {
+      pullInputsIntoState();
+      renderTargetGrid();
+      saveManualData();
+      setStatus("Manual values saved. Loop now uses the updated doctor values.");
+      renderMatchGrid();
+    });
+
+    levelSelect.addEventListener("change", () => {
+      pullInputsIntoState();
+      renderTargetGrid();
+      renderMatchGrid();
+    });
+
+    cycleMsInput.addEventListener("change", () => {
+      pullInputsIntoState();
+      setStatus("Loop cycle updated.");
+      renderMatchGrid();
+    });
+
+    doctorDataBody.addEventListener("input", () => {
+      pullInputsIntoState();
+      renderTargetGrid();
+      renderMatchGrid();
+    });
+
+    startLoopBtn.addEventListener("click", () => {
+      isLoopRunning = true;
+      loopStartMs = performance.now();
+      setLoopBadge();
+      setStatus("Exercise loop started.");
+      renderMatchGrid();
+    });
+
+    stopLoopBtn.addEventListener("click", () => {
+      isLoopRunning = false;
+      setLoopBadge();
+      setStatus("Exercise loop stopped.");
+      renderMatchGrid();
+    });
+
+    resetPoseBtn.addEventListener("click", () => {
+      animatedAngles = [0, 0, 0, 0, 0];
+      setStatus("Pose reset to minimum angles.");
+      renderMatchGrid();
+    });
+
+    gloveClient.onStatus = (msg) => {
+      gloveStatusEl.textContent = `Patient glove status: ${msg}`;
+      if (msg === "Disconnected") {
+        connectGloveBtn.disabled = false;
+        connectGloveBtn.textContent = "Reconnect Patient Glove";
+      }
+    };
+
+    gloveClient.onPacket = (packet) => {
+      patientPacket = packet;
+      renderMatchGrid();
+    };
+
+    connectGloveBtn.addEventListener("click", async () => {
+      connectGloveBtn.disabled = true;
+      connectGloveBtn.textContent = "Connecting...";
+
+      try {
+        await gloveClient.connect();
+        connectGloveBtn.textContent = "Glove Connected";
+        connectGloveBtn.disabled = true;
+        setStatus("Patient glove connected. Follow the movement and watch match bars.");
+      } catch (error) {
+        console.error(error);
+        connectGloveBtn.textContent = "Connect Patient Glove";
+        connectGloveBtn.disabled = false;
+        setStatus(`Patient glove connection failed: ${error?.name || "Error"} - ${error?.message || "Unknown"}`);
+      }
+    });
+
+    const container = document.getElementById("rendererContainer");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#e8edf3");
+
+    const width = Math.max(container.clientWidth, 320);
+    const height = Math.max(container.clientHeight, 240);
+
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 100);
+    camera.position.set(0.2, 0.2, 0.8);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 0.1, 0);
+
+    scene.add(new THREE.AmbientLight("#ffffff", 0.9));
+    const keyLight = new THREE.DirectionalLight("#ffffff", 1.2);
+    keyLight.position.set(1, 1, 1);
+    scene.add(keyLight);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(2, 64),
+      new THREE.MeshStandardMaterial({ color: "#d2dae6", roughness: 0.9, metalness: 0.0 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.2;
+    scene.add(floor);
+
+    function frameObject(object3D) {
+      const box = new THREE.Box3().setFromObject(object3D);
+      if (box.isEmpty()) {
+        return;
+      }
+
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxSize = Math.max(size.x, size.y, size.z);
+      const fitHeightDistance = maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+      const fitWidthDistance = fitHeightDistance / camera.aspect;
+      const distance = 1.3 * Math.max(fitHeightDistance, fitWidthDistance);
+
+      controls.target.copy(center);
+      camera.position.set(center.x + distance * 0.7, center.y + distance * 0.35, center.z + distance);
+      camera.near = Math.max(0.01, distance / 100);
+      camera.far = distance * 100;
+      camera.updateProjectionMatrix();
+      controls.update();
+    }
+
+    let handController = null;
+    const loader = new GLTFLoader();
+    loader.load(
+      "./hand.glb",
+      (gltf) => {
+        const handRoot = gltf.scene;
+        scene.add(handRoot);
+        frameObject(handRoot);
+        handController = new HandRigController(handRoot, FINGER_MAPPING_TABLE);
+        setModelStatus("Model loaded. Loop follows doctor values and level settings.");
+      },
+      undefined,
+      (error) => {
+        console.error(error);
+        const detail = error?.message || error?.toString?.() || "Unknown GLTF load error";
+        setModelStatus(`Failed to load model: ${detail}`);
+      }
+    );
+
+    function computeLoopAngles(nowMs) {
+      const targets = getTargetAngles();
+
+      if (!isLoopRunning) {
+        return [...animatedAngles];
+      }
+
+      const cycleMs = clamp(doctorData.cycleMs, 1000, 10000);
+      const phase = ((nowMs - loopStartMs) % cycleMs) / cycleMs;
+      const wave = 0.5 - 0.5 * Math.cos(phase * 2 * Math.PI);
+
+      return targets.map((target) => target * wave);
+    }
+
+    function renderLoop(nowMs) {
+      requestAnimationFrame(renderLoop);
+
+      if (handController) {
+        const computedAngles = computeLoopAngles(nowMs);
+        latestLoopAngles = [...computedAngles];
+        animatedAngles = animatedAngles.map((angle, index) => THREE.MathUtils.lerp(angle, computedAngles[index], 0.2));
+
+        const pose = FINGER_MAPPING_TABLE.map((row, index) => {
+          const sourceAngle = Number.isFinite(animatedAngles[index]) ? animatedAngles[index] : 0;
+          const baseAngle = Math.max(0, Math.min(90, 90 - sourceAngle));
+          const spreadSign = row.spreadInvert ? -1 : 1;
+          return {
+            fingerName: row.fingerName,
+            rawValue: 0,
+            baseAngle,
+            midAngle: baseAngle * row.midRatio,
+            tipAngle: baseAngle * row.tipRatio,
+            spreadAngle: row.isThumb ? row.spreadAmount * spreadSign : 0
+          };
+        });
+
+        handController.applyFingerPose(pose);
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener("resize", () => {
+      const nextWidth = Math.max(container.clientWidth, 320);
+      const nextHeight = Math.max(container.clientHeight, 240);
+      camera.aspect = nextWidth / nextHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nextWidth, nextHeight);
+    });
+
+    if (window.location.protocol === "file:") {
+      setModelStatus("Model may not load on file:// origin. Open this page through a local server.");
+    }
+
+    applyStateToInputs();
+    loadPatientCalibration();
+    renderPatientCalibrationStatus();
+    setLoopBadge();
+    renderMatchGrid();
+    renderLoop(performance.now());
+  </script>
 </body>
 </html>

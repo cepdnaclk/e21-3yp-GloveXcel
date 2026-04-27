@@ -306,6 +306,9 @@
     const CALIBRATION_STORAGE_KEY_V1 = 'doctorCalibrationV1';
     const CALIBRATION_STORAGE_KEY_V2 = 'doctorCalibrationV2';
     const CROSS_PAGE_CHANNEL_KEY = 'gloveCrossPageV1';
+    const DOCTOR_ID_STORAGE_KEY = 'doctorId';
+    const API_BASE_STORAGE_KEY = 'apiBaseUrl';
+    const DEFAULT_DOCTOR_ID = 'D001';
 
     const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
     const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
@@ -329,6 +332,20 @@
     const previewNonThumbMinBtn = document.getElementById('previewNonThumbMinBtn');
     const previewNonThumbMaxBtn = document.getElementById('previewNonThumbMaxBtn');
     const previewResetBtn = document.getElementById('previewResetBtn');
+
+    const queryParams = new URLSearchParams(window.location.search);
+    const queryDoctorId = queryParams.get('doctor_id');
+    const queryApiBase = queryParams.get('api_base');
+
+    const DOCTOR_ID = (queryDoctorId || localStorage.getItem(DOCTOR_ID_STORAGE_KEY) || DEFAULT_DOCTOR_ID).trim();
+    const API_BASE_URL = (queryApiBase || localStorage.getItem(API_BASE_STORAGE_KEY) || (
+      window.location.protocol === 'file:'
+        ? 'http://localhost:3000'
+        : `${window.location.protocol}//${window.location.hostname}:3000`
+    )).replace(/\/$/, '');
+
+    localStorage.setItem(DOCTOR_ID_STORAGE_KEY, DOCTOR_ID);
+    localStorage.setItem(API_BASE_STORAGE_KEY, API_BASE_URL);
 
     let bleDevice = null;
     let bleCharacteristic = null;
@@ -372,6 +389,17 @@
         connected: isBleConnected(),
         latestPacket: [...latestPacket],
         calibrationReady: calibrationReady(),
+        timestamp: Date.now()
+      });
+    }
+
+    function broadcastCalibrationDataUpdated() {
+      if (!crossPageChannel) {
+        return;
+      }
+
+      crossPageChannel.postMessage({
+        type: 'calibration-data-updated',
         timestamp: Date.now()
       });
     }
@@ -438,18 +466,157 @@
       const nowIso = new Date().toISOString();
       calibration.capturedAt = nowIso;
 
+      return saveDoctorCalibrationToDatabase();
+    }
+
+    function persistCalibrationLocally(capturedAt) {
+      const capturedAtIso = capturedAt || calibration.capturedAt || new Date().toISOString();
+      calibration.capturedAt = capturedAtIso;
+
       localStorage.setItem(CALIBRATION_STORAGE_KEY_V2, JSON.stringify(calibration));
       localStorage.setItem(CALIBRATION_STORAGE_KEY_V1, JSON.stringify({
         min: calibration.finalMin,
         max: calibration.finalMax,
-        capturedAt: nowIso
+        capturedAt: capturedAtIso
       }));
+
+      broadcastCalibrationDataUpdated();
+    }
+
+    async function saveDoctorCalibrationToDatabase() {
+      try {
+        const minThumb = calibration.finalMin[THUMB_INDEX];
+        const maxThumb = calibration.finalMax[THUMB_INDEX];
+        const minFingers = {
+          index: calibration.finalMin[1],
+          middle: calibration.finalMin[2],
+          ring: calibration.finalMin[3],
+          pinky: calibration.finalMin[4]
+        };
+        const maxFingers = {
+          index: calibration.finalMax[1],
+          middle: calibration.finalMax[2],
+          ring: calibration.finalMax[3],
+          pinky: calibration.finalMax[4]
+        };
+
+        const requests = [];
+        if (Number.isFinite(minThumb)) {
+          requests.push(fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}/min/thumb`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thumb: minThumb })
+          }));
+        }
+
+        if (Object.values(minFingers).every((value) => Number.isFinite(value))) {
+          requests.push(fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}/min/fingers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(minFingers)
+          }));
+        }
+
+        if (Number.isFinite(maxThumb)) {
+          requests.push(fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}/max/thumb`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thumb: maxThumb })
+          }));
+        }
+
+        if (Object.values(maxFingers).every((value) => Number.isFinite(value))) {
+          requests.push(fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}/max/fingers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(maxFingers)
+          }));
+        }
+
+        if (!requests.length) {
+          return { remoteSaved: false, reason: 'incomplete-calibration' };
+        }
+
+        const responses = await Promise.all(requests);
+        const failed = responses.find((response) => !response.ok);
+        if (failed) {
+          throw new Error(`HTTP ${failed.status}`);
+        }
+
+        return { remoteSaved: true };
+      } catch (error) {
+        console.error('Failed to save calibration to database:', error);
+        return { remoteSaved: false, reason: error?.message || 'db-save-failed' };
+      }
+    }
+
+    function calibrationFromDoctorDoc(doc) {
+      const min = doc?.min || {};
+      const max = doc?.max || {};
+
+      const thumbMinValue = Number(min.thumb);
+      const thumbMaxValue = Number(max.thumb);
+      const indexMinValue = Number(min.index);
+      const middleMinValue = Number(min.middle);
+      const ringMinValue = Number(min.ring);
+      const pinkyMinValue = Number(min.pinky);
+      const indexMaxValue = Number(max.index);
+      const middleMaxValue = Number(max.middle);
+      const ringMaxValue = Number(max.ring);
+      const pinkyMaxValue = Number(max.pinky);
+
+      const finalMin = [thumbMinValue, indexMinValue, middleMinValue, ringMinValue, pinkyMinValue].map((value) => (
+        Number.isFinite(value) ? value : null
+      ));
+      const finalMax = [thumbMaxValue, indexMaxValue, middleMaxValue, ringMaxValue, pinkyMaxValue].map((value) => (
+        Number.isFinite(value) ? value : null
+      ));
+
+      return withDefaults({
+        nonThumbMin: [null, finalMin[1], finalMin[2], finalMin[3], finalMin[4]],
+        nonThumbMax: [null, finalMax[1], finalMax[2], finalMax[3], finalMax[4]],
+        thumbMin: [finalMin[0], null, null, null, null],
+        thumbMax: [finalMax[0], null, null, null, null],
+        finalMin,
+        finalMax,
+        capturedAt: doc?.updatedAt || null
+      });
+    }
+
+    async function fetchDoctorCalibrationFromDatabase() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}`);
+        if (response.status === 404) {
+          return null;
+        }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('Failed to fetch calibration from database:', error);
+        return null;
+      }
+    }
+
+    async function hydrateCalibrationFromDatabase() {
+      const doctorDoc = await fetchDoctorCalibrationFromDatabase();
+      if (!doctorDoc) {
+        setStatus(`No database calibration found for doctor ${DOCTOR_ID}. Using local values.`);
+        return;
+      }
+
+      calibration = calibrationFromDoctorDoc(doctorDoc);
+      persistCalibrationLocally(calibration.capturedAt || new Date().toISOString());
+      setStatus(`Loaded calibration for doctor ${DOCTOR_ID} from database.`);
     }
 
     function clearCalibration() {
       calibration = withDefaults({});
       localStorage.removeItem(CALIBRATION_STORAGE_KEY_V2);
       localStorage.removeItem(CALIBRATION_STORAGE_KEY_V1);
+      broadcastCalibrationDataUpdated();
       renderAll();
       setStatus('Calibration cleared. Capture both passes again.');
     }
@@ -492,12 +659,12 @@
       if (previewMode === 'thumb-min' || previewMode === 'thumb-max') {
         angles[0] = previewMode === 'thumb-min' ? 0 : 90;
         NON_THUMB_INDEXES.forEach((index) => {
-          angles[index] = 0;
+          angles[index] = 90;
         });
       }
 
       if (previewMode === 'non-thumb-min' || previewMode === 'non-thumb-max') {
-        angles[THUMB_INDEX] = 0;
+        angles[THUMB_INDEX] = 90;
         const targetAngle = previewMode === 'non-thumb-min' ? 0 : 90;
         NON_THUMB_INDEXES.forEach((index) => {
           angles[index] = targetAngle;
@@ -527,10 +694,10 @@
 
     function updatePreviewStatusText() {
       const labelByMode = {
-        'thumb-min': 'Thumb Min Pose (thumb relaxed, other fingers neutral)',
-        'thumb-max': 'Thumb Max Pose (thumb fully bent, other fingers neutral)',
-        'non-thumb-min': 'Non-Thumb Min Pose (Index/Middle/Ring/Pinky relaxed, thumb neutral)',
-        'non-thumb-max': 'Non-Thumb Max Pose (Index/Middle/Ring/Pinky fully bent, thumb neutral)'
+        'thumb-min': 'Thumb Min Pose (thumb relaxed, all other fingers fully flexed)',
+        'thumb-max': 'Thumb Max Pose (all fingers fully flexed)',
+        'non-thumb-min': 'Non-Thumb Min Pose (Index/Middle/Ring/Pinky relaxed, thumb fully flexed)',
+        'non-thumb-max': 'Non-Thumb Max Pose (all fingers fully flexed)'
       };
       if (!previewMode) {
         setModelStatusMessage('Model loaded. No preview selected: full-flex reference pose is shown.');
@@ -637,7 +804,7 @@
       broadcastCalibrationState();
     }
 
-    function capturePass(indexes, targetMin, targetMax, mode) {
+    async function capturePass(indexes, targetMin, targetMax, mode) {
       if (!isAnyDataSourceConnected()) {
         alert('Connect glove first (either in this page or doctor page).');
         return;
@@ -655,8 +822,27 @@
         setStatus('Max captured.');
       }
 
-      saveCalibration();
+      const saveResult = await saveCalibration();
+
+      if (saveResult.remoteSaved) {
+        const doctorDoc = await fetchDoctorCalibrationFromDatabase();
+        if (doctorDoc) {
+          calibration = calibrationFromDoctorDoc(doctorDoc);
+          persistCalibrationLocally(calibration.capturedAt || new Date().toISOString());
+        } else {
+          // If fetch-after-save fails, keep a local mirror to avoid losing the captured step.
+          persistCalibrationLocally(calibration.capturedAt || new Date().toISOString());
+        }
+
+        renderAll();
+        setStatus(`${mode === 'min' ? 'Min' : 'Max'} captured and synced to database for doctor ${DOCTOR_ID}.`);
+        return;
+      }
+
+      // Fallback path when API is unavailable.
+      persistCalibrationLocally(calibration.capturedAt || new Date().toISOString());
       renderAll();
+      setStatus(`${mode === 'min' ? 'Min' : 'Max'} captured. Database sync failed, stored locally only.`);
     }
 
     async function connectGlove() {
@@ -717,20 +903,20 @@
 
     connectBtn.addEventListener('click', connectGlove);
 
-    captureNonThumbMinBtn.addEventListener('click', () => {
-      capturePass(NON_THUMB_INDEXES, calibration.nonThumbMin, calibration.nonThumbMax, 'min');
+    captureNonThumbMinBtn.addEventListener('click', async () => {
+      await capturePass(NON_THUMB_INDEXES, calibration.nonThumbMin, calibration.nonThumbMax, 'min');
     });
 
-    captureNonThumbMaxBtn.addEventListener('click', () => {
-      capturePass(NON_THUMB_INDEXES, calibration.nonThumbMin, calibration.nonThumbMax, 'max');
+    captureNonThumbMaxBtn.addEventListener('click', async () => {
+      await capturePass(NON_THUMB_INDEXES, calibration.nonThumbMin, calibration.nonThumbMax, 'max');
     });
 
-    captureThumbMinBtn.addEventListener('click', () => {
-      capturePass([THUMB_INDEX], calibration.thumbMin, calibration.thumbMax, 'min');
+    captureThumbMinBtn.addEventListener('click', async () => {
+      await capturePass([THUMB_INDEX], calibration.thumbMin, calibration.thumbMax, 'min');
     });
 
-    captureThumbMaxBtn.addEventListener('click', () => {
-      capturePass([THUMB_INDEX], calibration.thumbMin, calibration.thumbMax, 'max');
+    captureThumbMaxBtn.addEventListener('click', async () => {
+      await capturePass([THUMB_INDEX], calibration.thumbMin, calibration.thumbMax, 'max');
     });
 
     clearCalibrationBtn.addEventListener('click', clearCalibration);
@@ -778,7 +964,9 @@
       crossPageChannel.postMessage({ type: 'request-doctor-state' });
     }
 
-    renderAll();
+    hydrateCalibrationFromDatabase().finally(() => {
+      renderAll();
+    });
   </script>
 
   <script type="importmap">

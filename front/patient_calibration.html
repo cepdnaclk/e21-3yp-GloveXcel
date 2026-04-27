@@ -5,62 +5,773 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Patient Calibration</title>
   <style>
+    :root {
+      --bg: #edf1f7;
+      --card: #ffffff;
+      --ink: #1f2a38;
+      --muted: #627188;
+      --line: #dbe2ed;
+      --brand: #007bff;
+      --ok: #28a745;
+      --secondary: #6c7a90;
+    }
+
+    * { box-sizing: border-box; }
+
     body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
       font-family: "Segoe UI", Tahoma, sans-serif;
-      background: radial-gradient(circle at top right, #eef4ff 0%, #f7f9fd 60%);
-      color: #23344d;
+      margin: 0;
+      background: radial-gradient(circle at top left, #f8fbff, var(--bg));
+      color: var(--ink);
     }
 
-    .card {
-      width: min(760px, 92vw);
-      background: #ffffff;
-      border: 1px solid #d8e3f2;
-      border-radius: 14px;
-      padding: 20px;
-      box-shadow: 0 12px 30px rgba(25, 45, 79, 0.1);
+    .page {
+      max-width: 1160px;
+      margin: 24px auto;
+      padding: 0 16px 24px;
     }
 
-    h1 {
+    .header {
+      margin: 0 0 12px;
+      font-size: 28px;
+    }
+
+    .status {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--brand);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 440px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .right-column {
+      position: sticky;
+      top: 16px;
+    }
+
+    .section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 24px rgba(16, 32, 60, 0.07);
+    }
+
+    .section h3 {
       margin: 0 0 10px;
-      font-size: 24px;
-    }
-
-    p {
-      margin: 0 0 10px;
-      color: #4a607f;
-      line-height: 1.5;
+      font-size: 18px;
     }
 
     .actions {
-      margin-top: 14px;
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    button,
+    select {
+      border-radius: 8px;
+      font-size: 14px;
     }
 
     button {
-      border: none;
-      border-radius: 10px;
       padding: 10px 14px;
-      font-size: 14px;
+      border: none;
       cursor: pointer;
+      background: var(--brand);
       color: #fff;
-      background: #2266d8;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: var(--secondary);
+    }
+
+    button.success {
+      background: var(--ok);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    select {
+      min-width: 130px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .note {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .pill {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid;
+    }
+
+    .pill.ok {
+      color: #166f3f;
+      background: #e8f7ef;
+      border-color: #b7e3c9;
+    }
+
+    .pill.warn {
+      color: #9a6700;
+      background: #fff7e0;
+      border-color: #f0d491;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+    }
+
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: #fafcff;
+      font-size: 13px;
+      color: #394d6b;
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    #rendererContainer {
+      height: 520px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #dfe7f5;
+      overflow: hidden;
+    }
+
+    #modelStatus {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 960px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .right-column {
+        position: static;
+      }
+
+      #rendererContainer {
+        height: 340px;
+      }
     }
   </style>
 </head>
 <body>
-  <section class="card">
-    <h1>Patient Calibration</h1>
-    <p>This page is reserved for the dedicated patient calibration workflow.</p>
-    <p>Requested feature noted: calibration should happen in a separate page from patient dashboard.</p>
-    <div class="actions">
-      <button type="button" onclick="window.location.href='./glove_test.html'">Back to Patient Dashboard</button>
+  <div class="page">
+    <h1 class="header">Patient Calibration</h1>
+    <div id="status" class="status">Connect glove, select level preview, then capture min/max (non-thumb and thumb).</div>
+
+    <div class="layout">
+      <div class="left-column">
+        <section class="section">
+          <h3>Connection and Navigation</h3>
+          <div class="actions">
+            <button id="connectBtn">Connect to Glove</button>
+            <button id="backBtn" class="secondary" type="button">Back to Patient Page</button>
+            <button id="clearBtn" class="secondary" type="button">Clear Calibration</button>
+          </div>
+          <p class="note">Patient calibration uses 6 levels and a two-pass min/max capture flow like doctor page.</p>
+        </section>
+
+        <section class="section">
+          <h3>Level Preview</h3>
+          <div class="actions">
+            <select id="levelSelect">
+              <option value="1">Level 1</option>
+              <option value="2">Level 2</option>
+              <option value="3">Level 3</option>
+              <option value="4">Level 4</option>
+              <option value="5">Level 5</option>
+              <option value="6">Level 6</option>
+            </select>
+            <button id="previewLevelBtn" type="button">Preview Selected Level</button>
+            <button id="previewResetBtn" class="secondary" type="button">Reset Preview</button>
+          </div>
+          <p id="levelInfo" class="note">Selected level target angle: 0deg (range 0 to 90).</p>
+        </section>
+
+        <section class="section">
+          <h3>Pass 1: Non-Thumb Calibration</h3>
+          <div class="actions">
+            <button id="captureNonThumbMinBtn" class="secondary" disabled>Capture Non-Thumb Min (0deg)</button>
+            <button id="captureNonThumbMaxBtn" class="secondary" disabled>Capture Non-Thumb Max (Level)</button>
+            <button id="previewNonThumbMinBtn" type="button">Preview Non-Thumb Min</button>
+            <button id="previewNonThumbMaxBtn" type="button">Preview Non-Thumb Max</button>
+          </div>
+          <p class="note">Capture min and max for index, middle, ring, and pinky. Thumb can remain steady.</p>
+        </section>
+
+        <section class="section">
+          <h3>Pass 2: Thumb Calibration</h3>
+          <div class="actions">
+            <button id="captureThumbMinBtn" class="secondary" disabled>Capture Thumb Min (0deg)</button>
+            <button id="captureThumbMaxBtn" class="secondary" disabled>Capture Thumb Max (Level)</button>
+            <button id="previewThumbMinBtn" type="button">Preview Thumb Min</button>
+            <button id="previewThumbMaxBtn" type="button">Preview Thumb Max</button>
+          </div>
+          <p class="note">Capture thumb min and max after non-thumb values are set.</p>
+        </section>
+
+        <section class="section">
+          <h3>Live Raw and Calibrated Angles</h3>
+          <div id="rawGrid" class="grid"></div>
+          <span id="readyBadge" class="pill warn">Calibration incomplete</span>
+        </section>
+
+        <section class="section">
+          <h3>Calibration Snapshot</h3>
+          <div id="snapshotGrid" class="grid"></div>
+          <p id="capturedAt" class="note">Captured at: --</p>
+        </section>
+      </div>
+
+      <aside class="right-column">
+        <section class="section">
+          <h3>Model Preview</h3>
+          <p id="modelStatus">Model loading...</p>
+          <div id="rendererContainer"></div>
+          <p class="note">Preview button drives level pose for all fingers within 0 to 90 range.</p>
+        </section>
+      </aside>
     </div>
-  </section>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+    import { HandRigController } from "./js/handRigController.js";
+    import { FINGER_MAPPING_TABLE } from "./js/mappingTable.js";
+
+    const BLE_SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
+    const BLE_CHARACTERISTIC_UUID = "87654321-4321-4321-4321-9876543210ab";
+    const STORAGE_KEY = "patientCalibrationV1";
+    const FINGER_LABELS = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
+    const NON_THUMB_INDEXES = [1, 2, 3, 4];
+
+    const connectBtn = document.getElementById("connectBtn");
+    const backBtn = document.getElementById("backBtn");
+    const levelSelect = document.getElementById("levelSelect");
+    const previewLevelBtn = document.getElementById("previewLevelBtn");
+    const previewResetBtn = document.getElementById("previewResetBtn");
+    const captureNonThumbMinBtn = document.getElementById("captureNonThumbMinBtn");
+    const captureNonThumbMaxBtn = document.getElementById("captureNonThumbMaxBtn");
+    const captureThumbMinBtn = document.getElementById("captureThumbMinBtn");
+    const captureThumbMaxBtn = document.getElementById("captureThumbMaxBtn");
+    const previewNonThumbMinBtn = document.getElementById("previewNonThumbMinBtn");
+    const previewNonThumbMaxBtn = document.getElementById("previewNonThumbMaxBtn");
+    const previewThumbMinBtn = document.getElementById("previewThumbMinBtn");
+    const previewThumbMaxBtn = document.getElementById("previewThumbMaxBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const statusEl = document.getElementById("status");
+    const levelInfoEl = document.getElementById("levelInfo");
+    const rawGridEl = document.getElementById("rawGrid");
+    const snapshotGridEl = document.getElementById("snapshotGrid");
+    const readyBadgeEl = document.getElementById("readyBadge");
+    const capturedAtEl = document.getElementById("capturedAt");
+    const modelStatusEl = document.getElementById("modelStatus");
+
+    let bleDevice = null;
+    let bleCharacteristic = null;
+    let latestPacket = [0, 0, 0, 0, 0];
+    let selectedLevel = 1;
+    let previewAngles = [90, 90, 90, 90, 90];
+    let targetAngles = [90, 90, 90, 90, 90];
+    let activePreviewMode = "none";
+
+    const calibration = loadCalibration();
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setModelStatus(text) {
+      modelStatusEl.textContent = text;
+    }
+
+    function emptyArray() {
+      return [null, null, null, null, null];
+    }
+
+    function loadCalibration() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return {
+            nonThumbMin: emptyArray(),
+            nonThumbMax: emptyArray(),
+            thumbMin: emptyArray(),
+            thumbMax: emptyArray(),
+            finalMin: emptyArray(),
+            finalMax: emptyArray(),
+            targetMaxAngle: 90,
+            capturedAt: null
+          };
+        }
+
+        const parsed = JSON.parse(raw);
+        return {
+          nonThumbMin: Array.isArray(parsed.nonThumbMin) ? parsed.nonThumbMin : emptyArray(),
+          nonThumbMax: Array.isArray(parsed.nonThumbMax) ? parsed.nonThumbMax : emptyArray(),
+          thumbMin: Array.isArray(parsed.thumbMin) ? parsed.thumbMin : emptyArray(),
+          thumbMax: Array.isArray(parsed.thumbMax) ? parsed.thumbMax : emptyArray(),
+          finalMin: Array.isArray(parsed.finalMin) ? parsed.finalMin : emptyArray(),
+          finalMax: Array.isArray(parsed.finalMax) ? parsed.finalMax : emptyArray(),
+          targetMaxAngle: Number.isFinite(parsed.targetMaxAngle) ? parsed.targetMaxAngle : 90,
+          capturedAt: parsed.capturedAt || null
+        };
+      } catch (error) {
+        console.warn("Failed to load patient calibration:", error);
+        return {
+          nonThumbMin: emptyArray(),
+          nonThumbMax: emptyArray(),
+          thumbMin: emptyArray(),
+          thumbMax: emptyArray(),
+          finalMin: emptyArray(),
+          finalMax: emptyArray(),
+          targetMaxAngle: 90,
+          capturedAt: null
+        };
+      }
+    }
+
+    function saveCalibration() {
+      calibration.finalMin = [
+        calibration.thumbMin[0],
+        calibration.nonThumbMin[1],
+        calibration.nonThumbMin[2],
+        calibration.nonThumbMin[3],
+        calibration.nonThumbMin[4]
+      ];
+
+      calibration.finalMax = [
+        calibration.thumbMax[0],
+        calibration.nonThumbMax[1],
+        calibration.nonThumbMax[2],
+        calibration.nonThumbMax[3],
+        calibration.nonThumbMax[4]
+      ];
+
+      calibration.targetMaxAngle = levelToAngle(selectedLevel);
+      calibration.capturedAt = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(calibration));
+    }
+
+    function clearCalibration() {
+      calibration.nonThumbMin = emptyArray();
+      calibration.nonThumbMax = emptyArray();
+      calibration.thumbMin = emptyArray();
+      calibration.thumbMax = emptyArray();
+      calibration.finalMin = emptyArray();
+      calibration.finalMax = emptyArray();
+      calibration.targetMaxAngle = 90;
+      calibration.capturedAt = null;
+      localStorage.removeItem(STORAGE_KEY);
+      renderAll();
+      setStatus("Patient calibration cleared.");
+    }
+
+    function isConnected() {
+      return Boolean(bleDevice && bleDevice.gatt && bleDevice.gatt.connected);
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function levelToAngle(level) {
+      const normalized = clamp(level, 1, 6) - 1;
+      return Math.round((normalized * 90) / 5);
+    }
+
+    function rawToAngle(rawValue, minValue, maxValue) {
+      if (!Number.isFinite(rawValue) || !Number.isFinite(minValue) || !Number.isFinite(maxValue) || minValue === maxValue) {
+        return null;
+      }
+
+      const t = (rawValue - minValue) / (maxValue - minValue);
+      const targetMax = Number.isFinite(calibration.targetMaxAngle) ? calibration.targetMaxAngle : 90;
+      return clamp(t * targetMax, 0, 90);
+    }
+
+    function setLevelInfoText() {
+      const angle = levelToAngle(selectedLevel);
+      levelInfoEl.textContent = `Selected level target angle: ${angle}deg (range 0 to 90).`;
+      captureNonThumbMaxBtn.textContent = `Capture Non-Thumb Max (${angle}deg)`;
+      captureThumbMaxBtn.textContent = `Capture Thumb Max (${angle}deg)`;
+    }
+
+    function setPreviewToLevel(level) {
+      const angle = levelToAngle(level);
+      activePreviewMode = "level";
+      targetAngles = [angle, angle, angle, angle, angle];
+      setModelStatus(`Model loaded. Previewing level ${level} (${angle}deg) with all fingers.`);
+    }
+
+    function previewCalibrationPose(mode) {
+      const levelAngle = levelToAngle(selectedLevel);
+      activePreviewMode = mode;
+
+      if (mode === "non-thumb-min") {
+        targetAngles = [levelAngle, 0, 0, 0, 0];
+        setModelStatus(`Previewing Non-Thumb Min: non-thumb at 0deg, thumb at level ${levelAngle}deg.`);
+        return;
+      }
+
+      if (mode === "non-thumb-max") {
+        targetAngles = [levelAngle, levelAngle, levelAngle, levelAngle, levelAngle];
+        setModelStatus(`Previewing Non-Thumb Max: non-thumb at level ${levelAngle}deg.`);
+        return;
+      }
+
+      if (mode === "thumb-min") {
+        targetAngles = [0, levelAngle, levelAngle, levelAngle, levelAngle];
+        setModelStatus(`Previewing Thumb Min: thumb at 0deg, others at level ${levelAngle}deg.`);
+        return;
+      }
+
+      if (mode === "thumb-max") {
+        targetAngles = [levelAngle, levelAngle, levelAngle, levelAngle, levelAngle];
+        setModelStatus(`Previewing Thumb Max: thumb at level ${levelAngle}deg with level posture context.`);
+      }
+    }
+
+    function resetPreview() {
+      activePreviewMode = "none";
+      targetAngles = [90, 90, 90, 90, 90];
+      setModelStatus("Model loaded. Preview reset to full-flex reference.");
+    }
+
+    function renderRawGrid() {
+      rawGridEl.innerHTML = "";
+
+      for (let i = 0; i < FINGER_LABELS.length; i += 1) {
+        const minV = calibration.finalMin[i];
+        const maxV = calibration.finalMax[i];
+        const angle = rawToAngle(latestPacket[i], minV, maxV);
+        const angleText = angle === null ? "--" : `${angle.toFixed(1)}deg`;
+
+        const card = document.createElement("div");
+        card.className = "mini-card";
+        card.innerHTML = `<strong>${FINGER_LABELS[i]}</strong><div>Raw: ${latestPacket[i]}</div><div>Angle: ${angleText}</div>`;
+        rawGridEl.appendChild(card);
+      }
+    }
+
+    function renderSnapshotGrid() {
+      snapshotGridEl.innerHTML = "";
+
+      for (let i = 0; i < FINGER_LABELS.length; i += 1) {
+        const minV = Number.isFinite(calibration.finalMin[i]) ? calibration.finalMin[i] : "--";
+        const maxV = Number.isFinite(calibration.finalMax[i]) ? calibration.finalMax[i] : "--";
+
+        const card = document.createElement("div");
+        card.className = "mini-card";
+        card.innerHTML = `<strong>${FINGER_LABELS[i]}</strong><div>Min: ${minV}</div><div>Max: ${maxV}</div>`;
+        snapshotGridEl.appendChild(card);
+      }
+
+      capturedAtEl.textContent = `Captured at: ${calibration.capturedAt || "--"}`;
+    }
+
+    function renderReadyBadge() {
+      const ready = calibration.finalMin.every(Number.isFinite) && calibration.finalMax.every(Number.isFinite);
+      readyBadgeEl.className = ready ? "pill ok" : "pill warn";
+      readyBadgeEl.textContent = ready ? "Calibration complete" : "Calibration incomplete";
+    }
+
+    function renderConnectionState() {
+      const connected = isConnected();
+      connectBtn.disabled = connected;
+      connectBtn.textContent = connected ? "Connected" : "Connect to Glove";
+
+      captureNonThumbMinBtn.disabled = !connected;
+      captureNonThumbMaxBtn.disabled = !connected;
+      captureThumbMinBtn.disabled = !connected;
+      captureThumbMaxBtn.disabled = !connected;
+    }
+
+    function renderAll() {
+      renderConnectionState();
+      setLevelInfoText();
+      renderRawGrid();
+      renderSnapshotGrid();
+      renderReadyBadge();
+    }
+
+    function capturePass(indexes, targetArray) {
+      if (!isConnected()) {
+        alert("Connect glove first.");
+        return;
+      }
+
+      indexes.forEach((idx) => {
+        targetArray[idx] = latestPacket[idx];
+      });
+
+      saveCalibration();
+      renderAll();
+    }
+
+    async function connectGlove() {
+      connectBtn.disabled = true;
+      connectBtn.textContent = "Connecting...";
+      setStatus("Requesting BLE device...");
+
+      try {
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: "ESP32" }, { services: [BLE_SERVICE_UUID] }],
+          optionalServices: [BLE_SERVICE_UUID]
+        });
+
+        bleDevice.addEventListener("gattserverdisconnected", () => {
+          setStatus("Disconnected");
+          renderConnectionState();
+        });
+
+        const server = await bleDevice.gatt.connect();
+        const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+        bleCharacteristic = await service.getCharacteristic(BLE_CHARACTERISTIC_UUID);
+
+        await bleCharacteristic.startNotifications();
+        bleCharacteristic.addEventListener("characteristicvaluechanged", (event) => {
+          const value = event.target.value;
+          if (!value || value.byteLength < 5) {
+            return;
+          }
+
+          latestPacket = [
+            value.getUint8(0),
+            value.getUint8(1),
+            value.getUint8(2),
+            value.getUint8(3),
+            value.getUint8(4)
+          ];
+
+          renderRawGrid();
+        });
+
+        setStatus("Connected. Preview level and capture min/max values.");
+      } catch (error) {
+        console.error("BLE connection failed:", error);
+        setStatus(`BLE connection failed: ${error.name || "Error"} - ${error.message || "Unknown error"}`);
+      }
+
+      renderConnectionState();
+    }
+
+    backBtn.addEventListener("click", () => {
+      window.location.href = "./glove_test.html";
+    });
+
+    connectBtn.addEventListener("click", connectGlove);
+
+    levelSelect.addEventListener("change", () => {
+      selectedLevel = Number(levelSelect.value);
+      setLevelInfoText();
+
+      if (activePreviewMode === "level") {
+        setPreviewToLevel(selectedLevel);
+      }
+
+      if (activePreviewMode === "non-thumb-min" || activePreviewMode === "non-thumb-max" || activePreviewMode === "thumb-min" || activePreviewMode === "thumb-max") {
+        previewCalibrationPose(activePreviewMode);
+      }
+    });
+
+    previewLevelBtn.addEventListener("click", () => {
+      setPreviewToLevel(selectedLevel);
+    });
+
+    previewResetBtn.addEventListener("click", resetPreview);
+    previewNonThumbMinBtn.addEventListener("click", () => previewCalibrationPose("non-thumb-min"));
+    previewNonThumbMaxBtn.addEventListener("click", () => previewCalibrationPose("non-thumb-max"));
+    previewThumbMinBtn.addEventListener("click", () => previewCalibrationPose("thumb-min"));
+    previewThumbMaxBtn.addEventListener("click", () => previewCalibrationPose("thumb-max"));
+
+    captureNonThumbMinBtn.addEventListener("click", () => {
+      capturePass(NON_THUMB_INDEXES, calibration.nonThumbMin);
+      setStatus("Captured non-thumb min values.");
+    });
+
+    captureNonThumbMaxBtn.addEventListener("click", () => {
+      capturePass(NON_THUMB_INDEXES, calibration.nonThumbMax);
+      setStatus("Captured non-thumb max values.");
+    });
+
+    captureThumbMinBtn.addEventListener("click", () => {
+      capturePass([0], calibration.thumbMin);
+      setStatus("Captured thumb min value.");
+    });
+
+    captureThumbMaxBtn.addEventListener("click", () => {
+      capturePass([0], calibration.thumbMax);
+      setStatus("Captured thumb max value.");
+    });
+
+    clearBtn.addEventListener("click", clearCalibration);
+
+    const container = document.getElementById("rendererContainer");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#e8edf3");
+
+    const width = Math.max(container.clientWidth, 320);
+    const height = Math.max(container.clientHeight, 240);
+
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 100);
+    camera.position.set(0.2, 0.2, 0.8);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 0.1, 0);
+
+    scene.add(new THREE.AmbientLight("#ffffff", 0.9));
+    const keyLight = new THREE.DirectionalLight("#ffffff", 1.2);
+    keyLight.position.set(1, 1, 1);
+    scene.add(keyLight);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(2, 64),
+      new THREE.MeshStandardMaterial({ color: "#d2dae6", roughness: 0.9, metalness: 0.0 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.2;
+    scene.add(floor);
+
+    function frameObject(object3D) {
+      const box = new THREE.Box3().setFromObject(object3D);
+      if (box.isEmpty()) {
+        return;
+      }
+
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxSize = Math.max(size.x, size.y, size.z);
+      const fitHeightDistance = maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+      const fitWidthDistance = fitHeightDistance / camera.aspect;
+      const distance = 1.3 * Math.max(fitHeightDistance, fitWidthDistance);
+
+      controls.target.copy(center);
+      camera.position.set(center.x + distance * 0.7, center.y + distance * 0.35, center.z + distance);
+      camera.near = Math.max(0.01, distance / 100);
+      camera.far = distance * 100;
+      camera.updateProjectionMatrix();
+      controls.update();
+    }
+
+    let handController = null;
+    const loader = new GLTFLoader();
+    loader.load(
+      "./hand.glb",
+      (gltf) => {
+        const handRoot = gltf.scene;
+        scene.add(handRoot);
+        frameObject(handRoot);
+        handController = new HandRigController(handRoot, FINGER_MAPPING_TABLE);
+        setModelStatus("Model loaded. Use level preview and capture controls.");
+      },
+      undefined,
+      (error) => {
+        console.error(error);
+        const detail = error?.message || error?.toString?.() || "Unknown GLTF load error";
+        setModelStatus(`Failed to load model: ${detail}`);
+      }
+    );
+
+    function renderLoop() {
+      requestAnimationFrame(renderLoop);
+
+      if (handController) {
+        previewAngles = previewAngles.map((angle, index) => THREE.MathUtils.lerp(angle, targetAngles[index], 0.14));
+
+        const pose = FINGER_MAPPING_TABLE.map((row, index) => {
+          const sourceAngle = Number.isFinite(previewAngles[index]) ? previewAngles[index] : 90;
+          const baseAngle = Math.max(0, Math.min(90, 90 - sourceAngle));
+          const spreadSign = row.spreadInvert ? -1 : 1;
+          return {
+            fingerName: row.fingerName,
+            rawValue: latestPacket[row.sensorIndex] ?? 0,
+            baseAngle,
+            midAngle: baseAngle * row.midRatio,
+            tipAngle: baseAngle * row.tipRatio,
+            spreadAngle: row.isThumb ? row.spreadAmount * spreadSign : 0
+          };
+        });
+
+        handController.applyFingerPose(pose);
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    renderLoop();
+
+    window.addEventListener("resize", () => {
+      const nextWidth = Math.max(container.clientWidth, 320);
+      const nextHeight = Math.max(container.clientHeight, 240);
+      camera.aspect = nextWidth / nextHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nextWidth, nextHeight);
+    });
+
+    if (window.location.protocol === "file:") {
+      setModelStatus("Model may not load on file:// origin. Open this page through a local server.");
+    }
+
+    renderAll();
+    resetPreview();
+  </script>
 </body>
 </html>

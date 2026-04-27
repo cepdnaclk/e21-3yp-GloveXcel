@@ -118,6 +118,76 @@
             list-style-position: inside;
         }
 
+        .empty-state {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #445a78;
+            background: #f8fbff;
+            border: 1px solid #d9e6f7;
+            border-radius: 8px;
+            padding: 8px;
+            display: none;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 9px 10px;
+            font-size: 14px;
+            border: 1px solid #d9e6f7;
+            border-radius: 8px;
+            background: #f8fbff;
+            color: #324966;
+        }
+
+        .loaded-card {
+            margin-top: 12px;
+            background: #f8fbff;
+            border: 1px solid #d9e6f7;
+            border-radius: 10px;
+            padding: 10px;
+            display: none;
+        }
+
+        .loaded-meta {
+            font-size: 13px;
+            color: #445a78;
+            margin-bottom: 6px;
+        }
+
+        .loaded-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .loaded-item {
+            background: #eef5ff;
+            border: 1px solid #d6e5fb;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 13px;
+            color: #324966;
+        }
+
+        .force-action-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .force-value-box {
+            min-width: 180px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #d6e5fb;
+            background: #eef5ff;
+            font-size: 13px;
+            color: #324966;
+        }
+
         .calibration-state {
             margin-top: 8px;
             font-size: 13px;
@@ -185,9 +255,31 @@
                 </div>
 
                 <div class="section-title">Available Exercises</div>
-                <ol id="exerciseList" class="exercise-list">
-                    <li>No exercises available yet.</li>
-                </ol>
+                <div id="exerciseEmptyState" class="empty-state">No exercises available yet.</div>
+                <select id="exerciseSelect" class="form-control" disabled>
+                    <option value="">-- Connect glove first --</option>
+                </select>
+
+                <div class="actions" style="margin-top: 10px;">
+                    <button id="loadSavedBtn" class="secondary" type="button" disabled>Load Saved Data</button>
+                    <button id="configBtn" class="secondary" type="button" disabled>Configuration</button>
+                </div>
+
+                <div id="loadedCard" class="loaded-card">
+                    <div class="loaded-meta">Loaded session: <span id="loadedTimestamp">-</span></div>
+                    <div class="loaded-meta">Exercise ID: <span id="loadedExerciseId">-</span></div>
+                    <div class="loaded-grid">
+                        <div class="loaded-item">Thumb: <strong id="loadedThumb">-</strong></div>
+                        <div class="loaded-item">Index: <strong id="loadedIndex">-</strong></div>
+                        <div class="loaded-item">Middle: <strong id="loadedMiddle">-</strong></div>
+                        <div class="loaded-item">Ring: <strong id="loadedRing">-</strong></div>
+                        <div class="loaded-item">Pinky: <strong id="loadedPinky">-</strong></div>
+                    </div>
+                    <div class="force-action-row">
+                        <div class="force-value-box">Fetched Force: <strong id="loadedForceLevel">-</strong></div>
+                        <button id="applyForceBtn" class="secondary" type="button" disabled>Apply Force</button>
+                    </div>
+                </div>
 
                 <div class="section-title">Hand Calibration</div>
                 <div id="calibrationState" class="calibration-state">Calibration status: Not loaded</div>

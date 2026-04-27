@@ -1,0 +1,14 @@
+MONGO_URI="mongodb://e21410_db_user:FkXlylvutv9tWvoz@ac-edc9ok7-shard-00-00.fhpacdq.mongodb.net:27017,ac-edc9ok7-shard-00-01.fhpacdq.mongodb.net:27017,ac-edc9ok7-shard-00-02.fhpacdq.mongodb.net:27017/?replicaSet=atlas-117qp6-shard-0&ssl=true&authSource=admin"
+PORT=3000
+
+# Database mode: mongo, postgres, or both
+DB_CLIENT=both
+
+# Supabase / PostgreSQL settings (used when DB_CLIENT=postgres)
+POSTGRES_HOST="db.jzhurwcvogfcgfqmcyth.supabase.co"
+POSTGRES_USER="postgres"
+POSTGRES_PASSWORD="AnjanaSupabase412"
+POSTGRES_DATABASE="postgres"
+POSTGRES_PORT=5432
+POSTGRES_SSL=true
+POSTGRES_SSL_REJECT_UNAUTHORIZED=false

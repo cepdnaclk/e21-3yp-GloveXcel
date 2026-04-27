@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Doctor Page</title>
     <style>
+
+
         :root {
             --bg: #edf1f7;
             --card: #ffffff;
@@ -160,7 +162,8 @@
         }
 
         input[type="text"],
-        input[type="number"] {
+        input[type="number"],
+        select {
             width: 100%;
             padding: 8px;
             border: 1px solid var(--line);
@@ -240,6 +243,34 @@
             </section>
 
             <section class="section">
+                <h3>Patient Session and Motor Control</h3>
+                <div class="exercise-head">
+                    <label for="patientSelect">Select Patient</label>
+                    <select id="patientSelect" disabled>
+                        <option value="">-- Select a patient --</option>
+                        <option value="patient_001">Patient 1</option>
+                        <option value="patient_002">Patient 2</option>
+                        <option value="patient_003">Patient 3</option>
+                        <option value="patient_004">Patient 4</option>
+                        <option value="patient_005">Patient 5</option>
+                    </select>
+                </div>
+
+                <div class="exercise-grid">
+                    <div class="mini-card">
+                        <strong>Motor Force Level (1-10)</strong>
+                        <input type="number" id="forceLevel" min="1" max="10" value="1" disabled>
+                    </div>
+                </div>
+
+                <div class="actions" style="margin-top: 10px; justify-content: flex-start;">
+                    <button id="setForceBtn" class="secondary" disabled>Set Force Level</button>
+                    <button id="sendBtn" class="secondary" disabled>Send Finger Data</button>
+                </div>
+                <div id="forceStatus" class="note">Connect glove to begin.</div>
+            </section>
+
+            <section class="section">
                 <h3>Calibration Snapshot</h3>
                 <div class="calibration-grid">
                     <div class="mini-card"><strong>Thumb</strong><div id="calThumb">Min: -- | Max: --</div></div>
@@ -306,6 +337,7 @@
         </div>
     </div>
 
+
     <script>
         function setModelStatusMessage(message) {
             const modelStatusEl = document.getElementById('modelStatus');
@@ -332,7 +364,8 @@
         });
 
         const BLE_SERVICE_UUID = '12345678-1234-1234-1234-1234567890ab';
-        const BLE_CHARACTERISTIC_UUID = '87654321-4321-4321-4321-9876543210ab';
+        const BLE_SENSOR_CHAR_UUID = '87654321-4321-4321-4321-9876543210ab';
+        const BLE_MOTOR_CMD_UUID = '11111111-2222-3333-4444-555555555555';
         const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
         const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
         const DEFAULT_RELAXED_PACKET = [255, 255, 255, 255, 255];
@@ -349,6 +382,11 @@
         const captureAllExerciseBtn = document.getElementById('captureAllExerciseBtn');
         const resetExerciseCaptureBtn = document.getElementById('resetExerciseCaptureBtn');
         const exerciseListEl = document.getElementById('exerciseList');
+        const patientSelectEl = document.getElementById('patientSelect');
+        const forceLevelEl = document.getElementById('forceLevel');
+        const setForceBtn = document.getElementById('setForceBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const forceStatusEl = document.getElementById('forceStatus');
         const exerciseValueEls = {
             thumb: document.getElementById('exerciseThumb'),
             index: document.getElementById('exerciseIndex'),
@@ -358,7 +396,12 @@
         };
 
         let bleDevice = null;
-        let bleCharacteristic = null;
+        let bleServer = null;
+        let sensorCharacteristic = null;
+        let motorCmdCharacteristic = null;
+        let keepAliveInterval = null;
+        let sensorPollInterval = null;
+        let sensorValueHandler = null;
         let latestPacket = [...DEFAULT_RELAXED_PACKET];
         let calibration = loadCalibration();
         let remoteCalibrationConnected = false;
@@ -384,8 +427,19 @@
             statusEl.textContent = message;
         }
 
+        function generateExerciseId() {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return `ex_${window.crypto.randomUUID()}`;
+            }
+            return `ex_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+        }
+
         function isAnyDataSourceConnected() {
             return isBleConnected() || remoteCalibrationConnected;
+        }
+
+        function isMotorConnected() {
+            return Boolean(motorCmdCharacteristic && isBleConnected());
         }
 
         function broadcastDoctorState() {
@@ -562,6 +616,140 @@
             return Boolean(bleDevice && bleDevice.gatt && bleDevice.gatt.connected);
         }
 
+        function updateMotorControlsAccess() {
+            const motorConnected = isMotorConnected();
+            const hasSelectedPatient = Boolean(patientSelectEl && patientSelectEl.value);
+
+            if (patientSelectEl) {
+                patientSelectEl.disabled = !motorConnected;
+            }
+
+            if (forceLevelEl) {
+                forceLevelEl.disabled = !(motorConnected && hasSelectedPatient);
+            }
+
+            if (setForceBtn) {
+                setForceBtn.disabled = !(motorConnected && hasSelectedPatient);
+            }
+
+            if (sendBtn) {
+                sendBtn.disabled = !(motorConnected && hasSelectedPatient);
+            }
+
+            if (!forceStatusEl) {
+                return;
+            }
+
+            if (!motorConnected) {
+                forceStatusEl.textContent = 'Connect glove to begin.';
+            } else if (!hasSelectedPatient) {
+                forceStatusEl.textContent = 'Connected. Select a patient.';
+            }
+        }
+
+        function applySensorValues(value) {
+            if (!value || value.byteLength < 5) {
+                return;
+            }
+
+            latestPacket = [
+                value.getUint8(0),
+                value.getUint8(1),
+                value.getUint8(2),
+                value.getUint8(3),
+                value.getUint8(4)
+            ];
+
+            updateLiveCards();
+        }
+
+        async function startSensorStreaming() {
+            if (!sensorCharacteristic) {
+                return;
+            }
+
+            if (sensorPollInterval) {
+                clearInterval(sensorPollInterval);
+                sensorPollInterval = null;
+            }
+
+            if (sensorValueHandler) {
+                sensorCharacteristic.removeEventListener('characteristicvaluechanged', sensorValueHandler);
+            }
+
+            sensorValueHandler = (event) => {
+                applySensorValues(event.target.value);
+            };
+            sensorCharacteristic.addEventListener('characteristicvaluechanged', sensorValueHandler);
+
+            try {
+                await sensorCharacteristic.startNotifications();
+            } catch (error) {
+                console.warn('Sensor notifications unavailable, using read polling.', error);
+            }
+
+            sensorPollInterval = setInterval(async () => {
+                if (!sensorCharacteristic) {
+                    return;
+                }
+
+                try {
+                    const value = await sensorCharacteristic.readValue();
+                    applySensorValues(value);
+                } catch {
+                    // Polling fallback is best effort.
+                }
+            }, 300);
+        }
+
+        function startKeepAlive() {
+            if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+            }
+
+            keepAliveInterval = setInterval(async () => {
+                if (!motorCmdCharacteristic) {
+                    return;
+                }
+
+                try {
+                    await motorCmdCharacteristic.writeValueWithoutResponse(new Uint8Array([0]));
+                } catch {
+                    try {
+                        await motorCmdCharacteristic.writeValueWithResponse(new Uint8Array([0]));
+                    } catch {
+                        // Keep-alive best effort.
+                    }
+                }
+            }, 3000);
+        }
+
+        function onDisconnected() {
+            if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+                keepAliveInterval = null;
+            }
+
+            if (sensorPollInterval) {
+                clearInterval(sensorPollInterval);
+                sensorPollInterval = null;
+            }
+
+            if (sensorCharacteristic && sensorValueHandler) {
+                sensorCharacteristic.removeEventListener('characteristicvaluechanged', sensorValueHandler);
+            }
+
+            sensorValueHandler = null;
+            bleServer = null;
+            sensorCharacteristic = null;
+            motorCmdCharacteristic = null;
+
+            setStatus('Disconnected');
+            setConnectedState(false);
+            updateMotorControlsAccess();
+            broadcastDoctorState();
+        }
+
         function getCurrentAngles() {
             return FINGER_KEYS.map((_, index) => {
                 const minValue = calibration.min ? calibration.min[index] : null;
@@ -623,6 +811,8 @@
                 connectBtn.classList.remove('success');
                 connectBtn.textContent = 'Reconnect to Glove';
             }
+
+            updateMotorControlsAccess();
         }
 
         async function connectGlove() {
@@ -638,46 +828,111 @@
 
             try {
                 bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [{ namePrefix: 'ESP32' }, { services: [BLE_SERVICE_UUID] }],
+                    filters: [{ services: [BLE_SERVICE_UUID] }],
                     optionalServices: [BLE_SERVICE_UUID]
                 });
 
-                bleDevice.addEventListener('gattserverdisconnected', () => {
-                    setStatus('Disconnected');
-                    setConnectedState(false);
-                    broadcastDoctorState();
-                });
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
-                const server = await bleDevice.gatt.connect();
-                const service = await server.getPrimaryService(BLE_SERVICE_UUID);
-                bleCharacteristic = await service.getCharacteristic(BLE_CHARACTERISTIC_UUID);
+                bleServer = await bleDevice.gatt.connect();
+                const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
 
-                await bleCharacteristic.startNotifications();
-                bleCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
-                    const value = event.target.value;
-                    if (!value || value.byteLength < 5) {
-                        return;
-                    }
+                try {
+                    sensorCharacteristic = await service.getCharacteristic(BLE_SENSOR_CHAR_UUID);
+                } catch {
+                    sensorCharacteristic = null;
+                }
 
-                    latestPacket = [
-                        value.getUint8(0),
-                        value.getUint8(1),
-                        value.getUint8(2),
-                        value.getUint8(3),
-                        value.getUint8(4)
-                    ];
+                try {
+                    motorCmdCharacteristic = await service.getCharacteristic(BLE_MOTOR_CMD_UUID);
+                    await motorCmdCharacteristic.writeValueWithResponse(new Uint8Array([0]));
+                    startKeepAlive();
+                } catch {
+                    motorCmdCharacteristic = null;
+                }
 
-                    updateLiveCards();
-                });
+                if (sensorCharacteristic) {
+                    await startSensorStreaming();
+                }
 
                 setConnectedState(true);
-                setStatus('Connected. Live view active. Use calibration page if calibration values need updates.');
+
+                if (sensorCharacteristic && motorCmdCharacteristic) {
+                    setStatus('Connected. Live sensor view and motor control are active.');
+                } else if (sensorCharacteristic) {
+                    setStatus('Connected. Live sensor view is active. Motor control unavailable on this device.');
+                } else if (motorCmdCharacteristic) {
+                    setStatus('Connected for motor control. Sensor stream unavailable.');
+                } else {
+                    throw new Error('Required BLE characteristics unavailable');
+                }
+
+                updateMotorControlsAccess();
             } catch (error) {
                 console.error('BLE connection failed:', error);
                 setStatus(`BLE connection failed: ${error.name || 'Error'} - ${error.message || 'Unknown error'}`);
                 connectBtn.textContent = 'Connect to Glove';
                 connectBtn.disabled = false;
                 connectBtn.classList.remove('success');
+                updateMotorControlsAccess();
+            }
+        }
+
+        async function sendForceLevel() {
+            const level = Number.parseInt(forceLevelEl ? forceLevelEl.value : '', 10);
+
+            if (!motorCmdCharacteristic) {
+                alert('Connect glove first.');
+                return;
+            }
+
+            if (!Number.isFinite(level) || level < 1 || level > 10) {
+                alert('Force level must be between 1 and 10.');
+                return;
+            }
+
+            try {
+                await motorCmdCharacteristic.writeValueWithResponse(new Uint8Array([level]));
+                if (forceStatusEl) {
+                    forceStatusEl.textContent = `Force ${level} applied`;
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Send failed');
+            }
+        }
+
+        async function sendFingerData() {
+            const patientId = patientSelectEl ? patientSelectEl.value : '';
+            const forceLevel = Number.parseInt(forceLevelEl ? forceLevelEl.value : '', 10);
+
+            if (!patientId) {
+                alert('Select a patient first');
+                return;
+            }
+
+            const data = {
+                exercise_id: generateExerciseId(),
+                patient_id: patientId,
+                thumb: Number.parseInt(document.getElementById('valThumb').textContent, 10) || 0,
+                index: Number.parseInt(document.getElementById('valIndex').textContent, 10) || 0,
+                middle: Number.parseInt(document.getElementById('valMiddle').textContent, 10) || 0,
+                ring: Number.parseInt(document.getElementById('valRing').textContent, 10) || 0,
+                pinky: Number.parseInt(document.getElementById('valPinky').textContent, 10) || 0,
+                force_level: Number.isFinite(forceLevel) ? forceLevel : 1
+            };
+
+            try {
+                await fetch('http://localhost:3000/api/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                alert('Data saved');
+            } catch (error) {
+                console.error(error);
+                alert('Save failed');
             }
         }
 
@@ -761,6 +1016,15 @@
         }
 
         connectBtn.addEventListener('click', connectGlove);
+        if (patientSelectEl) {
+            patientSelectEl.addEventListener('change', updateMotorControlsAccess);
+        }
+        if (setForceBtn) {
+            setForceBtn.addEventListener('click', sendForceLevel);
+        }
+        if (sendBtn) {
+            sendBtn.addEventListener('click', sendFingerData);
+        }
         openCalibrationBtn.addEventListener('click', () => {
             window.open('./calibration.html', '_blank', 'noopener');
         });
@@ -775,6 +1039,18 @@
         renderExerciseList();
         publishDoctorSharedState();
         broadcastDoctorState();
+        updateMotorControlsAccess();
+
+        window.addEventListener('pagehide', () => {
+            if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+                try {
+                    bleDevice.gatt.disconnect();
+                } catch {
+                    // Best effort disconnect.
+                }
+            }
+            onDisconnected();
+        });
     </script>
 
     <script type="importmap">

@@ -80,6 +80,42 @@
       margin-bottom: 8px;
     }
 
+    .mode-switch {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .mode-switch button {
+      width: 100%;
+      background: var(--secondary);
+      opacity: 0.75;
+    }
+
+    .mode-switch button.active {
+      background: var(--brand);
+      opacity: 1;
+    }
+
+    .mode-panel {
+      border: 1px dashed #c9d6ea;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #f8fbff;
+    }
+
+    .mode-panel strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #3d4f67;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
     button,
     input,
     select {
@@ -260,6 +296,18 @@
     <div class="layout">
       <div class="left-column">
         <section class="section">
+          <h3>Session Mode</h3>
+          <div class="mode-switch" role="tablist" aria-label="Session mode selector">
+            <button id="preloadedModeBtn" type="button" class="active">Preloaded Session</button>
+            <button id="realtimeModeBtn" type="button" class="secondary">Real-Time Session</button>
+          </div>
+          <div id="modeDescription" class="mode-panel">
+            <strong>Preloaded Session</strong>
+            <span class="note">Load an assigned exercise, then compare the live glove movement against the saved doctor values.</span>
+          </div>
+        </section>
+
+        <section class="section">
           <h3>Navigation and Data Source</h3>
           <div class="actions">
             <button id="backBtn" class="secondary" type="button">Back to Patient Page</button>
@@ -271,7 +319,7 @@
           <p class="note">Exercises and max angles are loaded from Supabase and MongoDB.</p>
         </section>
 
-        <section class="section">
+        <section class="section" id="assignedExerciseSection">
           <h3>Assigned Exercise</h3>
           <div class="actions">
             <label for="exerciseSelect">Exercise</label>
@@ -283,13 +331,13 @@
         </section>
 
         <section class="section match-hero">
-          <h3>Patient Movement Match (Main)</h3>
+          <h3 id="matchTitle">Patient Movement Match (Preloaded Session)</h3>
           <span id="overallMatchBadge" class="pill">Overall Match: --</span>
           <div id="matchGrid" class="match-grid"></div>
-          <p class="note">Bars compare patient glove movement against doctor loop target in real time. Green means correct movement.</p>
+          <p id="matchHint" class="note">Bars compare patient glove movement against the preloaded doctor target in real time. Green means correct movement.</p>
         </section>
 
-        <section class="section">
+        <section class="section" id="doctorValuesSection">
           <h3>Doctor Values (From Database)</h3>
           <div class="actions">
             <label for="levelSelect">Doctor Level</label>
@@ -320,7 +368,7 @@
           <p id="levelInfo" class="note">Selected doctor level target angle: 0deg.</p>
         </section>
 
-        <section class="section">
+        <section class="section" id="loopControlSection">
           <h3>Loop Control</h3>
           <div class="actions">
             <button id="startLoopBtn" type="button">Start Loop</button>
@@ -332,7 +380,7 @@
           <p class="note">Loop movement: min -> doctor targets -> min continuously, based on doctor level and exercise max values.</p>
         </section>
 
-        <section class="section">
+        <section class="section" id="computedTargetsSection">
           <h3>Computed Targets</h3>
           <div id="targetGrid" class="computed-grid"></div>
           <p class="note">Target per finger = min(exercise max angle, level angle).</p>
@@ -380,6 +428,9 @@
     const DOCTOR_CALIB_V1_KEY = "doctorCalibrationV1";
     const DOCTOR_EXERCISE_KEY = "doctorExercisesV1";
     const PATIENT_CROSS_PAGE_CHANNEL_KEY = "patientCrossPageV1";
+    const SESSION_MODE_KEY = "patientSessionModeV1";
+    const SESSION_MODE_PRELOADED = "preloaded";
+    const SESSION_MODE_REALTIME = "realtime";
 
     const statusEl = document.getElementById("status");
     const modelStatusEl = document.getElementById("modelStatus");
@@ -403,6 +454,15 @@
     const cycleMsInput = document.getElementById("cycleMsInput");
     const exerciseSelectEl = document.getElementById("exerciseSelect");
     const exerciseDetailsEl = document.getElementById("exerciseDetails");
+    const preloadedModeBtn = document.getElementById("preloadedModeBtn");
+    const realtimeModeBtn = document.getElementById("realtimeModeBtn");
+    const modeDescriptionEl = document.getElementById("modeDescription");
+    const matchTitleEl = document.getElementById("matchTitle");
+    const matchHintEl = document.getElementById("matchHint");
+    const assignedExerciseSectionEl = document.getElementById("assignedExerciseSection");
+    const doctorValuesSectionEl = document.getElementById("doctorValuesSection");
+    const loopControlSectionEl = document.getElementById("loopControlSection");
+    const computedTargetsSectionEl = document.getElementById("computedTargetsSection");
 
     const API_BASE_URL = (localStorage.getItem(API_BASE_STORAGE_KEY) || (
       window.location.protocol === "file:"
@@ -416,10 +476,12 @@
     let animatedAngles = [0, 0, 0, 0, 0];
     let latestLoopAngles = [0, 0, 0, 0, 0];
     let patientPacket = [0, 0, 0, 0, 0];
+    let isConnected = false;
     let remotePatientConnected = false;
     let currentReps = 0;
     let currentSets = 0;
     let repLatched = false;
+    let sessionMode = localStorage.getItem(SESSION_MODE_KEY) || SESSION_MODE_PRELOADED;
     let patientCalibration = {
       min: [null, null, null, null, null],
       max: [null, null, null, null, null],
@@ -467,6 +529,63 @@
 
     function loadManualData() {
       return defaultManualData();
+    }
+
+    function setSessionMode(mode) {
+      sessionMode = mode === SESSION_MODE_REALTIME ? SESSION_MODE_REALTIME : SESSION_MODE_PRELOADED;
+      localStorage.setItem(SESSION_MODE_KEY, sessionMode);
+      updateSessionModeUi();
+    }
+
+    function updateSessionModeUi() {
+      const isRealtime = sessionMode === SESSION_MODE_REALTIME;
+      const hasLiveInput = isConnected || remotePatientConnected;
+
+      if (preloadedModeBtn) {
+        preloadedModeBtn.classList.toggle("active", !isRealtime);
+      }
+
+      if (realtimeModeBtn) {
+        realtimeModeBtn.classList.toggle("active", isRealtime);
+      }
+
+      if (modeDescriptionEl) {
+        modeDescriptionEl.innerHTML = isRealtime
+          ? `<strong>Real-Time Session</strong><span class="note">Use the live glove stream to monitor the patient in the moment. The preloaded exercise selector is hidden in this mode.</span>`
+          : `<strong>Preloaded Session</strong><span class="note">Load an assigned exercise, then compare the live glove movement against the saved doctor values.</span>`;
+      }
+
+      if (matchTitleEl) {
+        matchTitleEl.textContent = isRealtime
+          ? "Patient Movement Match (Real-Time Session)"
+          : "Patient Movement Match (Preloaded Session)";
+      }
+
+      if (matchHintEl) {
+        matchHintEl.textContent = isRealtime
+          ? "Bars compare the live glove movement against the current monitoring reference in real time. Green means the movement is on target."
+          : "Bars compare patient glove movement against the preloaded doctor target in real time. Green means correct movement.";
+      }
+
+      [
+        assignedExerciseSectionEl,
+        doctorValuesSectionEl,
+        loopControlSectionEl,
+        computedTargetsSectionEl
+      ].forEach((sectionEl) => {
+        if (!sectionEl) {
+          return;
+        }
+        sectionEl.classList.toggle("hidden", isRealtime);
+      });
+
+      if (exerciseSelectEl) {
+        exerciseSelectEl.disabled = isRealtime || !hasLiveInput;
+      }
+
+      if (exerciseDetailsEl && isRealtime) {
+        exerciseDetailsEl.textContent = "Real-time mode active. Preloaded exercise selection is disabled in this view.";
+      }
     }
 
     function resolvePatientId() {
@@ -529,7 +648,7 @@
         exerciseSelectEl.innerHTML = '<option value="">-- Failed to load exercises --</option>';
         setStatus('Failed to load exercises for patient.');
       } finally {
-        exerciseSelectEl.disabled = false;
+        updateSessionModeUi();
       }
     }
 
@@ -967,6 +1086,14 @@
       });
     }
 
+    if (preloadedModeBtn) {
+      preloadedModeBtn.addEventListener("click", () => setSessionMode(SESSION_MODE_PRELOADED));
+    }
+
+    if (realtimeModeBtn) {
+      realtimeModeBtn.addEventListener("click", () => setSessionMode(SESSION_MODE_REALTIME));
+    }
+
     levelSelect.addEventListener("change", () => {
       pullInputsIntoState();
       renderTargetGrid();
@@ -1009,8 +1136,10 @@
     gloveClient.onStatus = (msg) => {
       gloveStatusEl.textContent = `Patient glove status: ${msg}`;
       if (msg === "Disconnected") {
+        isConnected = false;
         connectGloveBtn.disabled = false;
         connectGloveBtn.textContent = "Reconnect Patient Glove";
+        updateSessionModeUi();
       }
     };
 
@@ -1025,14 +1154,18 @@
 
       try {
         await gloveClient.connect();
+        isConnected = true;
         connectGloveBtn.textContent = "Glove Connected";
         connectGloveBtn.disabled = true;
         await hydratePatientCalibrationFromDatabase();
+        updateSessionModeUi();
         setStatus("Patient glove connected. Follow the movement and watch match bars.");
       } catch (error) {
         console.error(error);
+        isConnected = false;
         connectGloveBtn.textContent = "Connect Patient Glove";
         connectGloveBtn.disabled = false;
+        updateSessionModeUi();
         setStatus(`Patient glove connection failed: ${error?.name || "Error"} - ${error?.message || "Unknown"}`);
       }
     });
@@ -1045,6 +1178,7 @@
         }
 
         remotePatientConnected = Boolean(data.connected);
+        updateSessionModeUi();
         if (!remotePatientConnected) {
           return;
         }
@@ -1194,6 +1328,7 @@
       setModelStatus("Model may not load on file:// origin. Open this page through a local server.");
     }
 
+    updateSessionModeUi();
     applyStateToInputs();
     loadPatientCalibration();
     renderPatientCalibrationStatus();

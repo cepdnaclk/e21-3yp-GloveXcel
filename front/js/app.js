@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { BleGloveClient } from "./bleGloveClient.js";
-import { FINGER_MAPPING_TABLE, mapPacketToFingerPose } from "./mappingTable.js";
+import { FINGER_MAPPING_TABLE, mapPacketToFingerPoseCalibrated } from "./mappingTable.js";
 import { HandRigController } from "./handRigController.js";
 
 const MODEL_URL = "./models/hand.glb";
@@ -11,6 +11,8 @@ const connectBtn = document.getElementById("connectBtn");
 const statusEl = document.getElementById("status");
 const exerciseEmptyStateEl = document.getElementById("exerciseEmptyState");
 const calibrationStateEl = document.getElementById("calibrationState");
+const calibrationLevelEl = document.getElementById("calibrationLevel");
+const calibrationGridEl = document.getElementById("calibrationGrid");
 const openCalibrationBtn = document.getElementById("openCalibrationBtn");
 const openExerciseBtn = document.getElementById("openExerciseBtn");
 const exerciseSelectEl = document.getElementById("exerciseSelect");
@@ -26,11 +28,17 @@ const loadedMiddleEl = document.getElementById("loadedMiddle");
 const loadedRingEl = document.getElementById("loadedRing");
 const loadedPinkyEl = document.getElementById("loadedPinky");
 const loadedForceLevelEl = document.getElementById("loadedForceLevel");
+const patientIdBadgeEl = document.getElementById("patientIdBadge");
 
-const CALIBRATION_STORAGE_KEY_V2 = "doctorCalibrationV2";
-const CALIBRATION_STORAGE_KEY_V1 = "doctorCalibrationV1";
+const CALIBRATION_STORAGE_KEY_V1 = "patientCalibrationV1";
+const PATIENT_ID_STORAGE_KEY = "patientId";
+const AUTH_TOKEN_STORAGE_KEY = "auth_token";
 const FIXED_PATIENT_ID = "patient_003";
-const DATA_API_BASE = "http://localhost:3000/api/data";
+const API_BASE = (localStorage.getItem("apiBaseUrl") || "http://localhost:3000").replace(/\/$/, "");
+const DATA_API_BASE = `${API_BASE}/api/data`;
+const THERAPY_SESSIONS_API_BASE = `${API_BASE}/api/therapy-sessions`;
+const PATIENT_CALIB_API_BASE = `${API_BASE}/api/patient-cal`;
+const PATIENT_CROSS_PAGE_CHANNEL_KEY = "patientCrossPageV1";
 
 const fingerValueEls = {
   Thumb: document.getElementById("valThumb"),
@@ -42,27 +50,27 @@ const fingerValueEls = {
 
 let exerciseSessions = [];
 let isConnected = false;
+let activeCalibration = loadCalibration();
+const patientCrossPageChannel = typeof BroadcastChannel !== "undefined"
+  ? new BroadcastChannel(PATIENT_CROSS_PAGE_CHANNEL_KEY)
+  : null;
+
+function reloadCalibrationAndUi() {
+  activeCalibration = loadCalibration();
+  renderCalibrationState();
+  renderCalibrationDetails();
+}
 
 function loadCalibration() {
   try {
-    const rawV2 = localStorage.getItem(CALIBRATION_STORAGE_KEY_V2);
-    if (rawV2) {
-      const parsedV2 = JSON.parse(rawV2);
-      const min = Array.isArray(parsedV2.finalMin) ? parsedV2.finalMin : null;
-      const max = Array.isArray(parsedV2.finalMax) ? parsedV2.finalMax : null;
-      return {
-        min,
-        max,
-        capturedAt: parsedV2.capturedAt || null
-      };
-    }
-
     const rawV1 = localStorage.getItem(CALIBRATION_STORAGE_KEY_V1);
     if (rawV1) {
       const parsedV1 = JSON.parse(rawV1);
+      const min = Array.isArray(parsedV1.finalMin) ? parsedV1.finalMin : null;
+      const max = Array.isArray(parsedV1.finalMax) ? parsedV1.finalMax : null;
       return {
-        min: Array.isArray(parsedV1.min) ? parsedV1.min : null,
-        max: Array.isArray(parsedV1.max) ? parsedV1.max : null,
+        min,
+        max,
         capturedAt: parsedV1.capturedAt || null
       };
     }
@@ -75,6 +83,91 @@ function loadCalibration() {
     max: null,
     capturedAt: null
   };
+}
+
+function getStoredPatientId() {
+  const rawProfile = localStorage.getItem("auth_profile");
+  if (!rawProfile) {
+    return localStorage.getItem(PATIENT_ID_STORAGE_KEY) || FIXED_PATIENT_ID;
+  }
+
+  try {
+    const profile = JSON.parse(rawProfile);
+    return profile?.patient_id || localStorage.getItem(PATIENT_ID_STORAGE_KEY) || FIXED_PATIENT_ID;
+  } catch {
+    return localStorage.getItem(PATIENT_ID_STORAGE_KEY) || FIXED_PATIENT_ID;
+  }
+}
+
+function renderPatientIdBadge() {
+  if (!patientIdBadgeEl) {
+    return;
+  }
+
+  const patientId = getStoredPatientId();
+  patientIdBadgeEl.textContent = patientId || "--";
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  if (!token) {
+    return {};
+  }
+  return { Authorization: `Bearer ${token}` };
+}
+
+function levelToAngle(level) {
+  const normalized = Math.max(1, Math.min(6, Number(level))) - 1;
+  return Math.round((normalized * 90) / 5);
+}
+
+async function syncPatientCalibrationFromDatabase() {
+  const patientId = getStoredPatientId();
+
+  try {
+    const response = await fetch(`${PATIENT_CALIB_API_BASE}/${encodeURIComponent(patientId)}`, {
+      headers: { ...getAuthHeaders() }
+    });
+
+    if (response.status === 404) {
+      localStorage.removeItem(CALIBRATION_STORAGE_KEY_V1);
+      activeCalibration = loadCalibration();
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const doc = await response.json();
+    const min = doc?.min || {};
+    const max = doc?.max || {};
+
+    const finalMin = [min.thumb, min.index, min.middle, min.ring, min.pinky]
+      .map((value) => Number(value))
+      .map((value) => (Number.isFinite(value) ? value : null));
+    const finalMax = [max.thumb, max.index, max.middle, max.ring, max.pinky]
+      .map((value) => Number(value))
+      .map((value) => (Number.isFinite(value) ? value : null));
+
+    const level = Number(doc?.level);
+    const payload = {
+      nonThumbMin: [null, finalMin[1], finalMin[2], finalMin[3], finalMin[4]],
+      nonThumbMax: [null, finalMax[1], finalMax[2], finalMax[3], finalMax[4]],
+      thumbMin: [finalMin[0], null, null, null, null],
+      thumbMax: [finalMax[0], null, null, null, null],
+      finalMin,
+      finalMax,
+      targetMaxAngle: Number.isFinite(level) ? levelToAngle(level) : 90,
+      level: Number.isFinite(level) ? level : null,
+      capturedAt: doc?.updatedAt || null
+    };
+
+    localStorage.setItem(CALIBRATION_STORAGE_KEY_V1, JSON.stringify(payload));
+    activeCalibration = { min: payload.finalMin, max: payload.finalMax, capturedAt: payload.capturedAt || null };
+  } catch (error) {
+    console.warn("Failed to sync patient calibration:", error);
+  }
 }
 
 function renderCalibrationState() {
@@ -93,9 +186,66 @@ function renderCalibrationState() {
   calibrationStateEl.textContent = `Calibration status: Ready. Last updated: ${capturedAt}`;
 }
 
+function renderCalibrationDetails() {
+  if (!calibrationLevelEl || !calibrationGridEl) {
+    return;
+  }
+
+  const calibration = loadCalibration();
+  const ready = Array.isArray(calibration.min) && Array.isArray(calibration.max);
+  if (!ready) {
+    calibrationLevelEl.textContent = "Level: --";
+    calibrationGridEl.innerHTML = "";
+    return;
+  }
+
+  const rawV1 = localStorage.getItem(CALIBRATION_STORAGE_KEY_V1);
+  let levelLabel = "--";
+  if (rawV1) {
+    try {
+      const parsed = JSON.parse(rawV1);
+      if (Number.isFinite(parsed.level)) {
+        levelLabel = String(parsed.level);
+      }
+    } catch {
+      // Ignore parse errors and keep fallback label.
+    }
+  }
+
+  calibrationLevelEl.textContent = `Level: ${levelLabel}`;
+  calibrationGridEl.innerHTML = "";
+
+  const labels = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
+  for (let i = 0; i < labels.length; i += 1) {
+    const minV = Number.isFinite(calibration.min[i]) ? calibration.min[i] : "--";
+    const maxV = Number.isFinite(calibration.max[i]) ? calibration.max[i] : "--";
+    const row = document.createElement("div");
+    row.className = "finger-row";
+    row.innerHTML = `<span>${labels[i]}</span><strong>Min ${minV} | Max ${maxV}</strong>`;
+    calibrationGridEl.appendChild(row);
+  }
+}
+
+function broadcastPatientState(packet) {
+  if (!patientCrossPageChannel) {
+    return;
+  }
+
+  patientCrossPageChannel.postMessage({
+    type: "patient-state",
+    connected: isConnected,
+    latestPacket: packet ? [...packet] : null,
+    timestamp: Date.now()
+  });
+}
+
 if (openCalibrationBtn) {
   openCalibrationBtn.addEventListener("click", () => {
-    window.location.href = "./patient_calibration.html";
+    const patientId = getStoredPatientId();
+    localStorage.setItem("patientId", patientId);
+    localStorage.setItem("apiBaseUrl", API_BASE);
+    const url = `./patient_calibration.html?patient_id=${encodeURIComponent(patientId)}&api_base=${encodeURIComponent(API_BASE)}`;
+    window.location.href = url;
   });
 }
 
@@ -105,7 +255,17 @@ if (openExerciseBtn) {
   });
 }
 
-renderCalibrationState();
+renderPatientIdBadge();
+syncPatientCalibrationFromDatabase().finally(() => {
+  reloadCalibrationAndUi();
+  renderPatientIdBadge();
+});
+
+window.addEventListener("storage", (event) => {
+  if (event.key === CALIBRATION_STORAGE_KEY_V1) {
+    reloadCalibrationAndUi();
+  }
+});
 
 const rendererContainer = document.getElementById("rendererContainer");
 
@@ -168,7 +328,7 @@ let handController = null;
 let latestPacket = [0, 0, 0, 0, 0];
 
 function renderPacketValues(packet) {
-  const pose = mapPacketToFingerPose(packet, FINGER_MAPPING_TABLE);
+  const pose = mapPacketToFingerPoseCalibrated(packet, activeCalibration, FINGER_MAPPING_TABLE);
   for (const p of pose) {
     const el = fingerValueEls[p.fingerName];
     if (el) {
@@ -219,12 +379,16 @@ async function loadExercisesForPatient() {
   exerciseSelectEl.disabled = true;
 
   try {
-    const res = await fetch(`${DATA_API_BASE}/${encodeURIComponent(FIXED_PATIENT_ID)}`);
+    const patientId = getStoredPatientId();
+    const res = await fetch(
+      `${THERAPY_SESSIONS_API_BASE}/patient/${encodeURIComponent(patientId)}`
+    );
     if (!res.ok) {
       throw new Error(`Server responded ${res.status}`);
     }
 
-    const sessions = await res.json();
+    const payload = await res.json();
+    const sessions = payload?.data || [];
     exerciseSessions = Array.isArray(sessions) ? sessions : [];
 
     const seen = new Set();
@@ -331,7 +495,9 @@ async function fetchSavedData() {
   }
 
   try {
-    const res = await fetch(`${DATA_API_BASE}/${encodeURIComponent(FIXED_PATIENT_ID)}`);
+    const res = await fetch(
+      `${DATA_API_BASE}/${encodeURIComponent(FIXED_PATIENT_ID)}?exercise_id=${encodeURIComponent(selectedExerciseId)}`
+    );
     if (!res.ok) {
       throw new Error(`Server responded ${res.status}`);
     }
@@ -397,7 +563,7 @@ function renderLoop() {
   requestAnimationFrame(renderLoop);
 
   if (handController) {
-    const fingerPose = mapPacketToFingerPose(latestPacket, FINGER_MAPPING_TABLE);
+    const fingerPose = mapPacketToFingerPoseCalibrated(latestPacket, activeCalibration, FINGER_MAPPING_TABLE);
     handController.applyFingerPose(fingerPose);
   }
 
@@ -424,12 +590,14 @@ gloveClient.onStatus = (msg) => {
     connectBtn.textContent = "Reconnect to Glove";
     connectBtn.style.background = "#dc3545";
     updateEnhancedAccessState();
+    broadcastPatientState(null);
   }
 };
 
 gloveClient.onPacket = (packet) => {
   latestPacket = packet;
   renderPacketValues(packet);
+  broadcastPatientState(packet);
 };
 
 connectBtn.addEventListener("click", async () => {
@@ -444,6 +612,7 @@ connectBtn.addEventListener("click", async () => {
     connectBtn.disabled = true;
     updateEnhancedAccessState();
     await loadExercisesForPatient();
+    broadcastPatientState(latestPacket);
   } catch (err) {
     console.error(err);
     const errorName = err?.name || "Error";
@@ -454,8 +623,18 @@ connectBtn.addEventListener("click", async () => {
     connectBtn.disabled = false;
     isConnected = false;
     updateEnhancedAccessState();
+    broadcastPatientState(null);
   }
 });
+
+if (patientCrossPageChannel) {
+  patientCrossPageChannel.addEventListener("message", (event) => {
+    const data = event?.data || {};
+    if (data.type === "request-patient-state") {
+      broadcastPatientState(latestPacket);
+    }
+  });
+}
 
 if (exerciseSelectEl) {
   exerciseSelectEl.addEventListener("change", updateEnhancedAccessState);

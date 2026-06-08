@@ -234,7 +234,7 @@
         const statusMessage = document.getElementById('statusMessage');
         const requestList = document.getElementById('requestList');
         const hospitalForm = document.getElementById('hospitalForm');
-        const storedRole = localStorage.getItem('auth_role') || '';
+        const getAuthHeaders = () => ({ });
 
         const setStatus = (text, type) => {
             statusMessage.className = `status ${type || ''}`;
@@ -274,7 +274,9 @@
         const loadPendingRequests = async () => {
             setStatus('Loading pending doctor requests...', '');
             try {
-                const response = await fetch(`${API_BASE}/admin/doctor-requests`);
+                const response = await fetch(`${API_BASE}/admin/doctor-requests`, {
+                    headers: getAuthHeaders()
+                });
                 const data = await response.json();
 
                 if (!response.ok) {
@@ -294,7 +296,7 @@
             try {
                 const response = await fetch(`${API_BASE}/admin/doctor-requests/${doctorId}/verification`, {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                     body: JSON.stringify({ status: nextStatus })
                 });
                 const data = await response.json();
@@ -347,7 +349,7 @@
             try {
                 const response = await fetch(`${API_BASE}/hospitals`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                     body: JSON.stringify(payload)
                 });
                 const data = await response.json();
@@ -364,11 +366,7 @@
             }
         });
 
-        if (storedRole !== 'admin') {
-            setStatus('Admin session not found. Please login again.', 'error');
-        } else {
-            loadPendingRequests();
-        }
+        loadPendingRequests();
 
         document.getElementById('backToLoginBtn').addEventListener('click', () => {
             window.location.href = 'login.html';
@@ -377,6 +375,7 @@
         document.getElementById('clearSessionBtn').addEventListener('click', () => {
             localStorage.removeItem('auth_role');
             localStorage.removeItem('auth_profile');
+            localStorage.removeItem('auth_token');
             window.location.href = 'login.html';
         });
     </script>

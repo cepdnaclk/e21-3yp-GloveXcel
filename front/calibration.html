@@ -337,15 +337,38 @@
     const queryDoctorId = queryParams.get('doctor_id');
     const queryApiBase = queryParams.get('api_base');
 
-    const DOCTOR_ID = (queryDoctorId || localStorage.getItem(DOCTOR_ID_STORAGE_KEY) || DEFAULT_DOCTOR_ID).trim();
+    const DOCTOR_ID = (queryDoctorId || resolveDoctorId() || localStorage.getItem(DOCTOR_ID_STORAGE_KEY)).trim();
     const API_BASE_URL = (queryApiBase || localStorage.getItem(API_BASE_STORAGE_KEY) || (
       window.location.protocol === 'file:'
         ? 'http://localhost:3000'
         : `${window.location.protocol}//${window.location.hostname}:3000`
     )).replace(/\/$/, '');
+    const AUTH_TOKEN_STORAGE_KEY = 'auth_token';
 
     localStorage.setItem(DOCTOR_ID_STORAGE_KEY, DOCTOR_ID);
     localStorage.setItem(API_BASE_STORAGE_KEY, API_BASE_URL);
+
+    function resolveDoctorId() {
+      const rawProfile = localStorage.getItem('auth_profile');
+      if (!rawProfile) {
+        return DEFAULT_DOCTOR_ID;
+      }
+
+      try {
+        const profile = JSON.parse(rawProfile);
+        return profile?.doctor_id || DEFAULT_DOCTOR_ID;
+      } catch {
+        return DEFAULT_DOCTOR_ID;
+      }
+    }
+
+    function getAuthHeaders() {
+      const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+      if (!token) {
+        return {};
+      }
+      return { Authorization: `Bearer ${token}` };
+    }
 
     let bleDevice = null;
     let bleCharacteristic = null;
@@ -502,33 +525,33 @@
 
         const requests = [];
         if (Number.isFinite(minThumb)) {
-          requests.push(fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}/min/thumb`, {
+          requests.push(fetch(`${API_BASE_URL}/api/doctor-cal/${encodeURIComponent(DOCTOR_ID)}/min/thumb`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify({ thumb: minThumb })
           }));
         }
 
         if (Object.values(minFingers).every((value) => Number.isFinite(value))) {
-          requests.push(fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}/min/fingers`, {
+          requests.push(fetch(`${API_BASE_URL}/api/doctor-cal/${encodeURIComponent(DOCTOR_ID)}/min/fingers`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(minFingers)
           }));
         }
 
         if (Number.isFinite(maxThumb)) {
-          requests.push(fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}/max/thumb`, {
+          requests.push(fetch(`${API_BASE_URL}/api/doctor-cal/${encodeURIComponent(DOCTOR_ID)}/max/thumb`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify({ thumb: maxThumb })
           }));
         }
 
         if (Object.values(maxFingers).every((value) => Number.isFinite(value))) {
-          requests.push(fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}/max/fingers`, {
+          requests.push(fetch(`${API_BASE_URL}/api/doctor-cal/${encodeURIComponent(DOCTOR_ID)}/max/fingers`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(maxFingers)
           }));
         }
@@ -585,7 +608,9 @@
 
     async function fetchDoctorCalibrationFromDatabase() {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}`);
+        const response = await fetch(`${API_BASE_URL}/api/doctor-cal/${encodeURIComponent(DOCTOR_ID)}`, {
+          headers: { ...getAuthHeaders() }
+        });
         if (response.status === 404) {
           return null;
         }
@@ -603,7 +628,10 @@
     async function hydrateCalibrationFromDatabase() {
       const doctorDoc = await fetchDoctorCalibrationFromDatabase();
       if (!doctorDoc) {
-        setStatus(`No database calibration found for doctor ${DOCTOR_ID}. Using local values.`);
+        calibration = withDefaults({});
+        localStorage.removeItem(CALIBRATION_STORAGE_KEY_V2);
+        localStorage.removeItem(CALIBRATION_STORAGE_KEY_V1);
+        setStatus(`No database calibration found for doctor ${DOCTOR_ID}.`);
         return;
       }
 

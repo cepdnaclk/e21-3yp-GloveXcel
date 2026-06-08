@@ -255,7 +255,7 @@
 <body>
   <div class="page">
     <h1>Patient Exercise Console</h1>
-    <div id="status" class="status">Set doctor data manually (temporary DB simulation), then start loop.</div>
+    <div id="status" class="status">Load assigned exercise and start loop.</div>
 
     <div class="layout">
       <div class="left-column">
@@ -264,13 +264,22 @@
           <div class="actions">
             <button id="backBtn" class="secondary" type="button">Back to Patient Page</button>
             <button id="connectGloveBtn" type="button">Connect Patient Glove</button>
-            <button id="loadDoctorBtn" type="button">Load Doctor Data (Local)</button>
             <button id="loadPatientCalibBtn" type="button">Load Patient Calibration</button>
-            <button id="saveManualBtn" class="success" type="button">Save Manual Values</button>
           </div>
           <p id="gloveStatus" class="note">Patient glove status: Not connected.</p>
           <p id="patientCalibStatus" class="note">Patient calibration status: Not loaded.</p>
-          <p class="note">For now, this simulates DB fetch with editable manual values. Later, replace this with real API/database calls.</p>
+          <p class="note">Exercises and max angles are loaded from Supabase and MongoDB.</p>
+        </section>
+
+        <section class="section">
+          <h3>Assigned Exercise</h3>
+          <div class="actions">
+            <label for="exerciseSelect">Exercise</label>
+            <select id="exerciseSelect">
+              <option value="">-- Loading exercises... --</option>
+            </select>
+          </div>
+          <div id="exerciseDetails" class="note">Select an exercise to view details.</div>
         </section>
 
         <section class="section match-hero">
@@ -281,7 +290,7 @@
         </section>
 
         <section class="section">
-          <h3>Doctor Values (Manual for Now)</h3>
+          <h3>Doctor Values (From Database)</h3>
           <div class="actions">
             <label for="levelSelect">Doctor Level</label>
             <select id="levelSelect">
@@ -319,6 +328,7 @@
             <button id="resetPoseBtn" class="secondary" type="button">Reset Pose</button>
           </div>
           <span id="loopBadge" class="pill">Loop Running</span>
+          <p id="repSetStatus" class="note">Reps: 0 / -- | Sets: 0 / --</p>
           <p class="note">Loop movement: min -> doctor targets -> min continuously, based on doctor level and exercise max values.</p>
         </section>
 
@@ -361,16 +371,21 @@
     const FINGER_KEYS = ["thumb", "index", "middle", "ring", "pinky"];
     const FINGER_LABELS = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
 
-    const MANUAL_STORAGE_KEY = "patientExerciseManualDbV1";
+    const AUTH_TOKEN_STORAGE_KEY = "auth_token";
+    const API_BASE_STORAGE_KEY = "apiBaseUrl";
+    const PATIENT_ID_STORAGE_KEY = "patientId";
+    const DEFAULT_PATIENT_ID = "patient_003";
     const PATIENT_CALIB_KEY = "patientCalibrationV1";
     const DOCTOR_CALIB_V2_KEY = "doctorCalibrationV2";
     const DOCTOR_CALIB_V1_KEY = "doctorCalibrationV1";
     const DOCTOR_EXERCISE_KEY = "doctorExercisesV1";
+    const PATIENT_CROSS_PAGE_CHANNEL_KEY = "patientCrossPageV1";
 
     const statusEl = document.getElementById("status");
     const modelStatusEl = document.getElementById("modelStatus");
     const levelInfoEl = document.getElementById("levelInfo");
     const loopBadgeEl = document.getElementById("loopBadge");
+    const repSetStatusEl = document.getElementById("repSetStatus");
     const doctorDataBody = document.getElementById("doctorDataBody");
     const targetGridEl = document.getElementById("targetGrid");
     const matchGridEl = document.getElementById("matchGrid");
@@ -380,14 +395,20 @@
 
     const backBtn = document.getElementById("backBtn");
     const connectGloveBtn = document.getElementById("connectGloveBtn");
-    const loadDoctorBtn = document.getElementById("loadDoctorBtn");
     const loadPatientCalibBtn = document.getElementById("loadPatientCalibBtn");
-    const saveManualBtn = document.getElementById("saveManualBtn");
     const startLoopBtn = document.getElementById("startLoopBtn");
     const stopLoopBtn = document.getElementById("stopLoopBtn");
     const resetPoseBtn = document.getElementById("resetPoseBtn");
     const levelSelect = document.getElementById("levelSelect");
     const cycleMsInput = document.getElementById("cycleMsInput");
+    const exerciseSelectEl = document.getElementById("exerciseSelect");
+    const exerciseDetailsEl = document.getElementById("exerciseDetails");
+
+    const API_BASE_URL = (localStorage.getItem(API_BASE_STORAGE_KEY) || (
+      window.location.protocol === "file:"
+        ? "http://localhost:3000"
+        : `${window.location.protocol}//${window.location.hostname}:3000`
+    )).replace(/\/$/, "");
 
     let doctorData = loadManualData();
     let isLoopRunning = true;
@@ -395,6 +416,10 @@
     let animatedAngles = [0, 0, 0, 0, 0];
     let latestLoopAngles = [0, 0, 0, 0, 0];
     let patientPacket = [0, 0, 0, 0, 0];
+    let remotePatientConnected = false;
+    let currentReps = 0;
+    let currentSets = 0;
+    let repLatched = false;
     let patientCalibration = {
       min: [null, null, null, null, null],
       max: [null, null, null, null, null],
@@ -403,6 +428,9 @@
     };
 
     const gloveClient = new BleGloveClient();
+    const patientCrossPageChannel = typeof BroadcastChannel !== "undefined"
+      ? new BroadcastChannel(PATIENT_CROSS_PAGE_CHANNEL_KEY)
+      : null;
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -431,32 +459,190 @@
         cycleMs: 3200,
         calibMin: [20, 18, 16, 15, 14],
         calibMax: [210, 220, 222, 226, 230],
-        exerciseMax: [65, 70, 68, 66, 62]
+        exerciseMax: [65, 70, 68, 66, 62],
+        targetReps: null,
+        targetSets: null
       };
     }
 
     function loadManualData() {
+      return defaultManualData();
+    }
+
+    function resolvePatientId() {
+      const rawProfile = localStorage.getItem("auth_profile");
+      if (!rawProfile) {
+        return localStorage.getItem(PATIENT_ID_STORAGE_KEY) || DEFAULT_PATIENT_ID;
+      }
+
       try {
-        const raw = localStorage.getItem(MANUAL_STORAGE_KEY);
-        if (!raw) {
-          return defaultManualData();
-        }
-        const parsed = JSON.parse(raw);
-        return {
-          level: Number.isFinite(parsed.level) ? parsed.level : 4,
-          cycleMs: Number.isFinite(parsed.cycleMs) ? parsed.cycleMs : 3200,
-          calibMin: Array.isArray(parsed.calibMin) ? parsed.calibMin.map((v) => Number(v) || 0) : emptyArray(0),
-          calibMax: Array.isArray(parsed.calibMax) ? parsed.calibMax.map((v) => Number(v) || 255) : emptyArray(255),
-          exerciseMax: Array.isArray(parsed.exerciseMax) ? parsed.exerciseMax.map((v) => Number(v) || 0) : emptyArray(0)
-        };
-      } catch (error) {
-        console.warn("Failed to load manual doctor data:", error);
-        return defaultManualData();
+        const profile = JSON.parse(rawProfile);
+        return profile?.patient_id || localStorage.getItem(PATIENT_ID_STORAGE_KEY) || DEFAULT_PATIENT_ID;
+      } catch {
+        return localStorage.getItem(PATIENT_ID_STORAGE_KEY) || DEFAULT_PATIENT_ID;
       }
     }
 
-    function saveManualData() {
-      localStorage.setItem(MANUAL_STORAGE_KEY, JSON.stringify(doctorData));
+    function getAuthHeaders() {
+      const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+      if (!token) {
+        return {};
+      }
+      return { Authorization: `Bearer ${token}` };
+    }
+
+    async function loadExercisesForPatient() {
+      if (!exerciseSelectEl) {
+        return;
+      }
+
+      const patientId = resolvePatientId();
+      exerciseSelectEl.innerHTML = '<option value="">-- Loading exercises... --</option>';
+      exerciseSelectEl.disabled = true;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/exercises?patient_id=${encodeURIComponent(patientId)}`, {
+          headers: { ...getAuthHeaders() }
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const exercises = Array.isArray(data.exercises) ? data.exercises : [];
+
+        if (!exercises.length) {
+          exerciseSelectEl.innerHTML = '<option value="">-- No exercises found --</option>';
+          return;
+        }
+
+        const options = ['<option value="">-- Select exercise --</option>'];
+        exercises.forEach((exercise) => {
+          const id = exercise.exercise_id;
+          const desc = exercise.description || 'No description';
+          options.push(`<option value="${id}">${id} - ${desc}</option>`);
+        });
+        exerciseSelectEl.innerHTML = options.join('');
+        exerciseSelectEl.dataset.exercises = JSON.stringify(exercises);
+      } catch (error) {
+        console.error('Failed to load exercises:', error);
+        exerciseSelectEl.innerHTML = '<option value="">-- Failed to load exercises --</option>';
+        setStatus('Failed to load exercises for patient.');
+      } finally {
+        exerciseSelectEl.disabled = false;
+      }
+    }
+
+    async function loadExerciseMaxAngles(exerciseId) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/exercise-max/${encodeURIComponent(exerciseId)}`, {
+          headers: { ...getAuthHeaders() }
+        });
+        if (response.status === 404) {
+          return null;
+        }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('Failed to load exercise max angles:', error);
+        return null;
+      }
+    }
+
+    async function loadDoctorCalibration(doctorId) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/doctor-cal/${encodeURIComponent(doctorId)}`, {
+          headers: { ...getAuthHeaders() }
+        });
+
+        if (response.status === 404) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('Failed to load doctor calibration:', error);
+        return null;
+      }
+    }
+
+    async function applyExerciseSelection(exerciseId) {
+      if (!exerciseId) {
+        if (exerciseDetailsEl) {
+          exerciseDetailsEl.textContent = 'Select an exercise to view details.';
+        }
+        return;
+      }
+
+      const raw = exerciseSelectEl?.dataset?.exercises;
+      const list = raw ? JSON.parse(raw) : [];
+      const exercise = list.find((item) => item.exercise_id === exerciseId);
+      if (!exercise) {
+        if (exerciseDetailsEl) {
+          exerciseDetailsEl.textContent = 'Selected exercise not found.';
+        }
+        return;
+      }
+
+      if (exerciseDetailsEl) {
+        exerciseDetailsEl.textContent = `${exercise.description || 'No description'} | Doctor: ${exercise.doctor_id || '--'} | Sets: ${exercise.target_sets || '--'} | Reps: ${exercise.target_reps || '--'} | Level: ${exercise.level || '--'} | ${exercise.start_date || '--'} → ${exercise.end_date || '--'}`;
+      }
+
+      doctorData.level = Number(exercise.level) || doctorData.level;
+      doctorData.targetReps = Number(exercise.target_reps) || null;
+      doctorData.targetSets = Number(exercise.target_sets) || null;
+      levelSelect.value = String(doctorData.level);
+
+      if (exercise.doctor_id) {
+        const doctorDoc = await loadDoctorCalibration(exercise.doctor_id);
+        if (doctorDoc && doctorDoc.min && doctorDoc.max) {
+          const min = doctorDoc.min;
+          const max = doctorDoc.max;
+          doctorData.calibMin = [min.thumb, min.index, min.middle, min.ring, min.pinky]
+            .map((value) => Number(value) || 0);
+          doctorData.calibMax = [max.thumb, max.index, max.middle, max.ring, max.pinky]
+            .map((value) => Number(value) || 255);
+        } else {
+          doctorData.calibMin = emptyArray(0);
+          doctorData.calibMax = emptyArray(255);
+        }
+      }
+
+      const maxDoc = await loadExerciseMaxAngles(exerciseId);
+      if (maxDoc && maxDoc.max_angles) {
+        doctorData.exerciseMax = [
+          Number(maxDoc.max_angles.thumb) || 0,
+          Number(maxDoc.max_angles.index) || 0,
+          Number(maxDoc.max_angles.middle) || 0,
+          Number(maxDoc.max_angles.ring) || 0,
+          Number(maxDoc.max_angles.pinky) || 0
+        ];
+      }
+
+      applyStateToInputs();
+      currentReps = 0;
+      currentSets = 0;
+      repLatched = false;
+      updateRepSetStatus();
+      renderMatchGrid();
+      setStatus('Exercise details loaded from database.');
+    }
+
+    function updateRepSetStatus() {
+      if (!repSetStatusEl) {
+        return;
+      }
+
+      const targetReps = doctorData.targetReps ?? '--';
+      const targetSets = doctorData.targetSets ?? '--';
+      repSetStatusEl.textContent = `Reps: ${currentReps} / ${targetReps} | Sets: ${currentSets} / ${targetSets}`;
     }
 
     function getCurrentLevelAngle() {
@@ -501,6 +687,61 @@
           ready: false
         };
       }
+    }
+
+    async function fetchPatientCalibrationFromDatabase() {
+      const patientId = resolvePatientId();
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(patientId)}`, {
+          headers: { ...getAuthHeaders() }
+        });
+
+        if (response.status === 404) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('Failed to fetch patient calibration:', error);
+        return null;
+      }
+    }
+
+    async function hydratePatientCalibrationFromDatabase() {
+      const doc = await fetchPatientCalibrationFromDatabase();
+      if (!doc) {
+        patientCalibration = {
+          min: [null, null, null, null, null],
+          max: [null, null, null, null, null],
+          capturedAt: null,
+          ready: false
+        };
+        renderPatientCalibrationStatus();
+        return;
+      }
+
+      const min = doc?.min || {};
+      const max = doc?.max || {};
+      const finalMin = [min.thumb, min.index, min.middle, min.ring, min.pinky]
+        .map((value) => Number(value))
+        .map((value) => (Number.isFinite(value) ? value : null));
+      const finalMax = [max.thumb, max.index, max.middle, max.ring, max.pinky]
+        .map((value) => Number(value))
+        .map((value) => (Number.isFinite(value) ? value : null));
+
+      const ready = finalMin.every(Number.isFinite) && finalMax.every(Number.isFinite);
+      patientCalibration = {
+        min: finalMin,
+        max: finalMax,
+        capturedAt: doc?.updatedAt || null,
+        ready
+      };
+
+      renderPatientCalibrationStatus();
     }
 
     function renderPatientCalibrationStatus() {
@@ -565,24 +806,29 @@
       }
 
       const patientAngles = packetToPatientAngles(patientPacket);
-      const expectedAngles = isLoopRunning ? latestLoopAngles : animatedAngles;
+      const targetMaxAngles = doctorData.exerciseMax;
+      const perFingerReached = [];
       matchGridEl.innerHTML = "";
 
       let sumScore = 0;
       let validCount = 0;
 
       for (let i = 0; i < FINGER_LABELS.length; i += 1) {
-        const expected = Number(expectedAngles[i]) || 0;
+        const target = Number(targetMaxAngles[i]) || 0;
         const actual = patientAngles[i];
 
         let score = 0;
         let diffText = "--";
+        let reachedText = "Not yet";
 
         if (Number.isFinite(actual)) {
-          const tolerance = Math.max(6, expected * 0.2);
-          const diff = Math.abs(actual - expected);
+          const tolerance = Math.max(5, target * 0.1);
+          const diff = Math.max(0, target - actual);
           score = clamp(1 - diff / (tolerance * 2), 0, 1);
           diffText = `${diff.toFixed(1)}deg`;
+          const reached = actual >= (target - tolerance);
+          reachedText = reached ? "Reached" : "Not yet";
+          perFingerReached[i] = reached;
           sumScore += score;
           validCount += 1;
         }
@@ -599,9 +845,40 @@
         track.className = "bar-track";
         track.appendChild(fill);
 
-        card.innerHTML = `<strong>${FINGER_LABELS[i]}</strong><div>Expected: ${expected.toFixed(1)}deg</div><div>Patient: ${Number.isFinite(actual) ? actual.toFixed(1) : "--"}deg</div><div>Error: ${diffText}</div>`;
+        card.innerHTML = `<strong>${FINGER_LABELS[i]}</strong><div>Target Max: ${target.toFixed(1)}deg</div><div>Patient: ${Number.isFinite(actual) ? actual.toFixed(1) : "--"}deg</div><div>Remaining: ${diffText}</div><div>Status: ${reachedText}</div>`;
         card.appendChild(track);
         matchGridEl.appendChild(card);
+      }
+
+      if (validCount > 0) {
+        const allReached = perFingerReached.length === FINGER_LABELS.length
+          && perFingerReached.every(Boolean);
+        const anyBelowReset = patientAngles.some((value, index) => {
+          const target = Number(targetMaxAngles[index]) || 0;
+          const tolerance = Math.max(5, target * 0.1);
+          return !Number.isFinite(value) || value < (target - tolerance);
+        });
+
+        if (allReached && !repLatched) {
+          currentReps += 1;
+          repLatched = true;
+          const targetReps = Number(doctorData.targetReps) || 0;
+          const targetSets = Number(doctorData.targetSets) || 0;
+          if (targetReps > 0 && currentReps >= targetReps) {
+            currentReps = 0;
+            currentSets += 1;
+            if (targetSets > 0 && currentSets >= targetSets) {
+              setStatus('Target sets reached.');
+              isLoopRunning = false;
+              setLoopBadge();
+            }
+          }
+          updateRepSetStatus();
+        }
+
+        if (anyBelowReset && repLatched) {
+          repLatched = false;
+        }
       }
 
       if (validCount === 0) {
@@ -613,7 +890,7 @@
       }
 
       const overall = sumScore / validCount;
-      overallMatchBadgeEl.textContent = `Overall Match: ${(overall * 100).toFixed(0)}%`;
+      overallMatchBadgeEl.textContent = `Overall Max Reached: ${(overall * 100).toFixed(0)}%`;
       overallMatchBadgeEl.style.color = overall >= 0.75 ? "#166f3f" : (overall >= 0.45 ? "#9a6700" : "#8a1f1f");
       overallMatchBadgeEl.style.background = overall >= 0.75 ? "#e8f7ef" : (overall >= 0.45 ? "#fff7e0" : "#fdecec");
       overallMatchBadgeEl.style.borderColor = overall >= 0.75 ? "#b7e3c9" : (overall >= 0.45 ? "#f0d491" : "#f2b7b7");
@@ -671,62 +948,8 @@
       loopBadgeEl.style.borderColor = isLoopRunning ? "#b7e3c9" : "#f0d491";
     }
 
-    function loadDoctorFromLocalStorage() {
-      try {
-        const rawCalibV2 = localStorage.getItem(DOCTOR_CALIB_V2_KEY);
-        if (rawCalibV2) {
-          const parsed = JSON.parse(rawCalibV2);
-          if (Array.isArray(parsed.finalMin)) {
-            doctorData.calibMin = parsed.finalMin.map((v) => Number(v) || 0);
-          }
-          if (Array.isArray(parsed.finalMax)) {
-            doctorData.calibMax = parsed.finalMax.map((v) => Number(v) || 255);
-          }
-        } else {
-          const rawCalibV1 = localStorage.getItem(DOCTOR_CALIB_V1_KEY);
-          if (rawCalibV1) {
-            const parsed = JSON.parse(rawCalibV1);
-            if (Array.isArray(parsed.min)) {
-              doctorData.calibMin = parsed.min.map((v) => Number(v) || 0);
-            }
-            if (Array.isArray(parsed.max)) {
-              doctorData.calibMax = parsed.max.map((v) => Number(v) || 255);
-            }
-          }
-        }
-
-        const rawExercises = localStorage.getItem(DOCTOR_EXERCISE_KEY);
-        if (rawExercises) {
-          const parsed = JSON.parse(rawExercises);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const latest = parsed[parsed.length - 1];
-            const maxAngles = latest?.maxAngles || {};
-            doctorData.exerciseMax = [
-              Number(maxAngles.thumb) || doctorData.exerciseMax[0],
-              Number(maxAngles.index) || doctorData.exerciseMax[1],
-              Number(maxAngles.middle) || doctorData.exerciseMax[2],
-              Number(maxAngles.ring) || doctorData.exerciseMax[3],
-              Number(maxAngles.pinky) || doctorData.exerciseMax[4]
-            ];
-          }
-        }
-
-        applyStateToInputs();
-        saveManualData();
-        setStatus("Doctor data loaded from local storage. You can adjust values manually.");
-      } catch (error) {
-        console.error(error);
-        setStatus("Failed to load doctor data from local storage. Keeping current manual values.");
-      }
-    }
-
     backBtn.addEventListener("click", () => {
       window.location.href = "./glove_test.html";
-    });
-
-    loadDoctorBtn.addEventListener("click", () => {
-      loadDoctorFromLocalStorage();
-      renderMatchGrid();
     });
 
     loadPatientCalibBtn.addEventListener("click", () => {
@@ -738,13 +961,11 @@
         : "Patient calibration not found. Please calibrate patient hand first.");
     });
 
-    saveManualBtn.addEventListener("click", () => {
-      pullInputsIntoState();
-      renderTargetGrid();
-      saveManualData();
-      setStatus("Manual values saved. Loop now uses the updated doctor values.");
-      renderMatchGrid();
-    });
+    if (exerciseSelectEl) {
+      exerciseSelectEl.addEventListener("change", (event) => {
+        applyExerciseSelection(event.target.value);
+      });
+    }
 
     levelSelect.addEventListener("change", () => {
       pullInputsIntoState();
@@ -806,6 +1027,7 @@
         await gloveClient.connect();
         connectGloveBtn.textContent = "Glove Connected";
         connectGloveBtn.disabled = true;
+        await hydratePatientCalibrationFromDatabase();
         setStatus("Patient glove connected. Follow the movement and watch match bars.");
       } catch (error) {
         console.error(error);
@@ -814,6 +1036,36 @@
         setStatus(`Patient glove connection failed: ${error?.name || "Error"} - ${error?.message || "Unknown"}`);
       }
     });
+
+    if (patientCrossPageChannel) {
+      patientCrossPageChannel.addEventListener("message", (event) => {
+        const data = event?.data || {};
+        if (data.type !== "patient-state") {
+          return;
+        }
+
+        remotePatientConnected = Boolean(data.connected);
+        if (!remotePatientConnected) {
+          return;
+        }
+
+        if (Array.isArray(data.latestPacket) && data.latestPacket.length >= 5) {
+          patientPacket = data.latestPacket.slice(0, 5).map((value) => {
+            const num = Number(value);
+            return Number.isFinite(num) ? num : 0;
+          });
+          renderMatchGrid();
+        }
+
+        if (remotePatientConnected) {
+          gloveStatusEl.textContent = "Patient glove status: Using live stream from patient console.";
+          connectGloveBtn.disabled = true;
+          connectGloveBtn.textContent = "Using Console Connection";
+        }
+      });
+
+      patientCrossPageChannel.postMessage({ type: "request-patient-state" });
+    }
 
     const container = document.getElementById("rendererContainer");
     const scene = new THREE.Scene();
@@ -947,6 +1199,8 @@
     renderPatientCalibrationStatus();
     setLoopBadge();
     renderMatchGrid();
+    updateRepSetStatus();
+    loadExercisesForPatient();
     renderLoop(performance.now());
   </script>
 </body>

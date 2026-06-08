@@ -159,6 +159,11 @@
             margin-bottom: 10px;
         }
 
+        .exercise-head input,
+        .exercise-head select {
+            min-width: 180px;
+        }
+
         input[type="text"],
         input[type="number"] {
             width: 100%;
@@ -253,8 +258,43 @@
             <section class="section">
                 <h3>Add Exercise</h3>
                 <div class="exercise-head">
-                    <label for="exerciseName">Exercise Name</label>
-                    <input id="exerciseName" type="text" placeholder="e.g. Finger Flexion Set A">
+                    <label for="exercisePatientId">Patient ID</label>
+                    <select id="exercisePatientId" disabled>
+                        <option value="">-- Select patient (load later) --</option>
+                    </select>
+                </div>
+
+                <div class="exercise-head">
+                    <label for="exerciseDescription">Description</label>
+                    <input id="exerciseDescription" type="text" placeholder="e.g. Finger flexion set A">
+                </div>
+
+                <div class="exercise-head">
+                    <label for="exerciseLevel">Level</label>
+                    <input id="exerciseMotorLevel" type="number" min="1" max="10" placeholder="1-10">
+                    <button id="testMotorBtn" class="secondary" type="button">Test Motor</button>
+                    <button id="resetMotorBtn" class="secondary" type="button">Reset Motor</button>
+                    <span id="motorStatus" class="note">Motor not tested.</span>
+                </div>
+
+                <div class="exercise-head">
+                    <label for="exerciseTargetSets">Target Sets</label>
+                    <input id="exerciseTargetSets" type="number" min="1" placeholder="e.g. 3">
+                </div>
+
+                <div class="exercise-head">
+                    <label for="exerciseTargetReps">Target Reps</label>
+                    <input id="exerciseTargetReps" type="number" min="1" placeholder="e.g. 12">
+                </div>
+
+                <div class="exercise-head">
+                    <label for="exerciseStartDate">Start Date</label>
+                    <input id="exerciseStartDate" type="date">
+                </div>
+
+                <div class="exercise-head">
+                    <label for="exerciseEndDate">End Date</label>
+                    <input id="exerciseEndDate" type="date">
                 </div>
 
                 <div class="exercise-grid">
@@ -333,6 +373,7 @@
 
         const BLE_SERVICE_UUID = '12345678-1234-1234-1234-1234567890ab';
         const BLE_CHARACTERISTIC_UUID = '87654321-4321-4321-4321-9876543210ab';
+        const BLE_MOTOR_CMD_UUID = '11111111-2222-3333-4444-555555555555';
         const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
         const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
         const DEFAULT_RELAXED_PACKET = [255, 255, 255, 255, 255];
@@ -342,12 +383,13 @@
         const CROSS_PAGE_CHANNEL_KEY = 'gloveCrossPageV1';
         const DOCTOR_ID_STORAGE_KEY = 'doctorId';
         const API_BASE_STORAGE_KEY = 'apiBaseUrl';
+        const AUTH_TOKEN_STORAGE_KEY = 'auth_token';
         const DEFAULT_DOCTOR_ID = 'D001';
 
         const queryParams = new URLSearchParams(window.location.search);
         const queryDoctorId = queryParams.get('doctor_id');
         const queryApiBase = queryParams.get('api_base');
-        const DOCTOR_ID = (queryDoctorId || localStorage.getItem(DOCTOR_ID_STORAGE_KEY) || DEFAULT_DOCTOR_ID).trim();
+        const DOCTOR_ID = (queryDoctorId || resolveDoctorId() || localStorage.getItem(DOCTOR_ID_STORAGE_KEY)).trim();
         const API_BASE_URL = (queryApiBase || localStorage.getItem(API_BASE_STORAGE_KEY) || (
             window.location.protocol === 'file:'
                 ? 'http://localhost:3000'
@@ -357,6 +399,28 @@
         localStorage.setItem(DOCTOR_ID_STORAGE_KEY, DOCTOR_ID);
         localStorage.setItem(API_BASE_STORAGE_KEY, API_BASE_URL);
 
+        function resolveDoctorId() {
+            const rawProfile = localStorage.getItem('auth_profile');
+            if (!rawProfile) {
+                return DEFAULT_DOCTOR_ID;
+            }
+
+            try {
+                const profile = JSON.parse(rawProfile);
+                return profile?.doctor_id || DEFAULT_DOCTOR_ID;
+            } catch {
+                return DEFAULT_DOCTOR_ID;
+            }
+        }
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+            if (!token) {
+                return {};
+            }
+            return { Authorization: `Bearer ${token}` };
+        }
+
         const connectBtn = document.getElementById('connectBtn');
         const openCalibrationBtn = document.getElementById('openCalibrationBtn');
         const statusEl = document.getElementById('status');
@@ -365,6 +429,16 @@
         const captureAllExerciseBtn = document.getElementById('captureAllExerciseBtn');
         const resetExerciseCaptureBtn = document.getElementById('resetExerciseCaptureBtn');
         const exerciseListEl = document.getElementById('exerciseList');
+        const exercisePatientIdEl = document.getElementById('exercisePatientId');
+        const exerciseDescriptionEl = document.getElementById('exerciseDescription');
+        const exerciseMotorLevelEl = document.getElementById('exerciseMotorLevel');
+        const testMotorBtn = document.getElementById('testMotorBtn');
+        const resetMotorBtn = document.getElementById('resetMotorBtn');
+        const motorStatusEl = document.getElementById('motorStatus');
+        const exerciseTargetSetsEl = document.getElementById('exerciseTargetSets');
+        const exerciseTargetRepsEl = document.getElementById('exerciseTargetReps');
+        const exerciseStartDateEl = document.getElementById('exerciseStartDate');
+        const exerciseEndDateEl = document.getElementById('exerciseEndDate');
         const exerciseValueEls = {
             thumb: document.getElementById('exerciseThumb'),
             index: document.getElementById('exerciseIndex'),
@@ -375,6 +449,7 @@
 
         let bleDevice = null;
         let bleCharacteristic = null;
+        let motorCharacteristic = null;
         let latestPacket = [...DEFAULT_RELAXED_PACKET];
         let calibration = loadCalibration();
         let remoteCalibrationConnected = false;
@@ -389,6 +464,7 @@
             ring: null,
             pinky: null
         };
+        let motorLevelApproved = false;
 
         window.doctorShared = window.doctorShared || {
             latestPacket: [...DEFAULT_RELAXED_PACKET],
@@ -398,6 +474,12 @@
 
         function setStatus(message) {
             statusEl.textContent = message;
+        }
+
+        function setMotorStatus(message) {
+            if (motorStatusEl) {
+                motorStatusEl.textContent = message;
+            }
         }
 
         function reloadCalibrationFromStorage(statusMessage) {
@@ -544,6 +626,47 @@
             localStorage.setItem(EXERCISE_STORAGE_KEY, JSON.stringify(exercises));
         }
 
+        function generateExerciseId() {
+            const suffix = Math.random().toString(36).slice(2, 8);
+            return `ex_${Date.now()}_${suffix}`;
+        }
+
+        async function loadPatients() {
+            if (!exercisePatientIdEl) {
+                return;
+            }
+
+            exercisePatientIdEl.innerHTML = '<option value="">-- Loading patients... --</option>';
+            exercisePatientIdEl.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/patients`, {
+                    headers: { ...getAuthHeaders() }
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                const patients = Array.isArray(data.patients) ? data.patients : [];
+
+                const options = ['<option value="">-- Select patient --</option>'];
+                patients.forEach((patient) => {
+                    const id = patient?.patient_id || '';
+                    const name = patient?.name || 'Unnamed';
+                    const label = `${id} - ${name}`.trim();
+                    options.push(`<option value="${id}">${label}</option>`);
+                });
+
+                exercisePatientIdEl.innerHTML = options.join('');
+            } catch (error) {
+                console.error('Failed to load patients:', error);
+                exercisePatientIdEl.innerHTML = '<option value="">-- Failed to load patients --</option>';
+            } finally {
+                exercisePatientIdEl.disabled = false;
+            }
+        }
+
         function calibrationFromDoctorDoc(doc) {
             const min = doc?.min || {};
             const max = doc?.max || {};
@@ -588,10 +711,32 @@
             }));
         }
 
+        function clearCalibrationLocalState() {
+            calibration = {
+                min: null,
+                max: null,
+                nonThumbMin: null,
+                nonThumbMax: null,
+                thumbMin: null,
+                thumbMax: null,
+                capturedAt: null,
+                version: 2
+            };
+            localStorage.removeItem(CALIBRATION_STORAGE_KEY_V2);
+            localStorage.removeItem(CALIBRATION_STORAGE_KEY);
+        }
+
         async function syncCalibrationFromDatabase() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/doctor-calibration/${encodeURIComponent(DOCTOR_ID)}`);
+                const response = await fetch(`${API_BASE_URL}/api/doctor-cal/${encodeURIComponent(DOCTOR_ID)}`, {
+                    headers: { ...getAuthHeaders() }
+                });
                 if (response.status === 404) {
+                    clearCalibrationLocalState();
+                    updateCalibrationCards();
+                    updateLiveCards();
+                    updateExerciseCaptureUI();
+                    setStatus(`No database calibration found for doctor ${DOCTOR_ID}.`);
                     return;
                 }
                 if (!response.ok) {
@@ -690,7 +835,7 @@
             });
 
             captureAllExerciseBtn.disabled = !canCapture;
-            saveExerciseBtn.disabled = !calibrationReady || !allExerciseAnglesCaptured();
+            saveExerciseBtn.disabled = !allExerciseAnglesCaptured();
         }
 
         function renderExerciseList() {
@@ -705,7 +850,13 @@
 
             exercises.forEach((exercise) => {
                 const li = document.createElement('li');
-                li.textContent = `${exercise.name} | Thumb:${exercise.maxAngles.thumb} Index:${exercise.maxAngles.index} Middle:${exercise.maxAngles.middle} Ring:${exercise.maxAngles.ring} Pinky:${exercise.maxAngles.pinky} | ${exercise.createdAt}`;
+                const patientId = exercise.patient_id || '--';
+                const description = exercise.description || 'No description';
+                const sets = exercise.target_sets ?? '--';
+                const reps = exercise.target_reps ?? '--';
+                const start = exercise.start_date || '--';
+                const end = exercise.end_date || '--';
+                li.textContent = `${exercise.exercise_id} | ${patientId} | ${description} | Sets:${sets} Reps:${reps} | ${start} → ${end}`;
                 exerciseListEl.appendChild(li);
             });
         }
@@ -756,6 +907,14 @@
                 const server = await bleDevice.gatt.connect();
                 const service = await server.getPrimaryService(BLE_SERVICE_UUID);
                 bleCharacteristic = await service.getCharacteristic(BLE_CHARACTERISTIC_UUID);
+
+                try {
+                    motorCharacteristic = await service.getCharacteristic(BLE_MOTOR_CMD_UUID);
+                    await motorCharacteristic.writeValueWithResponse(new Uint8Array([0]));
+                } catch (error) {
+                    motorCharacteristic = null;
+                    console.warn('Motor characteristic unavailable:', error);
+                }
 
                 await bleCharacteristic.startNotifications();
                 bleCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
@@ -824,10 +983,42 @@
             setStatus('Captured exercise max angles cleared.');
         }
 
-        function saveExercise() {
-            const name = document.getElementById('exerciseName').value.trim();
-            if (!name) {
-                alert('Please enter an exercise name.');
+        async function saveExercise() {
+            const patientId = exercisePatientIdEl?.value?.trim();
+            const description = exerciseDescriptionEl?.value?.trim();
+            const motorLevel = Number(exerciseMotorLevelEl?.value);
+            const targetSets = Number(exerciseTargetSetsEl?.value);
+            const targetReps = Number(exerciseTargetRepsEl?.value);
+            const startDate = exerciseStartDateEl?.value || null;
+            const endDate = exerciseEndDateEl?.value || null;
+
+            if (!patientId) {
+                alert('Please select a patient first.');
+                return;
+            }
+
+            if (!description) {
+                alert('Please enter a description.');
+                return;
+            }
+
+            if (!Number.isFinite(targetSets) || targetSets <= 0) {
+                alert('Please enter a valid target sets value.');
+                return;
+            }
+
+            if (!Number.isFinite(targetReps) || targetReps <= 0) {
+                alert('Please enter a valid target reps value.');
+                return;
+            }
+
+            if (!Number.isFinite(motorLevel) || motorLevel < 1 || motorLevel > 10) {
+                alert('Please enter a valid motor force level (1-10).');
+                return;
+            }
+
+            if (!motorLevelApproved) {
+                alert('Please test the motor force level before saving.');
                 return;
             }
 
@@ -836,20 +1027,55 @@
                 return;
             }
 
-            const record = {
-                id: `ex_${Date.now()}`,
-                name,
-                maxAngles: { ...exerciseDraft },
-                createdAt: new Date().toLocaleString()
+            const payload = {
+                exercise_id: generateExerciseId(),
+                description,
+                level: motorLevel,
+                target_sets: targetSets,
+                target_reps: targetReps,
+                start_date: startDate,
+                end_date: endDate,
+                patient_id: patientId,
+                doctor_id: DOCTOR_ID,
+                max_angles: { ...exerciseDraft }
             };
 
-            exercises.push(record);
-            saveExercises();
-            renderExerciseList();
-            setStatus(`Exercise "${name}" saved locally.`);
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/exercises`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify(payload)
+                });
 
-            document.getElementById('exerciseName').value = '';
-            resetExerciseCapture();
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data?.error || `HTTP ${response.status}`);
+                }
+
+                exercises.push(data.data || payload);
+                renderExerciseList();
+                setStatus('Exercise saved to database.');
+
+                if (exerciseDescriptionEl) {
+                    exerciseDescriptionEl.value = '';
+                }
+                if (exerciseTargetSetsEl) {
+                    exerciseTargetSetsEl.value = '';
+                }
+                if (exerciseTargetRepsEl) {
+                    exerciseTargetRepsEl.value = '';
+                }
+                if (exerciseStartDateEl) {
+                    exerciseStartDateEl.value = '';
+                }
+                if (exerciseEndDateEl) {
+                    exerciseEndDateEl.value = '';
+                }
+            } catch (error) {
+                console.error('Failed to save exercise:', error);
+                setStatus('Failed to save exercise to database.');
+                alert('Failed to save exercise. Check backend logs.');
+            }
         }
 
         function exportExercises() {
@@ -875,10 +1101,63 @@
         saveExerciseBtn.addEventListener('click', saveExercise);
         exportExerciseBtn.addEventListener('click', exportExercises);
 
+        if (exerciseMotorLevelEl) {
+            exerciseMotorLevelEl.addEventListener('input', () => {
+                motorLevelApproved = false;
+                setMotorStatus('Motor not tested.');
+            });
+        }
+
+        if (testMotorBtn) {
+            testMotorBtn.addEventListener('click', async () => {
+                if (!motorCharacteristic) {
+                    alert('Motor characteristic not available. Connect a glove that supports motor control.');
+                    return;
+                }
+
+                const motorLevel = Number(exerciseMotorLevelEl?.value);
+                if (!Number.isFinite(motorLevel) || motorLevel < 1 || motorLevel > 10) {
+                    alert('Please enter a valid motor force level (1-10).');
+                    return;
+                }
+
+                try {
+                    await motorCharacteristic.writeValueWithResponse(new Uint8Array([Math.round(motorLevel)]));
+                    motorLevelApproved = true;
+                    setMotorStatus(`Motor level ${Math.round(motorLevel)} applied.`);
+                } catch (error) {
+                    console.error('Motor command failed:', error);
+                    motorLevelApproved = false;
+                    setMotorStatus('Motor command failed.');
+                    alert('Motor command failed.');
+                }
+            });
+        }
+
+        if (resetMotorBtn) {
+            resetMotorBtn.addEventListener('click', async () => {
+                if (!motorCharacteristic) {
+                    alert('Motor characteristic not available. Connect a glove that supports motor control.');
+                    return;
+                }
+
+                try {
+                    await motorCharacteristic.writeValueWithResponse(new Uint8Array([0]));
+                    motorLevelApproved = false;
+                    setMotorStatus('Motor reset to 0.');
+                } catch (error) {
+                    console.error('Motor reset failed:', error);
+                    setMotorStatus('Motor reset failed.');
+                    alert('Motor reset failed.');
+                }
+            });
+        }
+
         updateCalibrationCards();
         updateLiveCards();
         updateExerciseCaptureUI();
         renderExerciseList();
+        loadPatients();
         publishDoctorSharedState();
         broadcastDoctorState();
         syncCalibrationFromDatabase();

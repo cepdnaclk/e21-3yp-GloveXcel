@@ -89,6 +89,45 @@ const listHospitals = async (_req, res) => {
     }
 };
 
+const listPatients = async (req, res) => {
+    try {
+        const role = req.user?.role;
+        const tokenDoctorId = req.user?.sub;
+        const requestedDoctorId = (req.query.doctor_id || '').trim();
+        const doctorId = role === 'doctor'
+            ? tokenDoctorId
+            : (requestedDoctorId || null);
+
+        if (doctorId) {
+            const patients = await pool.query(
+                `
+                SELECT DISTINCT p.patient_id, p.name, p.age, p.email, p.primary_hospital_id
+                FROM public.exercises e
+                JOIN public.patients p ON p.patient_id = e.patient_id
+                WHERE e.doctor_id = $1
+                ORDER BY p.patient_id ASC
+                `,
+                [doctorId]
+            );
+
+            return res.status(200).json({ patients: patients.rows });
+        }
+
+        const patients = await pool.query(
+            `
+            SELECT patient_id, name, age, email, primary_hospital_id
+            FROM public.patients
+            ORDER BY patient_id ASC
+            `
+        );
+
+        return res.status(200).json({ patients: patients.rows });
+    } catch (error) {
+        console.error('LIST_PATIENTS_ERROR:', error);
+        return res.status(500).json({ message: 'Failed to load patients.' });
+    }
+};
+
 const doctorSignup = async (req, res) => {
     try {
         const { email, password, hospital_id, name } = req.body;
@@ -790,6 +829,7 @@ const login = async (req, res) => {
 module.exports = {
     createHospital,
     listHospitals,
+    listPatients,
     adminSignup,
     adminLogin,
     getPendingDoctorRequests,

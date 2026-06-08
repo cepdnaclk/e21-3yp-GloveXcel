@@ -142,10 +142,74 @@ export function mapRawToBaseAngle(rawValue, row) {
   return mapRange(clampedRaw, row.inputMin, row.inputMax, row.angleMin, row.angleMax);
 }
 
+function resolveInputRange(row, calibrationMin, calibrationMax) {
+  const minCandidate = Number(calibrationMin);
+  const maxCandidate = Number(calibrationMax);
+
+  if (!Number.isFinite(minCandidate) || !Number.isFinite(maxCandidate) || minCandidate === maxCandidate) {
+    return {
+      inputMin: row.inputMin,
+      inputMax: row.inputMax,
+      invert: Boolean(row.invert)
+    };
+  }
+
+  if (minCandidate < maxCandidate) {
+    return {
+      inputMin: minCandidate,
+      inputMax: maxCandidate,
+      invert: Boolean(row.invert)
+    };
+  }
+
+  // If the recorded range is reversed, normalize it and flip inversion to preserve direction.
+  return {
+    inputMin: maxCandidate,
+    inputMax: minCandidate,
+    invert: !Boolean(row.invert)
+  };
+}
+
+export function mapRawToBaseAngleCalibrated(rawValue, row, calibrationMin, calibrationMax) {
+  const { inputMin, inputMax, invert } = resolveInputRange(row, calibrationMin, calibrationMax);
+  const clampedRaw = clamp(rawValue, inputMin, inputMax);
+  if (invert) {
+    return mapRange(clampedRaw, inputMin, inputMax, row.angleMax, row.angleMin);
+  }
+  return mapRange(clampedRaw, inputMin, inputMax, row.angleMin, row.angleMax);
+}
+
 export function mapPacketToFingerPose(rawPacket, mappingTable = FINGER_MAPPING_TABLE) {
   return mappingTable.map((row) => {
     const rawValue = rawPacket[row.sensorIndex] ?? 0;
     const baseAngle = mapRawToBaseAngle(rawValue, row);
+    const midAngle = baseAngle * row.midRatio;
+    const tipAngle = baseAngle * row.tipRatio;
+    const spreadSign = row.spreadInvert ? -1 : 1;
+
+    return {
+      fingerName: row.fingerName,
+      rawValue,
+      baseAngle,
+      midAngle,
+      tipAngle,
+      spreadAngle: row.isThumb ? row.spreadAmount * spreadSign : 0
+    };
+  });
+}
+
+export function mapPacketToFingerPoseCalibrated(rawPacket, calibration, mappingTable = FINGER_MAPPING_TABLE) {
+  const calibrationMin = Array.isArray(calibration?.min) ? calibration.min : [];
+  const calibrationMax = Array.isArray(calibration?.max) ? calibration.max : [];
+
+  return mappingTable.map((row) => {
+    const rawValue = rawPacket[row.sensorIndex] ?? 0;
+    const baseAngle = mapRawToBaseAngleCalibrated(
+      rawValue,
+      row,
+      calibrationMin[row.sensorIndex],
+      calibrationMax[row.sensorIndex]
+    );
     const midAngle = baseAngle * row.midRatio;
     const tipAngle = baseAngle * row.tipRatio;
     const spreadSign = row.spreadInvert ? -1 : 1;

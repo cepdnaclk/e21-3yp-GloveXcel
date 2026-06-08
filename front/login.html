@@ -370,9 +370,26 @@
             setMessage('');
         };
 
-        const saveSession = (role, profile) => {
+        const saveSession = (role, profile, token) => {
             localStorage.setItem('auth_role', role);
             localStorage.setItem('auth_profile', JSON.stringify(profile));
+            if (token) {
+                localStorage.setItem('auth_token', token);
+            } else {
+                localStorage.removeItem('auth_token');
+            }
+
+            if (role === 'doctor' && profile?.doctor_id) {
+                localStorage.setItem('doctorId', profile.doctor_id);
+            } else {
+                localStorage.removeItem('doctorId');
+            }
+
+            if (role === 'patient' && profile?.patient_id) {
+                localStorage.setItem('patientId', profile.patient_id);
+            } else {
+                localStorage.removeItem('patientId');
+            }
         };
 
         const goToRolePage = (role) => {
@@ -434,6 +451,7 @@
 
                 const authenticatedRole = data.role;
                 const profile = data.profile;
+                const token = data.token;
 
                 if (!authenticatedRole || !profile) {
                     setMessage('Login response is missing role/profile data.', 'error');
@@ -441,7 +459,7 @@
                 }
 
                 activeRole = authenticatedRole;
-                saveSession(authenticatedRole, profile);
+                saveSession(authenticatedRole, profile, token);
                 setMessage('Login successful. Redirecting...', 'success');
 
                 setTimeout(() => {

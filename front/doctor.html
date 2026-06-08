@@ -251,6 +251,334 @@
                 height: 300px;
             }
         }
+
+        /* ── Real-Time Session Styles ────────────────────────────────── */
+
+        .rt-section-heading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 12px;
+            font-size: 15px;
+            color: #1f2a38;
+        }
+
+        .rt-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            border-radius: 20px;
+            background: #007bff;
+            color: #fff;
+            text-transform: uppercase;
+            vertical-align: middle;
+        }
+
+        .match-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .match-row {
+            display: grid;
+            grid-template-columns: 60px 1fr 90px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .match-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4b5d78;
+            white-space: nowrap;
+        }
+
+        .match-bar-track {
+            height: 14px;
+            background: #e4eaf4;
+            border-radius: 7px;
+            overflow: visible;
+            position: relative;
+        }
+
+        .match-bar-fill {
+            height: 100%;
+            border-radius: 7px;
+            width: 0%;
+            transition: width 0.08s linear, background-color 0.2s ease;
+            background-color: #ef4444;
+        }
+
+        .match-target-line {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 2px;
+            height: 100%;
+            background: rgba(0,123,255,0.35);
+            border-radius: 1px;
+        }
+
+        .match-value {
+            font-size: 12px;
+            font-weight: 700;
+            text-align: right;
+            color: #3d4f67;
+            white-space: nowrap;
+        }
+
+        .peak-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .peak-card {
+            background: #f4f8ff;
+            border: 1px solid #dbe6f8;
+            border-radius: 10px;
+            padding: 10px 12px;
+            text-align: center;
+        }
+
+        .peak-card-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: #4b5d78;
+            margin-bottom: 6px;
+        }
+
+        .peak-card-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin: 2px 0;
+        }
+
+        .peak-card-row .pk-label {
+            color: #627188;
+        }
+
+        .peak-card-row .pk-value {
+            font-weight: 700;
+            color: #1f2a38;
+        }
+
+        .peak-card-row .pk-min  { color: #3b82f6; }
+        .peak-card-row .pk-max  { color: #f59e0b; }
+        .peak-card-row .pk-live { color: #22c55e; }
+
+        .assessment-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .assessment-controls button {
+            font-size: 13px;
+            padding: 8px 14px;
+        }
+
+        #assessmentStatus {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .target-note {
+            font-size: 11px;
+            color: #627188;
+            margin-bottom: 8px;
+        }
+
+        /* ── "Set Doctor's Pose as Live Target" button ─────────────── */
+
+        .set-target-action {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .default-target-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .default-target-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4b5d78;
+            white-space: nowrap;
+        }
+
+        input[type="number"].default-target-input {
+            width: 70px;
+            padding: 5px 8px;
+            font-size: 13px;
+            font-weight: 700;
+            border: 1px solid #c7d9f8;
+            border-radius: 7px;
+            background: #f0f5ff;
+            color: #1f2a38;
+            text-align: center;
+        }
+
+        input[type="number"].default-target-input:focus {
+            outline: 2px solid #6366f1;
+            border-color: #6366f1;
+        }
+
+        .set-target-btn-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .reset-target-btn {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 8px 13px;
+            border-radius: 8px;
+            background: #e8edf6;
+            color: #4b5d78;
+            border: 1px solid #c7d9f8;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .reset-target-btn:hover {
+            background: #d4dff5;
+        }
+
+        .set-target-btn {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 9px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: transform 0.1s, box-shadow 0.15s;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+        }
+
+        .set-target-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.45);
+        }
+
+        .set-target-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 4px rgba(79, 70, 229, 0.3);
+        }
+
+        .set-target-btn:disabled {
+            opacity: 0.55;
+            cursor: default;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .target-toast {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity 0.25s;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .target-toast.show {
+            opacity: 1;
+        }
+
+        .target-toast.ok   { background: #dcfce7; color: #166534; }
+        .target-toast.warn { background: #fef9c3; color: #713f12; }
+
+        /* ── Ceiling Bar & Over-flexion ──────────────────────────────── */
+
+        .match-ceiling-line {
+            position: absolute;
+            top: -3px;
+            height: calc(100% + 6px);
+            width: 2px;
+            background: rgba(0, 123, 255, 0.7);
+            border-radius: 1px;
+            pointer-events: none;
+            /* left is set dynamically via JS: left = (100/120)*100 % = 83.33% */
+        }
+
+        /* Flashing red for over-flexion */
+        @keyframes overFlexFlash {
+            0%, 100% { background-color: #dc2626; }
+            50%       { background-color: #fca5a5; }
+        }
+
+        .match-bar-fill.overflex {
+            animation: overFlexFlash 0.35s linear infinite;
+        }
+
+        /* ── Rep / Set Counter Widget ────────────────────────────────── */
+
+        .rep-counter-widget {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f0f5ff;
+            border: 1px solid #c7d9f8;
+            border-radius: 10px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+        }
+
+        .rep-counter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4b5d78;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        #repSetStatus {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1f2a38;
+            transition: color 0.2s;
+        }
+
+        #repSetStatus.warning {
+            color: #dc2626;
+            animation: overFlexFlash 0.5s linear 3;
+        }
+
+        .rep-target-source {
+            font-size: 11px;
+            color: #627188;
+            font-style: italic;
+            margin-left: 6px;
+        }
+
+        .reset-reps-btn {
+            font-size: 12px;
+            padding: 5px 10px;
+            background: #6c7a90;
+        }
     </style>
 </head>
 <body>
@@ -300,6 +628,140 @@
                     <div class="mini-card"><strong>Middle</strong><div id="calMiddle">Min: -- | Max: --</div></div>
                     <div class="mini-card"><strong>Ring</strong><div id="calRing">Min: -- | Max: --</div></div>
                     <div class="mini-card"><strong>Pinky</strong><div id="calPinky">Min: -- | Max: --</div></div>
+                </div>
+            </section>
+
+            <!-- ── Real-Time Session: Patient Match Grid ── -->
+            <section class="section hidden" id="rtMatchSection">
+                <h3 class="rt-section-heading">Patient Compliance Monitor <span class="rt-badge">Live</span></h3>
+
+                <!-- Rep / Set counter widget -->
+                <div class="rep-counter-widget">
+                    <div>
+                        <span class="rep-counter-label">Progress</span>
+                        <span class="rep-target-source" id="targetSourceLabel">(default 90° target)</span>
+                    </div>
+                    <span id="repSetStatus">Reps: 0 / -- &nbsp;|&nbsp; Sets: 0 / --</span>
+                    <button class="reset-reps-btn" id="resetRepsBtn" type="button">↺ Reset</button>
+                </div>
+
+                <!-- ── Default target input + action buttons ── -->
+                <div class="set-target-action">
+
+                    <!-- Row 1: configurable default angle -->
+                    <div class="default-target-row">
+                        <label class="default-target-label" for="defaultTargetInput">Default Target Angle</label>
+                        <input id="defaultTargetInput" type="number"
+                               class="default-target-input"
+                               value="90" min="0" max="90" step="1">
+                        <span style="font-size:11px;color:#627188;">° (used when no live pose is set)</span>
+                    </div>
+
+                    <!-- Row 2: primary actions -->
+                    <div class="set-target-btn-row">
+                        <button class="set-target-btn" id="setDoctorTargetBtn" type="button">
+                            🎯 Set Doctor's Pose as Live Target
+                        </button>
+                        <button class="reset-target-btn" id="resetLiveTargetBtn" type="button">
+                            ↺ Reset Target to Default
+                        </button>
+                        <span class="target-toast" id="setTargetToast"></span>
+                    </div>
+
+                </div>
+
+                <p class="target-note">
+                    Bar track = 120% of target (ceiling check zone). Blue line = prescribed max (100%).
+                    <span style="color:#3b82f6">■</span> Approaching &nbsp;
+                    <span style="color:#22c55e">■</span> Safe Zone (95–105%) &nbsp;
+                    <span style="color:#dc2626">■</span> Over-flexion (&gt;105%)
+                </p>
+
+                <div class="match-grid" id="matchGrid">
+                    <div class="match-row">
+                        <span class="match-label">Thumb</span>
+                        <div class="match-bar-track" style="position:relative;">
+                            <div class="match-bar-fill" id="mBarThumb"></div>
+                            <div class="match-ceiling-line" id="mCeilThumb" style="left:83.33%"></div>
+                        </div>
+                        <span class="match-value" id="mValThumb">0°</span>
+                    </div>
+                    <div class="match-row">
+                        <span class="match-label">Index</span>
+                        <div class="match-bar-track" style="position:relative;">
+                            <div class="match-bar-fill" id="mBarIndex"></div>
+                            <div class="match-ceiling-line" id="mCeilIndex" style="left:83.33%"></div>
+                        </div>
+                        <span class="match-value" id="mValIndex">0°</span>
+                    </div>
+                    <div class="match-row">
+                        <span class="match-label">Middle</span>
+                        <div class="match-bar-track" style="position:relative;">
+                            <div class="match-bar-fill" id="mBarMiddle"></div>
+                            <div class="match-ceiling-line" id="mCeilMiddle" style="left:83.33%"></div>
+                        </div>
+                        <span class="match-value" id="mValMiddle">0°</span>
+                    </div>
+                    <div class="match-row">
+                        <span class="match-label">Ring</span>
+                        <div class="match-bar-track" style="position:relative;">
+                            <div class="match-bar-fill" id="mBarRing"></div>
+                            <div class="match-ceiling-line" id="mCeilRing" style="left:83.33%"></div>
+                        </div>
+                        <span class="match-value" id="mValRing">0°</span>
+                    </div>
+                    <div class="match-row">
+                        <span class="match-label">Pinky</span>
+                        <div class="match-bar-track" style="position:relative;">
+                            <div class="match-bar-fill" id="mBarPinky"></div>
+                            <div class="match-ceiling-line" id="mCeilPinky" style="left:83.33%"></div>
+                        </div>
+                        <span class="match-value" id="mValPinky">0°</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Real-Time Session: Peak Detection ── -->
+            <section class="section hidden" id="rtPeakSection">
+                <h3 class="rt-section-heading">Live Capture Snapshot <span class="rt-badge">Peak</span></h3>
+                <div class="assessment-controls">
+                    <button id="startAssessmentBtn" type="button">▶ Start Assessment</button>
+                    <button id="stopAssessmentBtn" class="secondary" type="button" disabled>■ Stop Assessment</button>
+                    <button id="resetPeaksBtn" class="secondary" type="button">↺ Reset Peaks</button>
+                    <button id="saveBaselineBtn" class="success" type="button">💾 Save Baseline</button>
+                </div>
+                <div id="assessmentStatus">Assessment not started. Press "Start Assessment" to begin capturing peaks.</div>
+                <div class="peak-grid" id="peakGrid">
+                    <div class="peak-card" id="pkCardThumb">
+                        <div class="peak-card-name">Thumb</div>
+                        <div class="peak-card-row"><span class="pk-label">Min</span><span class="pk-value pk-min" id="pkMinThumb">90°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Max</span><span class="pk-value pk-max" id="pkMaxThumb">0°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Live</span><span class="pk-value pk-live" id="pkLiveThumb">--</span></div>
+                    </div>
+                    <div class="peak-card" id="pkCardIndex">
+                        <div class="peak-card-name">Index</div>
+                        <div class="peak-card-row"><span class="pk-label">Min</span><span class="pk-value pk-min" id="pkMinIndex">90°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Max</span><span class="pk-value pk-max" id="pkMaxIndex">0°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Live</span><span class="pk-value pk-live" id="pkLiveIndex">--</span></div>
+                    </div>
+                    <div class="peak-card" id="pkCardMiddle">
+                        <div class="peak-card-name">Middle</div>
+                        <div class="peak-card-row"><span class="pk-label">Min</span><span class="pk-value pk-min" id="pkMinMiddle">90°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Max</span><span class="pk-value pk-max" id="pkMaxMiddle">0°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Live</span><span class="pk-value pk-live" id="pkLiveMiddle">--</span></div>
+                    </div>
+                    <div class="peak-card" id="pkCardRing">
+                        <div class="peak-card-name">Ring</div>
+                        <div class="peak-card-row"><span class="pk-label">Min</span><span class="pk-value pk-min" id="pkMinRing">90°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Max</span><span class="pk-value pk-max" id="pkMaxRing">0°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Live</span><span class="pk-value pk-live" id="pkLiveRing">--</span></div>
+                    </div>
+                    <div class="peak-card" id="pkCardPinky">
+                        <div class="peak-card-name">Pinky</div>
+                        <div class="peak-card-row"><span class="pk-label">Min</span><span class="pk-value pk-min" id="pkMinPinky">90°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Max</span><span class="pk-value pk-max" id="pkMaxPinky">0°</span></div>
+                        <div class="peak-card-row"><span class="pk-label">Live</span><span class="pk-value pk-live" id="pkLivePinky">--</span></div>
+                    </div>
                 </div>
             </section>
 
@@ -481,6 +943,8 @@
         const doctorLiveSectionEl = document.getElementById('doctorLiveSection');
         const doctorCaptureSectionEl = document.getElementById('doctorCaptureSection');
         const savedExercisesSectionEl = document.getElementById('savedExercisesSection');
+        const rtMatchSectionEl = document.getElementById('rtMatchSection');
+        const rtPeakSectionEl = document.getElementById('rtPeakSection');
         const saveExerciseBtn = document.getElementById('saveExerciseBtn');
         const exportExerciseBtn = document.getElementById('exportExerciseBtn');
         const captureAllExerciseBtn = document.getElementById('captureAllExerciseBtn');
@@ -523,6 +987,7 @@
             pinky: null
         };
         let motorLevelApproved = false;
+        let mockPatientStreamId = null; // real-time session: mock patient stream interval handle
 
         window.doctorShared = window.doctorShared || {
             latestPacket: [...DEFAULT_RELAXED_PACKET],
@@ -559,7 +1024,7 @@
 
             if (doctorModeDescriptionEl) {
                 doctorModeDescriptionEl.innerHTML = isRealtime
-                    ? `<strong>Real-Time Session</strong><span class="note">Monitor the patient in the moment with the live glove stream. Exercise capture controls are hidden in this mode.</span>`
+                    ? `<strong>Real-Time Session</strong><span class="note">Monitor the patient in real-time. Live match grid and peak detection are active below.</span>`
                     : `<strong>Preloaded Session</strong><span class="note">Capture exercise max angles, save the exercise, and export the records for the patient workflow.</span>`;
             }
 
@@ -570,11 +1035,27 @@
                 sectionEl.classList.toggle('hidden', isRealtime);
             });
 
+            // Toggle real-time only sections
+            if (rtMatchSectionEl) {
+                rtMatchSectionEl.classList.toggle('hidden', !isRealtime);
+            }
+            if (rtPeakSectionEl) {
+                rtPeakSectionEl.classList.toggle('hidden', !isRealtime);
+            }
+
+            // Start / stop mock patient stream
+            if (isRealtime && !mockPatientStreamId) {
+                mockPatientStreamId = setInterval(mockPatientStream, 50);
+            } else if (!isRealtime && mockPatientStreamId) {
+                clearInterval(mockPatientStreamId);
+                mockPatientStreamId = null;
+            }
+
             if (doctorLiveSectionEl) {
                 const note = doctorLiveSectionEl.querySelector('.note');
                 if (note) {
                     note.textContent = isRealtime
-                        ? 'Preview uses live glove packets for real-time monitoring.'
+                        ? 'Preview mirrors the Doctor\'s live glove (BLE). Patient data is simulated below.'
                         : 'Preview uses saved calibration from the calibration page and live glove packets.';
                 }
             }
@@ -582,7 +1063,7 @@
             if (statusEl && isRealtime) {
                 statusEl.textContent = isBleConnected() || remoteCalibrationConnected
                     ? 'Real-time session active. Monitoring live glove movement.'
-                    : 'Real-time session active. Connect the glove to monitor live movement.';
+                    : 'Real-time session active. Patient stream is simulated. Connect the glove for doctor 3D preview.';
             }
         }
 
@@ -1075,8 +1556,14 @@
                 exerciseDraft[finger] = angles[index];
             });
 
+            // ── Publish as live doctor targets for real-time compliance view ──
+            activeDoctorTargets = FINGER_KEYS.map((finger) =>
+                Math.round(exerciseDraft[finger] !== null ? exerciseDraft[finger] : DEFAULT_COMPLIANCE_TARGET)
+            );
+            updateTargetSourceLabel();
+
             updateExerciseCaptureUI();
-            setStatus('All 5 exercise max angles captured in one shot from current pose.');
+            setStatus('All 5 exercise max angles captured in one shot from current pose. Real-time targets updated.');
         }
 
         function resetExerciseCapture() {
@@ -1277,6 +1764,416 @@
         broadcastDoctorState();
         updateDoctorSessionModeUi();
         syncCalibrationFromDatabase();
+
+        /* ════════════════════════════════════════════════════════════════
+           REAL-TIME SESSION — Mock Patient Stream + Peak Detection
+        ═══════════════════════════════════════════════════════════════ */
+
+        // ── Patient State ──────────────────────────────────────────────
+        // Default target reads from the UI input at runtime, not a hardcoded const.
+        const defaultTargetInputEl = document.getElementById('defaultTargetInput');
+        function getDefaultTarget() {
+            const v = parseInt(defaultTargetInputEl?.value ?? '90', 10);
+            return Number.isFinite(v) && v >= 0 && v <= 90 ? v : 90;
+        }
+
+        const patientGloveState = { angles: [0, 0, 0, 0, 0], t: 0 };
+
+        // Active doctor targets — initialised from the input; overwritten by
+        // "Set Doctor's Pose" or "Reset Target to Default" actions.
+        let activeDoctorTargets = Array(5).fill(getDefaultTarget());
+
+        // Rep / Set counting state
+        let currentReps   = 0;
+        let currentSets   = 0;
+        let repLatched    = false;   // true while patient is inside target zone
+        let disqualifyRep = false;   // true if over-flexion occurred during latch
+
+        // Target reps/sets from the exercise form (read lazily each tick)
+        function getTargetReps() { return Number(exerciseTargetRepsEl?.value) || null; }
+        function getTargetSets() { return Number(exerciseTargetSetsEl?.value) || null; }
+
+        let assessmentActive = false;
+        let patientCapturedMin = [90, 90, 90, 90, 90];
+        let patientCapturedMax = [0, 0, 0, 0, 0];
+        // (mockPatientStreamId is declared at the top-level variable block above)
+
+        // DOM refs — new rep counter elements
+        const repSetStatusEl     = document.getElementById('repSetStatus');
+        const targetSourceLabelEl = document.getElementById('targetSourceLabel');
+        const resetRepsBtn        = document.getElementById('resetRepsBtn');
+
+        function updateTargetSourceLabel() {
+            if (!targetSourceLabelEl) return;
+            const def = getDefaultTarget();
+            const allDefault = activeDoctorTargets.every(t => t === def);
+            targetSourceLabelEl.textContent = allDefault
+                ? `(default ${def}° target)`
+                : `(doctor targets: ${activeDoctorTargets.join('°, ')}°)`;
+        }
+
+        function updateRepSetStatus(warning) {
+            if (!repSetStatusEl) return;
+            const tReps = getTargetReps();
+            const tSets = getTargetSets();
+            repSetStatusEl.textContent =
+                `Reps: ${currentReps} / ${tReps ?? '--'} \u00a0|\u00a0 Sets: ${currentSets} / ${tSets ?? '--'}`;
+            if (warning) {
+                repSetStatusEl.classList.add('warning');
+                setTimeout(() => repSetStatusEl.classList.remove('warning'), 1600);
+            } else {
+                repSetStatusEl.classList.remove('warning');
+            }
+        }
+
+        if (resetRepsBtn) {
+            resetRepsBtn.addEventListener('click', () => {
+                currentReps   = 0;
+                currentSets   = 0;
+                repLatched    = false;
+                disqualifyRep = false;
+                updateRepSetStatus(false);
+            });
+        }
+
+        updateTargetSourceLabel();
+        updateRepSetStatus(false);
+
+        // ── "Set Doctor's Pose as Live Target" handler ─────────────────
+        const setDoctorTargetBtn = document.getElementById('setDoctorTargetBtn');
+        const setTargetToastEl   = document.getElementById('setTargetToast');
+        let   toastTimeoutId     = null;
+
+        function showTargetToast(message, type /* 'ok' | 'warn' */) {
+            if (!setTargetToastEl) return;
+            clearTimeout(toastTimeoutId);
+            setTargetToastEl.textContent = message;
+            setTargetToastEl.className   = `target-toast show ${type}`;
+            toastTimeoutId = setTimeout(() => {
+                setTargetToastEl.classList.remove('show');
+            }, 3200);
+        }
+
+        if (setDoctorTargetBtn) {
+            setDoctorTargetBtn.addEventListener('click', () => {
+                const liveAngles = getCurrentAngles();
+
+                if (!calibration.min || !calibration.max) {
+                    // No calibration: fall back cleanly to the default target input
+                    const fallback = getDefaultTarget();
+                    activeDoctorTargets = Array(5).fill(fallback);
+                    currentReps = 0; currentSets = 0;
+                    repLatched = false; disqualifyRep = false;
+                    updateRepSetStatus(false);
+                    updateTargetSourceLabel();
+                    showTargetToast(`⚠ No calibration — targets set to ${fallback}° (default input).`, 'warn');
+                    return;
+                }
+
+                const hasNull = liveAngles.some(a => a === null);
+                if (hasNull) {
+                    // Partial data: fill nulls with the default target
+                    const fallback = getDefaultTarget();
+                    activeDoctorTargets = liveAngles.map(a =>
+                        a === null ? fallback : Math.round(a)
+                    );
+                } else {
+                    activeDoctorTargets = liveAngles.map(a => Math.round(a));
+                }
+
+                currentReps = 0; currentSets = 0;
+                repLatched = false; disqualifyRep = false;
+                updateRepSetStatus(false);
+                updateTargetSourceLabel();
+
+                const summary = FINGER_LABELS.map((label, i) =>
+                    `${label}: ${activeDoctorTargets[i]}°`
+                ).join('  ');
+                showTargetToast(`✓ Targets set — ${summary}`, 'ok');
+            });
+        }
+
+        // ── "Reset Target to Default" handler ──────────────────────────
+        const resetLiveTargetBtn = document.getElementById('resetLiveTargetBtn');
+
+        if (resetLiveTargetBtn) {
+            resetLiveTargetBtn.addEventListener('click', () => {
+                const def = getDefaultTarget();
+                activeDoctorTargets = Array(5).fill(def);
+
+                currentReps = 0; currentSets = 0;
+                repLatched = false; disqualifyRep = false;
+                updateRepSetStatus(false);
+                updateTargetSourceLabel();
+
+                // Immediately re-render bars at the new scale
+                updateMatchGrid();
+
+                showTargetToast(`✓ Targets reset to ${def}°`, 'ok');
+            });
+        }
+
+        // ── DOM refs — Match Grid ───────────────────────────────────────
+        const matchBarEls = [
+            document.getElementById('mBarThumb'),
+            document.getElementById('mBarIndex'),
+            document.getElementById('mBarMiddle'),
+            document.getElementById('mBarRing'),
+            document.getElementById('mBarPinky')
+        ];
+        const matchValEls = [
+            document.getElementById('mValThumb'),
+            document.getElementById('mValIndex'),
+            document.getElementById('mValMiddle'),
+            document.getElementById('mValRing'),
+            document.getElementById('mValPinky')
+        ];
+
+        // ── DOM refs — Peak Grid ────────────────────────────────────────
+        const peakMinEls = [
+            document.getElementById('pkMinThumb'),
+            document.getElementById('pkMinIndex'),
+            document.getElementById('pkMinMiddle'),
+            document.getElementById('pkMinRing'),
+            document.getElementById('pkMinPinky')
+        ];
+        const peakMaxEls = [
+            document.getElementById('pkMaxThumb'),
+            document.getElementById('pkMaxIndex'),
+            document.getElementById('pkMaxMiddle'),
+            document.getElementById('pkMaxRing'),
+            document.getElementById('pkMaxPinky')
+        ];
+        const peakLiveEls = [
+            document.getElementById('pkLiveThumb'),
+            document.getElementById('pkLiveIndex'),
+            document.getElementById('pkLiveMiddle'),
+            document.getElementById('pkLiveRing'),
+            document.getElementById('pkLivePinky')
+        ];
+
+        // ── DOM refs — Assessment Controls ─────────────────────────────
+        const startAssessmentBtn = document.getElementById('startAssessmentBtn');
+        const stopAssessmentBtn = document.getElementById('stopAssessmentBtn');
+        const resetPeaksBtn = document.getElementById('resetPeaksBtn');
+        const saveBaselineBtn = document.getElementById('saveBaselineBtn');
+        const assessmentStatusEl = document.getElementById('assessmentStatus');
+
+        // ── Mock Patient Stream ────────────────────────────────────────
+        // Each finger has a slightly different phase offset and speed so they
+        // move independently, simulating a natural hand open/close motion.
+        const MOCK_PHASES  = [0.0, 0.42, 0.85, 1.27, 1.70]; // radians offset per finger
+        // Slow, realistic cycle: ~0.70 rad/s gives ~9s per full flex/extend cycle
+        const MOCK_SPEEDS  = [0.70, 0.68, 0.72, 0.69, 0.71];
+        // Center 48° ± 38° → sweep [10°, 86°].
+        //   Latch zone ≥71.25° (95% of 75°) → triggered near peak  ✓
+        //   Release zone ≤30°  (40% of 75°) → triggered near trough ✓
+        //   Over-flex  >78.75° (105% of 75°)→ only at very top ~7° of swing
+        const MOCK_AMPS    = [38, 38, 37, 38, 37]; // degrees half-swing
+        const MOCK_CENTERS = [48, 48, 48, 47, 48]; // degrees mid-point
+
+        // DOM refs — ceiling line elements (positioned at 83.33% = 100/120 of track)
+        const matchCeilEls = [
+            document.getElementById('mCeilThumb'),
+            document.getElementById('mCeilIndex'),
+            document.getElementById('mCeilMiddle'),
+            document.getElementById('mCeilRing'),
+            document.getElementById('mCeilPinky')
+        ];
+
+        // Thresholds (as fraction of target)
+        const SAFE_LOW   = 0.95;  // below this = Approaching
+        const SAFE_HIGH  = 1.05;  // above this = Over-flexion
+        const LATCH_ENTRY = 0.95; // all fingers must hit ≥95% to latch a rep
+        const RELEASE_THRESHOLD = 0.40; // all fingers must drop to ≤40% to reset latch
+
+        function mockPatientStream() {
+            patientGloveState.t += 0.035;
+            const t = patientGloveState.t;
+
+            // Generate smooth sine-wave angles (unclamped to 90 so over-flex is possible)
+            patientGloveState.angles = MOCK_PHASES.map((phase, i) => {
+                const raw = MOCK_CENTERS[i] + MOCK_AMPS[i] * Math.sin(t * MOCK_SPEEDS[i] + phase);
+                return Math.max(0, Math.min(90, raw));
+            });
+
+            // Peak capture (only when assessment is active)
+            if (assessmentActive) {
+                patientGloveState.angles.forEach((angle, i) => {
+                    if (angle < patientCapturedMin[i]) patientCapturedMin[i] = angle;
+                    if (angle > patientCapturedMax[i]) patientCapturedMax[i] = angle;
+                });
+            }
+
+            // ── Rep / Over-flexion State Machine ───────────────────────
+            const angles  = patientGloveState.angles;
+            const targets = activeDoctorTargets;
+
+            // Compute per-finger ratios (patient angle / doctor target)
+            const ratios = angles.map((a, i) => (targets[i] > 0 ? a / targets[i] : 0));
+
+            const allInSafeZone  = ratios.every(r => r >= LATCH_ENTRY);
+            const anyOverFlex    = ratios.some(r => r > SAFE_HIGH);
+            const allReleased    = ratios.every(r => r <= RELEASE_THRESHOLD);
+
+            if (!repLatched) {
+                // Waiting for patient to enter safe zone
+                if (allInSafeZone) {
+                    repLatched    = true;
+                    disqualifyRep = false; // fresh latch
+                }
+            } else {
+                // Rep is latched — check for over-flexion during contraction
+                if (anyOverFlex) {
+                    disqualifyRep = true;
+                }
+
+                // Release phase: all fingers significantly below target
+                if (allReleased) {
+                    repLatched = false;
+                    if (disqualifyRep) {
+                        // Over-flexion occurred — warn and skip count
+                        disqualifyRep = false;
+                        updateRepSetStatus(true); // flash warning
+                    } else {
+                        // Clean rep
+                        currentReps++;
+                        const tReps = getTargetReps();
+                        if (tReps && currentReps >= tReps) {
+                            // Set complete
+                            currentSets++;
+                            currentReps = 0;
+                        }
+                        updateRepSetStatus(false);
+                    }
+                }
+            }
+
+            updateMatchGrid();
+            updatePeakGrid();
+        }
+
+        // ── Match Grid Renderer (3-state, 120% track, ceiling line) ────
+        function updateMatchGrid() {
+            const angles  = patientGloveState.angles;
+            const targets = activeDoctorTargets;
+
+            angles.forEach((angle, i) => {
+                const target   = targets[i] > 0 ? targets[i] : DEFAULT_COMPLIANCE_TARGET;
+                const ratio    = angle / target;             // 1.0 = 100% of target
+                // Track represents 120% of target, so fill % = (angle / (1.2 * target)) * 100
+                const fillPct  = Math.min((angle / (1.2 * target)) * 100, 100);
+
+                let color;
+                let overFlex = false;
+                if (ratio > SAFE_HIGH) {
+                    color    = '#dc2626'; // Red — over-flexion danger
+                    overFlex = true;
+                } else if (ratio >= SAFE_LOW) {
+                    color = '#22c55e';   // Green — safe target zone
+                } else if (ratio >= 0.5) {
+                    color = '#3b82f6';   // Blue — approaching
+                } else {
+                    color = '#93c5fd';   // Light blue — low
+                }
+
+                if (matchBarEls[i]) {
+                    matchBarEls[i].style.width = `${fillPct.toFixed(2)}%`;
+                    if (overFlex) {
+                        matchBarEls[i].classList.add('overflex');
+                        matchBarEls[i].style.backgroundColor = '';
+                    } else {
+                        matchBarEls[i].classList.remove('overflex');
+                        matchBarEls[i].style.backgroundColor = color;
+                    }
+                }
+
+                // Ceiling line: fixed at 100/120 = 83.33% of track width
+                // (already set in HTML; just ensure visibility)
+                if (matchCeilEls[i]) {
+                    matchCeilEls[i].style.left = '83.33%';
+                }
+
+                if (matchValEls[i]) {
+                    matchValEls[i].textContent = `${angle.toFixed(1)}° / ${target}°`;
+                    matchValEls[i].style.color = overFlex ? '#dc2626' : color;
+                }
+            });
+        }
+
+        // ── Peak Grid Renderer ─────────────────────────────────────────
+        function updatePeakGrid() {
+            patientGloveState.angles.forEach((angle, i) => {
+                if (peakMinEls[i]) {
+                    peakMinEls[i].textContent  = assessmentActive || patientCapturedMin[i] < 90
+                        ? `${patientCapturedMin[i].toFixed(1)}°`
+                        : '--';
+                }
+                if (peakMaxEls[i]) {
+                    peakMaxEls[i].textContent  = assessmentActive || patientCapturedMax[i] > 0
+                        ? `${patientCapturedMax[i].toFixed(1)}°`
+                        : '--';
+                }
+                if (peakLiveEls[i]) {
+                    peakLiveEls[i].textContent = `${angle.toFixed(1)}°`;
+                }
+            });
+        }
+
+        // ── Assessment Controls ─────────────────────────────────────────
+        if (startAssessmentBtn) {
+            startAssessmentBtn.addEventListener('click', () => {
+                assessmentActive = true;
+                startAssessmentBtn.disabled = true;
+                if (stopAssessmentBtn) stopAssessmentBtn.disabled = false;
+                if (assessmentStatusEl) {
+                    assessmentStatusEl.textContent = '⏺ Assessment running — capturing continuous min/max peaks...';
+                    assessmentStatusEl.style.color = '#22c55e';
+                }
+            });
+        }
+
+        if (stopAssessmentBtn) {
+            stopAssessmentBtn.addEventListener('click', () => {
+                assessmentActive = false;
+                stopAssessmentBtn.disabled = true;
+                if (startAssessmentBtn) startAssessmentBtn.disabled = false;
+                if (assessmentStatusEl) {
+                    assessmentStatusEl.textContent = '⏹ Assessment stopped. Peaks frozen. Press "Save Baseline" to persist.';
+                    assessmentStatusEl.style.color = '#f59e0b';
+                }
+            });
+        }
+
+        if (resetPeaksBtn) {
+            resetPeaksBtn.addEventListener('click', () => {
+                patientCapturedMin = [90, 90, 90, 90, 90];
+                patientCapturedMax = [0, 0, 0, 0, 0];
+                updatePeakGrid();
+                if (assessmentStatusEl) {
+                    assessmentStatusEl.textContent = 'Peaks reset. Start a new assessment to begin capturing.';
+                    assessmentStatusEl.style.color = 'var(--muted)';
+                }
+            });
+        }
+
+        if (saveBaselineBtn) {
+            saveBaselineBtn.addEventListener('click', () => {
+                const baseline = {
+                    capturedMin: [...patientCapturedMin],
+                    capturedMax: [...patientCapturedMax],
+                    targetAngle: PATIENT_TARGET_ANGLE,
+                    fingers: FINGER_LABELS,
+                    timestamp: new Date().toISOString()
+                };
+                console.log('[GloveXcel] Assessment Baseline Saved:', JSON.stringify(baseline, null, 2));
+                localStorage.setItem('patientAssessmentBaseline', JSON.stringify(baseline));
+                if (assessmentStatusEl) {
+                    assessmentStatusEl.textContent = `✓ Baseline saved to localStorage at ${baseline.timestamp}`;
+                    assessmentStatusEl.style.color = '#22c55e';
+                }
+            });
+        }
     </script>
 
     <script type="importmap">

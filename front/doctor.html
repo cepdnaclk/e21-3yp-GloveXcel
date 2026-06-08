@@ -70,6 +70,42 @@
             justify-content: center;
         }
 
+        .mode-switch {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .mode-switch button {
+            width: 100%;
+            background: #6c7a90;
+            opacity: 0.75;
+        }
+
+        .mode-switch button.active {
+            background: var(--brand);
+            opacity: 1;
+        }
+
+        .mode-panel {
+            border: 1px dashed #c9d6ea;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #f8fbff;
+        }
+
+        .mode-panel strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #3d4f67;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
         button {
             padding: 10px 16px;
             font-size: 14px;
@@ -226,6 +262,18 @@
             <div class="left-column">
 
             <section class="section">
+                <h3>Session Mode</h3>
+                <div class="mode-switch" role="tablist" aria-label="Session mode selector">
+                    <button id="doctorPreloadedModeBtn" type="button" class="active">Preloaded Session</button>
+                    <button id="doctorRealtimeModeBtn" type="button" class="secondary">Real-Time Session</button>
+                </div>
+                <div id="doctorModeDescription" class="mode-panel">
+                    <strong>Preloaded Session</strong>
+                    <span class="note">Capture the exercise max angles, save the exercise, and export the records for the patient workflow.</span>
+                </div>
+            </section>
+
+            <section class="section">
                 <div class="actions">
                     <button id="connectBtn">Connect to Glove</button>
                     <button id="openCalibrationBtn" class="secondary" type="button">Open Calibration Page</button>
@@ -233,7 +281,7 @@
                 <div class="note">Calibration is now done in a separate page with two passes: non-thumb and thumb-only.</div>
             </section>
 
-            <section class="section">
+            <section class="section" id="doctorLiveSection">
                 <h3>Live Raw and Calibrated Angles</h3>
                 <div class="finger-container">
                     <div class="finger"><h3>Thumb</h3><p class="raw" id="valThumb">--</p><p class="angle" id="angThumb">-- deg</p></div>
@@ -255,7 +303,7 @@
                 </div>
             </section>
 
-            <section class="section">
+            <section class="section" id="doctorCaptureSection">
                 <h3>Add Exercise</h3>
                 <div class="exercise-head">
                     <label for="exercisePatientId">Patient ID</label>
@@ -329,7 +377,7 @@
                 <div class="note">Exercise max angles are captured in one shot from the current live glove pose. Database is unavailable now, so records are stored in browser localStorage.</div>
             </section>
 
-            <section class="section">
+            <section class="section" id="savedExercisesSection">
                 <h3>Saved Exercises</h3>
                 <ol id="exerciseList"></ol>
             </section>
@@ -381,6 +429,9 @@
         const CALIBRATION_STORAGE_KEY_V2 = 'doctorCalibrationV2';
         const EXERCISE_STORAGE_KEY = 'doctorExercisesV1';
         const CROSS_PAGE_CHANNEL_KEY = 'gloveCrossPageV1';
+        const DOCTOR_SESSION_MODE_KEY = 'doctorSessionModeV1';
+        const DOCTOR_SESSION_MODE_PRELOADED = 'preloaded';
+        const DOCTOR_SESSION_MODE_REALTIME = 'realtime';
         const DOCTOR_ID_STORAGE_KEY = 'doctorId';
         const API_BASE_STORAGE_KEY = 'apiBaseUrl';
         const AUTH_TOKEN_STORAGE_KEY = 'auth_token';
@@ -424,6 +475,12 @@
         const connectBtn = document.getElementById('connectBtn');
         const openCalibrationBtn = document.getElementById('openCalibrationBtn');
         const statusEl = document.getElementById('status');
+        const doctorPreloadedModeBtn = document.getElementById('doctorPreloadedModeBtn');
+        const doctorRealtimeModeBtn = document.getElementById('doctorRealtimeModeBtn');
+        const doctorModeDescriptionEl = document.getElementById('doctorModeDescription');
+        const doctorLiveSectionEl = document.getElementById('doctorLiveSection');
+        const doctorCaptureSectionEl = document.getElementById('doctorCaptureSection');
+        const savedExercisesSectionEl = document.getElementById('savedExercisesSection');
         const saveExerciseBtn = document.getElementById('saveExerciseBtn');
         const exportExerciseBtn = document.getElementById('exportExerciseBtn');
         const captureAllExerciseBtn = document.getElementById('captureAllExerciseBtn');
@@ -453,6 +510,7 @@
         let latestPacket = [...DEFAULT_RELAXED_PACKET];
         let calibration = loadCalibration();
         let remoteCalibrationConnected = false;
+        let doctorSessionMode = localStorage.getItem(DOCTOR_SESSION_MODE_KEY) || DOCTOR_SESSION_MODE_PRELOADED;
         const crossPageChannel = typeof BroadcastChannel !== 'undefined'
             ? new BroadcastChannel(CROSS_PAGE_CHANNEL_KEY)
             : null;
@@ -479,6 +537,52 @@
         function setMotorStatus(message) {
             if (motorStatusEl) {
                 motorStatusEl.textContent = message;
+            }
+        }
+
+        function setDoctorSessionMode(mode) {
+            doctorSessionMode = mode === DOCTOR_SESSION_MODE_REALTIME ? DOCTOR_SESSION_MODE_REALTIME : DOCTOR_SESSION_MODE_PRELOADED;
+            localStorage.setItem(DOCTOR_SESSION_MODE_KEY, doctorSessionMode);
+            updateDoctorSessionModeUi();
+        }
+
+        function updateDoctorSessionModeUi() {
+            const isRealtime = doctorSessionMode === DOCTOR_SESSION_MODE_REALTIME;
+
+            if (doctorPreloadedModeBtn) {
+                doctorPreloadedModeBtn.classList.toggle('active', !isRealtime);
+            }
+
+            if (doctorRealtimeModeBtn) {
+                doctorRealtimeModeBtn.classList.toggle('active', isRealtime);
+            }
+
+            if (doctorModeDescriptionEl) {
+                doctorModeDescriptionEl.innerHTML = isRealtime
+                    ? `<strong>Real-Time Session</strong><span class="note">Monitor the patient in the moment with the live glove stream. Exercise capture controls are hidden in this mode.</span>`
+                    : `<strong>Preloaded Session</strong><span class="note">Capture exercise max angles, save the exercise, and export the records for the patient workflow.</span>`;
+            }
+
+            [doctorCaptureSectionEl, savedExercisesSectionEl].forEach((sectionEl) => {
+                if (!sectionEl) {
+                    return;
+                }
+                sectionEl.classList.toggle('hidden', isRealtime);
+            });
+
+            if (doctorLiveSectionEl) {
+                const note = doctorLiveSectionEl.querySelector('.note');
+                if (note) {
+                    note.textContent = isRealtime
+                        ? 'Preview uses live glove packets for real-time monitoring.'
+                        : 'Preview uses saved calibration from the calibration page and live glove packets.';
+                }
+            }
+
+            if (statusEl && isRealtime) {
+                statusEl.textContent = isBleConnected() || remoteCalibrationConnected
+                    ? 'Real-time session active. Monitoring live glove movement.'
+                    : 'Real-time session active. Connect the glove to monitor live movement.';
             }
         }
 
@@ -543,6 +647,7 @@
                 }
 
                 setConnectedState(isAnyDataSourceConnected());
+                updateDoctorSessionModeUi();
             });
 
             crossPageChannel.postMessage({ type: 'request-calibration-state' });
@@ -863,6 +968,7 @@
 
         function setConnectedState(isConnected) {
             updateExerciseCaptureUI();
+            updateDoctorSessionModeUi();
 
             const localConnected = isBleConnected();
 
@@ -936,12 +1042,14 @@
 
                 setConnectedState(true);
                 setStatus('Connected. Live view active. Use calibration page if calibration values need updates.');
+                updateDoctorSessionModeUi();
             } catch (error) {
                 console.error('BLE connection failed:', error);
                 setStatus(`BLE connection failed: ${error.name || 'Error'} - ${error.message || 'Unknown error'}`);
                 connectBtn.textContent = 'Connect to Glove';
                 connectBtn.disabled = false;
                 connectBtn.classList.remove('success');
+                updateDoctorSessionModeUi();
             }
         }
 
@@ -1092,6 +1200,13 @@
         }
 
         connectBtn.addEventListener('click', connectGlove);
+        if (doctorPreloadedModeBtn) {
+            doctorPreloadedModeBtn.addEventListener('click', () => setDoctorSessionMode(DOCTOR_SESSION_MODE_PRELOADED));
+        }
+
+        if (doctorRealtimeModeBtn) {
+            doctorRealtimeModeBtn.addEventListener('click', () => setDoctorSessionMode(DOCTOR_SESSION_MODE_REALTIME));
+        }
         openCalibrationBtn.addEventListener('click', () => {
             const calibrationUrl = `./calibration.html?doctor_id=${encodeURIComponent(DOCTOR_ID)}&api_base=${encodeURIComponent(API_BASE_URL)}`;
             window.open(calibrationUrl, '_blank', 'noopener');
@@ -1160,6 +1275,7 @@
         loadPatients();
         publishDoctorSharedState();
         broadcastDoctorState();
+        updateDoctorSessionModeUi();
         syncCalibrationFromDatabase();
     </script>
 

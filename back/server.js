@@ -1,57 +1,73 @@
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load environment variables from common locations.
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../env') });
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const { connectPostgres } = require('./config/supabaseDb');
+
+// Import Routes
+const dataRoutes = require('./routes/dataRoutes');
+const doctorCalRoutes = require('./routes/doctorCalRoutes');
+const patientCalRoutes = require('./routes/patientCalRoutes');
+const forceRoutes = require('./routes/forceRoutes');
+const authRoutes = require('./routes/authRoutes');
+const therapyRoutes = require('./routes/therapyRoutes');
+const exerciseRoutes = require('./routes/exerciseRoutes');
+const exerciseMaxRoutes = require('./routes/exerciseMaxRoutes');
+const therapySessionRoutes = require('./routes/therapySessionRoutes');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- 1. Connect to MongoDB ---
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Connected to MongoDB Atlas!'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+async function connectDatabase() {
+  const dbClient = (process.env.DB_CLIENT || 'mongo').toLowerCase();
 
-// --- 2. Define the Database Structure ---
-const sessionSchema = new mongoose.Schema({
-    patient_id: { type: String, required: true },
-    thumb: { type: Number, required: true },
-    index: { type: Number, required: true },
-    middle: { type: Number, required: true },
-    ring: { type: Number, required: true },
-    pinky: { type: Number, required: true },
-    timestamp: { type: Date, default: Date.now }
-});
+  const shouldConnectMongo = dbClient === 'mongo' || dbClient === 'both';
+  const shouldConnectPostgres = dbClient === 'postgres' || dbClient === 'both';
 
-const GloveData = mongoose.model('GloveData', sessionSchema);
-
-// --- 3. API Routes ---
-// This route SAVES the data
-app.post('/api/data', async (req, res) => {
-    try {
-        const newData = new GloveData(req.body);
-        const savedData = await newData.save(); 
-        res.status(201).json({ message: 'Saved successfully', data: savedData });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to save data' });
+  if (shouldConnectMongo) {
+    if (!process.env.MONGO_URI) {
+      throw new Error('Missing MONGO_URI. Add it to back/.env or project-root env file.');
     }
-});
 
-// This route RETRIEVES the data
-app.get('/api/data/:patient_id', async (req, res) => {
-    try {
-        const { patient_id } = req.params;
-        const data = await GloveData.find({ patient_id: patient_id })
-                                    .sort({ timestamp: -1 }) // Newest first
-                                    .limit(50);
-        res.status(200).json(data);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch data' });
-    }
-});
+    await mongoose.connect(process.env.MONGO_URI, { family: 4 });
+    console.log('✅ Connected to MongoDB Atlas!');
+  }
 
-// --- 4. Start Server ---
+  if (shouldConnectPostgres) {
+    await connectPostgres();
+  }
+
+  if (!shouldConnectMongo && !shouldConnectPostgres) {
+    throw new Error('Invalid DB_CLIENT value. Use mongo, postgres, or both.');
+  }
+}
+
+// Mount API Routes
+app.use('/api/data', dataRoutes);
+app.use('/api/doctor-cal', doctorCalRoutes);
+app.use('/api/patient-cal', patientCalRoutes);
+app.use('/api/forces', forceRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/therapy-plans', therapyRoutes);
+app.use('/api/exercises', exerciseRoutes);
+app.use('/api/exercise-max', exerciseMaxRoutes);
+app.use('/api/therapy-sessions', therapySessionRoutes);
+
+// Start Server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+connectDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Database connection error:', err);
+    process.exit(1);
+  });

@@ -196,6 +196,7 @@
 <body>
   <div class="page">
     <h1 class="header">Patient Calibration</h1>
+    <div class="note">Patient ID: <strong id="patientIdBadge">--</strong></div>
     <div id="status" class="status">Connect glove, select level preview, then capture min/max (non-thumb and thumb).</div>
 
     <div class="layout">
@@ -294,6 +295,15 @@
     const STORAGE_KEY = "patientCalibrationV1";
     const FINGER_LABELS = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
     const NON_THUMB_INDEXES = [1, 2, 3, 4];
+    const PATIENT_ID_STORAGE_KEY = "patientId";
+    const API_BASE_STORAGE_KEY = "apiBaseUrl";
+    const AUTH_TOKEN_STORAGE_KEY = "auth_token";
+    const DEFAULT_PATIENT_ID = "patient_003";
+    const PATIENT_CROSS_PAGE_CHANNEL_KEY = "patientCrossPageV1";
+
+    const queryParams = new URLSearchParams(window.location.search);
+    const queryPatientId = queryParams.get("patient_id");
+    const queryApiBase = queryParams.get("api_base");
 
     const connectBtn = document.getElementById("connectBtn");
     const backBtn = document.getElementById("backBtn");
@@ -316,16 +326,38 @@
     const readyBadgeEl = document.getElementById("readyBadge");
     const capturedAtEl = document.getElementById("capturedAt");
     const modelStatusEl = document.getElementById("modelStatus");
+    const patientIdBadgeEl = document.getElementById("patientIdBadge");
 
     let bleDevice = null;
     let bleCharacteristic = null;
     let latestPacket = [0, 0, 0, 0, 0];
+    let remotePatientConnected = false;
     let selectedLevel = 1;
     let previewAngles = [90, 90, 90, 90, 90];
     let targetAngles = [90, 90, 90, 90, 90];
     let activePreviewMode = "none";
 
+    const patientCrossPageChannel = typeof BroadcastChannel !== "undefined"
+      ? new BroadcastChannel(PATIENT_CROSS_PAGE_CHANNEL_KEY)
+      : null;
+
     const calibration = loadCalibration();
+    selectedLevel = Number.isFinite(calibration.level) ? calibration.level : selectedLevel;
+    levelSelect.value = String(selectedLevel);
+
+    const PATIENT_ID = (queryPatientId || resolvePatientId() || localStorage.getItem(PATIENT_ID_STORAGE_KEY)).trim();
+    const API_BASE_URL = (queryApiBase || localStorage.getItem(API_BASE_STORAGE_KEY) || (
+      window.location.protocol === "file:"
+        ? "http://localhost:3000"
+        : `${window.location.protocol}//${window.location.hostname}:3000`
+    )).replace(/\/$/, "");
+
+    localStorage.setItem(PATIENT_ID_STORAGE_KEY, PATIENT_ID);
+    localStorage.setItem(API_BASE_STORAGE_KEY, API_BASE_URL);
+
+    if (patientIdBadgeEl) {
+      patientIdBadgeEl.textContent = PATIENT_ID || "--";
+    }
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -333,6 +365,28 @@
 
     function setModelStatus(text) {
       modelStatusEl.textContent = text;
+    }
+
+    function resolvePatientId() {
+      const rawProfile = localStorage.getItem("auth_profile");
+      if (!rawProfile) {
+        return DEFAULT_PATIENT_ID;
+      }
+
+      try {
+        const profile = JSON.parse(rawProfile);
+        return profile?.patient_id || DEFAULT_PATIENT_ID;
+      } catch {
+        return DEFAULT_PATIENT_ID;
+      }
+    }
+
+    function getAuthHeaders() {
+      const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+      if (!token) {
+        return {};
+      }
+      return { Authorization: `Bearer ${token}` };
     }
 
     function emptyArray() {
@@ -351,6 +405,7 @@
             finalMin: emptyArray(),
             finalMax: emptyArray(),
             targetMaxAngle: 90,
+            level: null,
             capturedAt: null
           };
         }
@@ -364,6 +419,7 @@
           finalMin: Array.isArray(parsed.finalMin) ? parsed.finalMin : emptyArray(),
           finalMax: Array.isArray(parsed.finalMax) ? parsed.finalMax : emptyArray(),
           targetMaxAngle: Number.isFinite(parsed.targetMaxAngle) ? parsed.targetMaxAngle : 90,
+          level: Number.isFinite(parsed.level) ? parsed.level : null,
           capturedAt: parsed.capturedAt || null
         };
       } catch (error) {
@@ -376,12 +432,21 @@
           finalMin: emptyArray(),
           finalMax: emptyArray(),
           targetMaxAngle: 90,
+          level: null,
           capturedAt: null
         };
       }
     }
 
-    function saveCalibration() {
+    function persistCalibrationLocally(capturedAt) {
+      calibration.capturedAt = capturedAt || calibration.capturedAt || new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        ...calibration,
+        capturedAt: calibration.capturedAt
+      }));
+    }
+
+    async function saveCalibration() {
       calibration.finalMin = [
         calibration.thumbMin[0],
         calibration.nonThumbMin[1],
@@ -398,9 +463,155 @@
         calibration.nonThumbMax[4]
       ];
 
+      calibration.level = selectedLevel;
       calibration.targetMaxAngle = levelToAngle(selectedLevel);
       calibration.capturedAt = new Date().toISOString();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(calibration));
+      persistCalibrationLocally(calibration.capturedAt);
+      await savePatientCalibrationToDatabase();
+    }
+
+    async function savePatientCalibrationToDatabase() {
+      try {
+        const minThumb = calibration.finalMin[0];
+        const maxThumb = calibration.finalMax[0];
+        const minFingers = {
+          index: calibration.finalMin[1],
+          middle: calibration.finalMin[2],
+          ring: calibration.finalMin[3],
+          pinky: calibration.finalMin[4]
+        };
+        const maxFingers = {
+          index: calibration.finalMax[1],
+          middle: calibration.finalMax[2],
+          ring: calibration.finalMax[3],
+          pinky: calibration.finalMax[4]
+        };
+
+        const payloadLevel = Number.isFinite(selectedLevel) ? { level: selectedLevel } : {};
+        const requests = [];
+
+        if (Number.isFinite(minThumb)) {
+          requests.push(fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(PATIENT_ID)}/min/thumb`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ thumb: minThumb, ...payloadLevel })
+          }));
+        }
+
+        if (Object.values(minFingers).every((value) => Number.isFinite(value))) {
+          requests.push(fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(PATIENT_ID)}/min/fingers`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ ...minFingers, ...payloadLevel })
+          }));
+        }
+
+        if (Number.isFinite(maxThumb)) {
+          requests.push(fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(PATIENT_ID)}/max/thumb`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ thumb: maxThumb, ...payloadLevel })
+          }));
+        }
+
+        if (Object.values(maxFingers).every((value) => Number.isFinite(value))) {
+          requests.push(fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(PATIENT_ID)}/max/fingers`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ ...maxFingers, ...payloadLevel })
+          }));
+        }
+
+        if (!requests.length) {
+          return { remoteSaved: false, reason: "incomplete-calibration" };
+        }
+
+        const responses = await Promise.all(requests);
+        const failed = responses.find((response) => !response.ok);
+        if (failed) {
+          throw new Error(`HTTP ${failed.status}`);
+        }
+
+        return { remoteSaved: true };
+      } catch (error) {
+        console.error("Failed to save patient calibration to database:", error);
+        return { remoteSaved: false, reason: error?.message || "db-save-failed" };
+      }
+    }
+
+    function calibrationFromPatientDoc(doc) {
+      const min = doc?.min || {};
+      const max = doc?.max || {};
+
+      const finalMin = [min.thumb, min.index, min.middle, min.ring, min.pinky]
+        .map((value) => Number(value))
+        .map((value) => (Number.isFinite(value) ? value : null));
+      const finalMax = [max.thumb, max.index, max.middle, max.ring, max.pinky]
+        .map((value) => Number(value))
+        .map((value) => (Number.isFinite(value) ? value : null));
+
+      const level = Number(doc?.level);
+      return {
+        nonThumbMin: [null, finalMin[1], finalMin[2], finalMin[3], finalMin[4]],
+        nonThumbMax: [null, finalMax[1], finalMax[2], finalMax[3], finalMax[4]],
+        thumbMin: [finalMin[0], null, null, null, null],
+        thumbMax: [finalMax[0], null, null, null, null],
+        finalMin,
+        finalMax,
+        targetMaxAngle: Number.isFinite(level) ? levelToAngle(level) : 90,
+        level: Number.isFinite(level) ? level : null,
+        capturedAt: doc?.updatedAt || null
+      };
+    }
+
+    async function fetchPatientCalibrationFromDatabase() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(PATIENT_ID)}`, {
+          headers: { ...getAuthHeaders() }
+        });
+        if (response.status === 404) {
+          return null;
+        }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("Failed to fetch patient calibration from database:", error);
+        return null;
+      }
+    }
+
+    async function hydrateCalibrationFromDatabase() {
+      const patientDoc = await fetchPatientCalibrationFromDatabase();
+      if (!patientDoc) {
+        Object.assign(calibration, {
+          nonThumbMin: emptyArray(),
+          nonThumbMax: emptyArray(),
+          thumbMin: emptyArray(),
+          thumbMax: emptyArray(),
+          finalMin: emptyArray(),
+          finalMax: emptyArray(),
+          targetMaxAngle: 90,
+          level: null,
+          capturedAt: null
+        });
+        localStorage.removeItem(STORAGE_KEY);
+        setStatus(`No database calibration found for patient ${PATIENT_ID}.`);
+        return;
+      }
+
+      const fromDatabase = calibrationFromPatientDoc(patientDoc);
+      Object.assign(calibration, fromDatabase);
+
+      if (Number.isFinite(fromDatabase.level)) {
+        selectedLevel = fromDatabase.level;
+        levelSelect.value = String(selectedLevel);
+      }
+
+      persistCalibrationLocally(fromDatabase.capturedAt || new Date().toISOString());
+      setStatus(`Loaded calibration for patient ${PATIENT_ID} from database.`);
     }
 
     function clearCalibration() {
@@ -419,6 +630,10 @@
 
     function isConnected() {
       return Boolean(bleDevice && bleDevice.gatt && bleDevice.gatt.connected);
+    }
+
+    function isAnyDataSourceConnected() {
+      return isConnected() || remotePatientConnected;
     }
 
     function clamp(value, min, max) {
@@ -527,7 +742,7 @@
     }
 
     function renderConnectionState() {
-      const connected = isConnected();
+      const connected = isAnyDataSourceConnected();
       connectBtn.disabled = connected;
       connectBtn.textContent = connected ? "Connected" : "Connect to Glove";
 
@@ -545,8 +760,8 @@
       renderReadyBadge();
     }
 
-    function capturePass(indexes, targetArray) {
-      if (!isConnected()) {
+    async function capturePass(indexes, targetArray) {
+      if (!isAnyDataSourceConnected()) {
         alert("Connect glove first.");
         return;
       }
@@ -555,11 +770,16 @@
         targetArray[idx] = latestPacket[idx];
       });
 
-      saveCalibration();
+      await saveCalibration();
       renderAll();
     }
 
     async function connectGlove() {
+      if (remotePatientConnected && !isConnected()) {
+        setStatus("Already receiving live glove data from patient console. No second BLE connection needed.");
+        renderConnectionState();
+        return;
+      }
       connectBtn.disabled = true;
       connectBtn.textContent = "Connecting...";
       setStatus("Requesting BLE device...");
@@ -604,6 +824,33 @@
       }
 
       renderConnectionState();
+    }
+
+    if (patientCrossPageChannel) {
+      patientCrossPageChannel.addEventListener("message", (event) => {
+        const data = event?.data || {};
+        if (data.type !== "patient-state") {
+          return;
+        }
+
+        remotePatientConnected = Boolean(data.connected);
+
+        if (!isConnected() && Array.isArray(data.latestPacket) && data.latestPacket.length >= 5) {
+          latestPacket = data.latestPacket.slice(0, 5).map((value) => {
+            const num = Number(value);
+            return Number.isFinite(num) ? num : 0;
+          });
+          renderRawGrid();
+        }
+
+        if (remotePatientConnected && !isConnected()) {
+          setStatus("Using live glove stream from patient console. No second BLE connection needed.");
+        }
+
+        renderConnectionState();
+      });
+
+      patientCrossPageChannel.postMessage({ type: "request-patient-state" });
     }
 
     backBtn.addEventListener("click", () => {
@@ -770,8 +1017,10 @@
       setModelStatus("Model may not load on file:// origin. Open this page through a local server.");
     }
 
-    renderAll();
-    resetPreview();
+    hydrateCalibrationFromDatabase().finally(() => {
+      renderAll();
+      resetPreview();
+    });
   </script>
 </body>
 </html>

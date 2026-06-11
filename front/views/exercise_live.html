@@ -1,0 +1,77 @@
+<!-- views/exercise_live.html
+     Pure HTML fragment — no <html>, <head>, or <body> tags.
+     Injected into #view-container by the router.
+     All logic lives in js/viewControllers/exerciseLiveController.js
+-->
+<div class="view-namespace-live">
+
+  <div class="view-header">
+    <h2 class="view-title">Real-Time Session</h2>
+    <p class="view-subtitle">
+      Live glove monitoring — see the patient's current movement compared against their personal calibration range,
+      with no preloaded exercise target required.
+    </p>
+  </div>
+
+  <!-- Status bar -->
+  <div id="liveStatus" class="status-bar">
+    Connect the patient glove to begin real-time monitoring.
+  </div>
+
+  <!-- ── Navigation and Data Source ──────────────────────────────────── -->
+  <section class="card" id="liveDataSourceSection">
+    <h3 class="card-title">Glove &amp; Data Source</h3>
+    <div class="actions">
+      <button id="liveConnectGloveBtn" type="button">Connect Patient Glove</button>
+      <button id="liveLoadCalibBtn" class="btn-secondary" type="button">Load Patient Calibration</button>
+    </div>
+    <p id="liveGloveStatus" class="note">Patient glove status: Not connected.</p>
+    <p id="liveCalibStatus" class="note">Patient calibration status: Not loaded.</p>
+    <p class="note">
+      In real-time mode the 3D hand mirrors the patient's live glove data directly.
+      No loop animation runs — the hand pose is driven entirely by incoming sensor packets.
+    </p>
+  </section>
+
+  <!-- ── Live Raw Sensor Values ───────────────────────────────────────── -->
+  <section class="card">
+    <h3 class="card-title">Live Sensor Values</h3>
+    <div id="liveRawGrid" class="mini-grid">
+      <!-- Populated by the controller on each packet -->
+    </div>
+    <p class="note">
+      Raw ADC values (0 – 255) and the angle computed from the patient's personal
+      calibration min / max range.
+    </p>
+  </section>
+
+  <!-- ── Real-Time Movement Match ─────────────────────────────────────── -->
+  <section class="card match-hero">
+    <h3 class="card-title">Patient Movement (Real-Time Session)</h3>
+    <span id="liveOverallBadge" class="pill pill-ok">Overall: --</span>
+    <div id="liveMatchGrid" class="match-grid">
+      <!-- Populated by the controller on each packet -->
+    </div>
+    <p class="note">
+      Each bar shows how far the finger has moved relative to the patient's personal
+      calibrated maximum. Green = full extension reached.
+    </p>
+  </section>
+
+  <!-- ── Optional Manual Reference Target ─────────────────────────────── -->
+  <section class="card">
+    <h3 class="card-title">Manual Reference Target (Optional)</h3>
+    <div class="actions">
+      <label for="liveRefAngle">All-Finger Reference (deg)</label>
+      <input id="liveRefAngle" type="number" min="0" max="90" step="1" value="45"
+             aria-label="Manual reference angle for all fingers" />
+      <button id="applyLiveRefBtn" type="button">Apply</button>
+      <button id="clearLiveRefBtn" class="btn-secondary" type="button">Clear</button>
+    </div>
+    <p class="note">
+      Set a manual reference angle to color-code how close each finger is to a specific
+      target. Leave blank for a simple range display.
+    </p>
+  </section>
+
+</div><!-- /.view-namespace-live -->

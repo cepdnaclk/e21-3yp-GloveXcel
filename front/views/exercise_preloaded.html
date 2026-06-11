@@ -1,0 +1,110 @@
+<!-- views/exercise_preloaded.html
+     Pure HTML fragment — no <html>, <head>, or <body> tags.
+     Injected into #view-container by the router.
+     All logic lives in js/viewControllers/exercisePreloadedController.js
+-->
+<div class="view-namespace-preloaded">
+
+  <div class="view-header">
+    <h2 class="view-title">Preloaded Exercise Session</h2>
+    <p class="view-subtitle">
+      Load an assigned exercise, compare the live glove movement against the saved doctor values, and track reps and sets.
+    </p>
+  </div>
+
+  <!-- Status bar -->
+  <div id="exerciseStatus" class="status-bar">
+    Load an assigned exercise and start the loop.
+  </div>
+
+  <!-- ── Navigation and Data Source ──────────────────────────────────── -->
+  <section class="card" id="preloadedDataSourceSection">
+    <h3 class="card-title">Glove &amp; Data Source</h3>
+    <div class="actions">
+      <button id="connectGloveBtn" type="button">Connect Patient Glove</button>
+      <button id="loadPatientCalibBtn" class="btn-secondary" type="button">Load Patient Calibration</button>
+    </div>
+    <p id="gloveStatus" class="note">Patient glove status: Not connected.</p>
+    <p id="patientCalibStatus" class="note">Patient calibration status: Not loaded.</p>
+    <p class="note">Exercises and max angles are loaded from the database. Data source matches patient ID in your profile.</p>
+  </section>
+
+  <!-- ── Assigned Exercise ────────────────────────────────────────────── -->
+  <section class="card" id="assignedExerciseSection">
+    <h3 class="card-title">Assigned Exercise</h3>
+    <div class="actions">
+      <label for="exerciseSelect">Exercise</label>
+      <select id="exerciseSelect" aria-label="Select assigned exercise">
+        <option value="">-- Loading exercises... --</option>
+      </select>
+    </div>
+    <div id="exerciseDetails" class="note">Select an exercise to view details.</div>
+  </section>
+
+  <!-- ── Patient Movement Match ───────────────────────────────────────── -->
+  <section class="card match-hero">
+    <h3 class="card-title" id="matchTitle">Patient Movement Match (Preloaded Session)</h3>
+    <span id="overallMatchBadge" class="pill pill-ok">Overall Match: --</span>
+    <div id="matchGrid" class="match-grid"></div>
+    <p id="matchHint" class="note">
+      Bars compare patient glove movement against the preloaded doctor target in real time.
+      Green means correct movement.
+    </p>
+  </section>
+
+  <!-- ── Doctor Values ────────────────────────────────────────────────── -->
+  <section class="card" id="doctorValuesSection">
+    <h3 class="card-title">Doctor Values (From Database)</h3>
+    <div class="actions">
+      <label for="levelSelect">Doctor Level</label>
+      <select id="levelSelect" aria-label="Doctor difficulty level">
+        <option value="1">Level 1</option>
+        <option value="2">Level 2</option>
+        <option value="3">Level 3</option>
+        <option value="4">Level 4</option>
+        <option value="5">Level 5</option>
+        <option value="6">Level 6</option>
+      </select>
+
+      <label for="cycleMsInput">Loop Cycle (ms)</label>
+      <input id="cycleMsInput" type="number" min="1000" max="10000" step="100" value="3200"
+             aria-label="Loop cycle duration in milliseconds" />
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Finger</th>
+          <th>Doctor Calib Min</th>
+          <th>Doctor Calib Max</th>
+          <th>Exercise Max Angle</th>
+        </tr>
+      </thead>
+      <tbody id="doctorDataBody"></tbody>
+    </table>
+    <p id="levelInfo" class="note">Selected doctor level target angle: 0deg.</p>
+  </section>
+
+  <!-- ── Loop Control ─────────────────────────────────────────────────── -->
+  <section class="card" id="loopControlSection">
+    <h3 class="card-title">Loop Control</h3>
+    <div class="actions">
+      <button id="startLoopBtn" type="button">Start Loop</button>
+      <button id="stopLoopBtn" class="btn-secondary" type="button">Stop Loop</button>
+      <button id="resetPoseBtn" class="btn-secondary" type="button">Reset Pose</button>
+    </div>
+    <span id="loopBadge" class="pill pill-ok">Loop Running</span>
+    <p id="repSetStatus" class="note">Reps: 0 / -- | Sets: 0 / --</p>
+    <p class="note">
+      Loop drives min → doctor targets → min continuously, based on doctor level and exercise max values.
+    </p>
+  </section>
+
+  <!-- ── Computed Targets ─────────────────────────────────────────────── -->
+  <section class="card" id="computedTargetsSection">
+    <h3 class="card-title">Computed Targets</h3>
+    <div id="targetGrid" class="mini-grid"></div>
+    <p class="note">Target per finger = min(exercise max angle, level angle).</p>
+  </section>
+
+</div><!-- /.view-namespace-preloaded -->

@@ -1,0 +1,145 @@
+<div class="view-namespace-doctor-preloaded">
+  <div class="view-header">
+    <h2 class="view-title">Exercise Builder</h2>
+    <p class="view-subtitle">Capture your live glove pose to create and assign exercises to patients.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Add Exercise</div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="exercisePatientId">Patient ID</label>
+        <select id="exercisePatientId" class="form-control" disabled>
+          <option value="">-- Loading patients... --</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="exerciseDescription">Description</label>
+        <input id="exerciseDescription" type="text" class="form-control" placeholder="e.g. Finger flexion set A">
+      </div>
+
+      <div class="form-group">
+        <label for="exerciseMotorLevel">Level (1-10)</label>
+        <div style="display:flex; gap:8px;">
+          <input id="exerciseMotorLevel" type="number" min="1" max="10" class="form-control" placeholder="1-10" style="width:100px;">
+          <button id="testMotorBtn" class="btn-secondary" type="button">Test Motor</button>
+          <button id="resetMotorBtn" class="btn-secondary" type="button">Reset</button>
+        </div>
+        <div id="motorStatus" style="font-size:12px; color:var(--c-text-muted); margin-top:4px;">Motor not tested.</div>
+      </div>
+
+      <div class="form-group">
+        <label for="exerciseTargetSets">Target Sets</label>
+        <input id="exerciseTargetSets" type="number" min="1" class="form-control" placeholder="e.g. 3">
+      </div>
+
+      <div class="form-group">
+        <label for="exerciseTargetReps">Target Reps</label>
+        <input id="exerciseTargetReps" type="number" min="1" class="form-control" placeholder="e.g. 12">
+      </div>
+
+      <div class="form-group">
+        <label for="exerciseStartDate">Start Date</label>
+        <input id="exerciseStartDate" type="date" class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label for="exerciseEndDate">End Date</label>
+        <input id="exerciseEndDate" type="date" class="form-control">
+      </div>
+    </div>
+
+    <h3 style="font-size:14px; margin:24px 0 12px;">Captured Target Angles (Max Flexion)</h3>
+    <div class="setup-grid" id="exerciseTargetsGrid">
+      <div class="mini-card"><strong>Thumb</strong><input type="number" id="exThumb" class="form-control" placeholder="-- deg" style="width:100%; text-align:center;"></div>
+      <div class="mini-card"><strong>Index</strong><input type="number" id="exIndex" class="form-control" placeholder="-- deg" style="width:100%; text-align:center;"></div>
+      <div class="mini-card"><strong>Middle</strong><input type="number" id="exMiddle" class="form-control" placeholder="-- deg" style="width:100%; text-align:center;"></div>
+      <div class="mini-card"><strong>Ring</strong><input type="number" id="exRing" class="form-control" placeholder="-- deg" style="width:100%; text-align:center;"></div>
+      <div class="mini-card"><strong>Pinky</strong><input type="number" id="exPinky" class="form-control" placeholder="-- deg" style="width:100%; text-align:center;"></div>
+    </div>
+
+    <div class="actions-row">
+      <button id="capturePoseBtn" class="btn-primary" type="button" disabled>Capture Targets from Live Pose</button>
+      <button id="resetPoseBtn" class="btn-secondary" type="button">Reset Targets</button>
+      <button id="saveExerciseBtn" class="btn-success" type="button" disabled>Save Exercise to Database</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Saved Exercises</div>
+    <ul id="savedExercisesList" class="saved-list">
+      <!-- Injected by JS -->
+    </ul>
+    <button id="exportExerciseBtn" class="btn-secondary" style="margin-top:16px;" type="button">Export JSON</button>
+  </div>
+
+  <style>
+    .view-namespace-doctor-preloaded .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .view-namespace-doctor-preloaded .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .view-namespace-doctor-preloaded label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .view-namespace-doctor-preloaded .form-control {
+      padding: 10px;
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .view-namespace-doctor-preloaded .form-control:focus {
+      outline: none;
+      border-color: var(--c-brand);
+    }
+    .view-namespace-doctor-preloaded .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 12px;
+    }
+    .view-namespace-doctor-preloaded .mini-card {
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .view-namespace-doctor-preloaded .mini-card strong {
+      display: block;
+      color: var(--c-text-muted);
+      margin-bottom: 8px;
+    }
+    .view-namespace-doctor-preloaded .actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .view-namespace-doctor-preloaded .saved-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .view-namespace-doctor-preloaded .saved-list li {
+      padding: 12px;
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+  </style>
+</div>

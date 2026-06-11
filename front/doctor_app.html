@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GloveXcel — Doctor Dashboard</title>
+  <meta name="description" content="GloveXcel doctor dashboard. Configure calibration, build preloaded exercises, and perform live assessments." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ═══════════════════════════════════════════════════════════════════════
+       DESIGN TOKENS (Copied from patient_app.html)
+    ═══════════════════════════════════════════════════════════════════════ */
+    :root {
+      /* Colour palette */
+      --c-bg:          #0d1117;
+      --c-surface:     #161b22;
+      --c-surface-2:   #1c2230;
+      --c-border:      #2d3748;
+      --c-brand:       #4e8ef7;
+      --c-brand-hover: #2563eb;
+      --c-ok:          #28a745;
+      --c-warn:        #d18a00;
+      --c-danger:      #dc2626;
+      --c-text-main:   #c9d1d9;
+      --c-text-muted:  #8b949e;
+
+      /* Spacing & layout */
+      --radius:        12px;
+      --radius-sm:     8px;
+      --shadow:        0 8px 24px rgba(0, 0, 0, 0.4);
+      --transition:    0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════════════════════════════ */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: var(--c-bg);
+      color: var(--c-text-main);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    h2, h3, p { margin: 0; }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      transition: all var(--transition);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       SPA SHELL LAYOUT
+    ═══════════════════════════════════════════════════════════════════════ */
+    .app-shell {
+      display: grid;
+      /* Sidebar | Main View | 3D Canvas */
+      grid-template-columns: 260px minmax(400px, 1.2fr) minmax(320px, 0.8fr);
+      height: 100vh;
+    }
+
+    /* ── 1. Sidebar Navigation ─────────────────────────────────────────── */
+    .sidebar {
+      background-color: var(--c-surface);
+      border-right: 1px solid var(--c-border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+    }
+
+    .brand {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 40px;
+      padding-left: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 24px;
+      height: 24px;
+      background: var(--c-brand);
+      border-radius: 6px;
+      box-shadow: 0 0 12px rgba(78, 142, 247, 0.4);
+    }
+
+    .nav-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      text-align: left;
+      padding: 12px 16px;
+      background: transparent;
+      color: var(--c-text-muted);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid transparent;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.03);
+      color: #fff;
+    }
+
+    .nav-btn.active {
+      background: rgba(78, 142, 247, 0.1);
+      color: var(--c-brand);
+      border-color: rgba(78, 142, 247, 0.2);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      font-size: 12px;
+      color: var(--c-text-muted);
+      padding: 0 8px;
+    }
+
+    /* ── 2. Dynamic View Container ─────────────────────────────────────── */
+    .view-wrapper {
+      position: relative;
+      background: var(--c-bg);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #view-container {
+      flex: 1;
+      padding: 32px 40px;
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ── 3. Persistent 3D Canvas ───────────────────────────────────────── */
+    .canvas-wrapper {
+      background-color: var(--c-surface-2);
+      border-left: 1px solid var(--c-border);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #doctorRendererContainer {
+      flex: 1;
+      width: 100%;
+    }
+
+    .canvas-overlay-status {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(13, 17, 23, 0.8);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--c-text-muted);
+      border: 1px solid var(--c-border);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       GLOBAL COMPONENT STYLES (Used by view fragments)
+    ═══════════════════════════════════════════════════════════════════════ */
+    .view-header {
+      margin-bottom: 32px;
+    }
+
+    .view-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .view-subtitle {
+      font-size: 14px;
+      color: var(--c-text-muted);
+    }
+
+    .status-bar {
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--c-text-muted);
+    }
+    .status-indicator.online { background: var(--c-ok); box-shadow: 0 0 8px rgba(40, 167, 69, 0.6); }
+
+    .status-text {
+      font-size: 14px;
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .btn-primary {
+      background: var(--c-brand);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--c-brand-hover); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--c-text-main);
+      border: 1px solid var(--c-border);
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .btn-secondary:hover:not(:disabled) { background: var(--c-surface-2); color: #fff; }
+    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-success {
+      background: var(--c-ok);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn-success:hover:not(:disabled) { filter: brightness(1.1); }
+    .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .panel {
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Calibration Amber Warning Banner */
+    .calib-warning-banner {
+      background: rgba(209, 138, 0, 0.1);
+      border: 1px solid rgba(209, 138, 0, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .calib-warning-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .calib-warning-body {
+      flex: 1;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+
+    .calib-warning-body strong {
+      display: block;
+      color: #fbd38d;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .calib-warning-link {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #f6ad55;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 8px;
+      cursor: pointer;
+    }
+
+    .calib-warning-link:hover { text-decoration: underline; }
+
+    .calib-warning-dismiss {
+      background: none;
+      border: none;
+      color: var(--c-text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+    }
+
+    .calib-warning-dismiss:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Router Error Fallback */
+    .view-error {
+      background: rgba(220, 38, 38, 0.1);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      border-radius: var(--radius);
+      padding: 24px;
+      color: #fca5a5;
+    }
+
+  </style>
+
+  <!-- Import Map for Three.js (Must be present before module scripts) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <div class="app-shell">
+    
+    <!-- ── 1. Sidebar ───────────────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"></div>
+        Doctor Dashboard
+      </div>
+
+      <nav class="nav-menu" aria-label="Main navigation">
+        <button class="nav-btn" data-route="doctor-setup">Setup & Calibration</button>
+        <button class="nav-btn" data-route="doctor-preloaded">Exercise Builder</button>
+        <button class="nav-btn" data-route="doctor-live">Live Assessment</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        GloveXcel v2.0 SPA<br>
+        <a href="./patient_app.html" style="color:var(--c-brand);text-decoration:none;margin-top:8px;display:inline-block;">Switch to Patient App</a>
+      </div>
+    </aside>
+
+    <!-- ── 2. View Container (Dynamic) ──────────────────────────────────── -->
+    <main class="view-wrapper">
+      <div id="view-container" aria-live="polite">
+        <!-- Route fragments injected here by router.js -->
+      </div>
+    </main>
+
+    <!-- ── 3. Persistent 3D Canvas ──────────────────────────────────────── -->
+    <aside class="canvas-wrapper">
+      <div id="doctorRendererContainer"></div>
+      <div id="modelStatus" class="canvas-overlay-status">Model loading...</div>
+    </aside>
+
+  </div>
+
+  <!-- ── 4. SPA Bootstrapper ────────────────────────────────────────────── -->
+  <script type="module">
+    import { GloveState } from './js/gloveState.js';
+    import { ThreeEngine } from './js/threeEngine.js';
+    import { createRouter } from './js/router.js';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Initialize Singletons
+      const viewContainer = document.getElementById('view-container');
+      const canvasContainer = document.getElementById('doctorRendererContainer');
+      const modelStatusEl = document.getElementById('modelStatus');
+
+      ThreeEngine.init(canvasContainer);
+      ThreeEngine.onModelStatus = (msg) => {
+        if (modelStatusEl) {
+          modelStatusEl.textContent = msg;
+          if (msg === 'Model loaded.') {
+            setTimeout(() => { modelStatusEl.style.opacity = '0'; }, 2000);
+          }
+        }
+      };
+
+      // 2. Initialize Router
+      const router = createRouter(viewContainer, GloveState, ThreeEngine);
+
+      // 3. Bind Navigation Buttons
+      document.querySelectorAll('.nav-btn[data-route]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          router.go(e.target.dataset.route);
+        });
+      });
+
+      // 4. Start Routing
+      // Provide a fallback hash if none exists so it boots cleanly to setup
+      if (!window.location.hash || window.location.hash === '#') {
+        window.location.hash = '#doctor-setup';
+      }
+      router.initial();
+    });
+  </script>
+</body>
+</html>

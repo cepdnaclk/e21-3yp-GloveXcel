@@ -1,0 +1,158 @@
+<div class="view-namespace-doctor-live">
+  <div class="view-header">
+    <h2 class="view-title">Live Assessment</h2>
+    <p class="view-subtitle">Patient compliance monitor and peak detection. Driven by doctor's physical glove stream.</p>
+  </div>
+
+  <div class="calib-warning-banner" style="background: rgba(var(--c-brand-rgb), 0.1); border-color: var(--c-brand);">
+    ⚠️ [Biofeedback Mode] Displaying live doctor glove input as target proxy.
+  </div>
+
+  <div class="panel">
+    <h3 class="panel-title">
+      Patient Compliance Monitor
+      <span style="font-size:10px; font-weight:700; background:var(--c-brand); color:#fff; padding:2px 8px; border-radius:20px; margin-left:8px; text-transform:uppercase;">Live</span>
+    </h3>
+
+    <div class="rep-counter-widget">
+      <div>
+        <span style="font-size:12px; font-weight:600; text-transform:uppercase; color:var(--c-text-muted);">Progress</span>
+        <span id="targetSourceLabel" style="font-size:11px; font-style:italic; margin-left:6px; color:var(--c-text-muted);">(default 90° target)</span>
+      </div>
+      <span id="repSetStatus" style="font-size:14px; font-weight:700; color:#fff; transition:color 0.2s;">Reps: 0 / -- &nbsp;|&nbsp; Sets: 0 / --</span>
+      <button id="resetRepsBtn" class="btn-secondary" style="padding:4px 10px; font-size:12px;" type="button">↺ Reset</button>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label for="defaultTargetInput" style="font-size:13px; font-weight:600; color:#fff;">Default Target Angle</label>
+        <input id="defaultTargetInput" type="number" value="90" min="0" max="90" step="1" style="width:70px; padding:6px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; text-align:center;">
+        <span style="font-size:11px; color:var(--c-text-muted);">° (used when no live pose is set)</span>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+        <button id="setDoctorTargetBtn" class="btn-primary" type="button">🎯 Set Doctor's Pose as Live Target</button>
+        <button id="resetLiveTargetBtn" class="btn-secondary" type="button">↺ Reset Target to Default</button>
+        <span id="setTargetToast" style="font-size:12px; font-weight:600; padding:6px 10px; border-radius:var(--radius-sm); opacity:0; transition:opacity 0.25s;"></span>
+      </div>
+    </div>
+
+    <div style="font-size:12px; color:var(--c-text-muted); margin-bottom:16px;">
+      Bar track = 120% of target. Blue line = prescribed max (100%).
+      <span style="color:#3b82f6;">■</span> Approaching &nbsp;
+      <span style="color:#22c55e;">■</span> Safe Zone (95–105%) &nbsp;
+      <span style="color:#dc2626;">■</span> Over-flexion (&gt;105%)
+    </div>
+
+    <div class="match-grid" id="matchGrid">
+      <!-- Injected by JS -->
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3 class="panel-title">
+      Live Capture Snapshot
+      <span style="font-size:10px; font-weight:700; background:var(--c-brand); color:#fff; padding:2px 8px; border-radius:20px; margin-left:8px; text-transform:uppercase;">Peak</span>
+    </h3>
+    
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+      <button id="startAssessmentBtn" class="btn-primary" type="button">▶ Start Assessment</button>
+      <button id="stopAssessmentBtn" class="btn-secondary" type="button" disabled>■ Stop Assessment</button>
+      <button id="resetPeaksBtn" class="btn-secondary" type="button">↺ Reset Peaks</button>
+      <button id="saveBaselineBtn" class="btn-success" type="button">💾 Save Baseline</button>
+    </div>
+    
+    <div id="assessmentStatus" style="font-size:13px; color:var(--c-text-muted); margin-bottom:16px;">
+      Assessment not started. Press "Start Assessment" to begin capturing peaks.
+    </div>
+
+    <div class="peak-grid" id="peakGrid">
+      <!-- Injected by JS -->
+    </div>
+  </div>
+
+  <style>
+    .view-namespace-doctor-live .rep-counter-widget {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 24px;
+    }
+    .view-namespace-doctor-live #repSetStatus.warning {
+      color: var(--c-danger) !important;
+      animation: overFlexFlash 0.5s linear 3;
+    }
+    .view-namespace-doctor-live .match-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .view-namespace-doctor-live .match-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 90px;
+      align-items: center;
+      gap: 12px;
+    }
+    .view-namespace-doctor-live .match-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .view-namespace-doctor-live .match-bar-track {
+      height: 14px;
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: 7px;
+      position: relative;
+    }
+    .view-namespace-doctor-live .match-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      width: 0%;
+      transition: width 0.08s linear, background-color 0.2s ease;
+    }
+    .view-namespace-doctor-live .match-ceiling-line {
+      position: absolute;
+      top: -3px;
+      height: calc(100% + 6px);
+      width: 2px;
+      background: rgba(78, 142, 247, 0.7);
+      left: 83.33%; /* 100/120 */
+    }
+    .view-namespace-doctor-live .match-value {
+      font-size: 13px;
+      font-weight: 700;
+      text-align: right;
+    }
+    .view-namespace-doctor-live .peak-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 12px;
+    }
+    .view-namespace-doctor-live .peak-card {
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      text-align: center;
+    }
+    .view-namespace-doctor-live .peak-card-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    @keyframes overFlexFlash {
+      0%, 100% { color: var(--c-danger); }
+      50% { color: #fca5a5; }
+    }
+    .view-namespace-doctor-live .overflex {
+      animation: overFlexFlash 0.35s linear infinite;
+      background-color: var(--c-danger) !important;
+    }
+  </style>
+</div>

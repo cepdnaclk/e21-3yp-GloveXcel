@@ -103,8 +103,6 @@ export class BleGloveClient {
 
     try {
       this.motorCharacteristic = await service.getCharacteristic(BLE_MOTOR_CMD_UUID);
-      await this.motorCharacteristic.writeValueWithResponse(new Uint8Array([0]));
-      this._startKeepAlive();
     } catch (error) {
       this.motorCharacteristic = null;
       console.warn("Motor characteristic unavailable:", error);
@@ -146,22 +144,7 @@ export class BleGloveClient {
   }
 
   _startKeepAlive() {
-    this._stopKeepAlive();
-    this.keepAliveInterval = setInterval(async () => {
-      if (!this.motorCharacteristic) {
-        return;
-      }
-
-      try {
-        await this.motorCharacteristic.writeValueWithoutResponse(new Uint8Array([0]));
-      } catch {
-        try {
-          await this.motorCharacteristic.writeValueWithResponse(new Uint8Array([0]));
-        } catch {
-          // Keep-alive best effort.
-        }
-      }
-    }, 3000);
+    // Keep alive disabled to prevent sending invalid 0 values to the motor
   }
 
   async _startSensorStreaming() {

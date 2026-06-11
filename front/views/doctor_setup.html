@@ -1,0 +1,88 @@
+<div class="view-namespace-doctor-setup">
+  <div class="view-header">
+    <h2 class="view-title">Setup & Calibration</h2>
+    <p class="view-subtitle">Connect the doctor glove and verify calibration snapshot.</p>
+  </div>
+
+  <div class="status-bar">
+    <div id="doctorSetupGloveStatusIndicator" class="status-indicator"></div>
+    <div class="status-text" id="doctorSetupGloveStatus">Doctor glove status: Disconnected.</div>
+    <button id="doctorSetupConnectBtn" class="btn-primary" type="button">Connect to Glove</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title" style="justify-content: space-between;">
+      Calibration Snapshot
+      <button id="livePreviewBtn" class="btn-primary" style="padding:4px 10px; font-size:12px;" type="button">Return to Live Tracking</button>
+    </div>
+    <!-- Pass 1: Non-Thumb -->
+    <div style="margin-bottom:24px;">
+      <h3 class="panel-title" style="font-size:14px; color:var(--c-brand);">Pass 1 — Non-Thumb Calibration</h3>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <button id="captureNonThumbMinBtn" class="btn-secondary" type="button" disabled>Capture Non-Thumb Min (0deg)</button>
+        <button id="captureNonThumbMaxBtn" class="btn-secondary" type="button" disabled>Capture Non-Thumb Max (90deg)</button>
+        <button id="previewNonThumbMinBtn" class="btn-secondary" type="button">Preview Min</button>
+        <button id="previewNonThumbMaxBtn" class="btn-secondary" type="button">Preview Max</button>
+      </div>
+      <p style="font-size:12px; color:var(--c-text-muted);">Extend all fingers flat for Min, then curl index–pinky fully for Max.</p>
+    </div>
+
+    <!-- Pass 2: Thumb -->
+    <div style="margin-bottom:24px;">
+      <h3 class="panel-title" style="font-size:14px; color:var(--c-brand);">Pass 2 — Thumb Calibration</h3>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <button id="captureThumbMinBtn" class="btn-secondary" type="button" disabled>Capture Thumb Min (0deg)</button>
+        <button id="captureThumbMaxBtn" class="btn-secondary" type="button" disabled>Capture Thumb Max (90deg)</button>
+        <button id="previewThumbMinBtn" class="btn-secondary" type="button">Preview Min</button>
+        <button id="previewThumbMaxBtn" class="btn-secondary" type="button">Preview Max</button>
+      </div>
+      <p style="font-size:12px; color:var(--c-text-muted);">Keep non-thumb fingers closed, then capture thumb open and closed.</p>
+    </div>
+
+    <div style="margin-bottom:16px; font-size:14px; color:var(--c-text-muted);">
+      Or load existing calibration from database:
+      <button id="openCalibrationBtn" class="btn-secondary" style="padding:4px 10px; font-size:12px; margin-left:12px;" type="button">Force Reload from DB</button>
+    </div>
+    
+    <div class="setup-grid" id="doctorCalibGrid">
+      <!-- Injected by JS -->
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Live Raw and Calibrated Angles</div>
+    <div class="setup-grid" id="doctorLiveGrid">
+      <!-- Injected by JS -->
+    </div>
+  </div>
+
+  <style>
+    .view-namespace-doctor-setup .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+    }
+    .view-namespace-doctor-setup .mini-card {
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      text-align: center;
+    }
+    .view-namespace-doctor-setup .mini-card h3 {
+      font-size: 14px;
+      color: var(--c-text-muted);
+      margin-bottom: 8px;
+    }
+    .view-namespace-doctor-setup .raw-val {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .view-namespace-doctor-setup .angle-val {
+      font-size: 13px;
+      color: var(--c-brand);
+    }
+  </style>
+</div>

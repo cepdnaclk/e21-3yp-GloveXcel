@@ -18,6 +18,14 @@ let defaultTargetInput, setDoctorTargetBtn, resetLiveTargetBtn, setTargetToast;
 let targetSourceLabel, repSetStatus, resetRepsBtn;
 let startAssessmentBtn, stopAssessmentBtn, resetPeaksBtn, saveBaselineBtn, assessmentStatus;
 let matchGrid, peakGrid;
+let mqttHostInput, mqttTopicInput, mqttUsernameInput, mqttPasswordInput;
+let mqttConnectBtn, mqttDisconnectBtn, mqttStatusLabel, mqttRateLabel;
+let mqttRawMinInput, mqttRawMaxInput, mqttDriveModelCheckbox;
+
+// MQTT Client State
+let mqttClient = null;
+let mqttMsgCounter = 0;
+let mqttHzInterval = null;
 
 // Assessment State
 let activeDoctorTargets = [90, 90, 90, 90, 90];
@@ -262,6 +270,18 @@ export function mount(container, gloveState, threeEngine) {
   saveBaselineBtn    = container.querySelector('#saveBaselineBtn');
   assessmentStatus   = container.querySelector('#assessmentStatus');
 
+  mqttHostInput          = container.querySelector('#mqttHostInput');
+  mqttTopicInput         = container.querySelector('#mqttTopicInput');
+  mqttUsernameInput      = container.querySelector('#mqttUsernameInput');
+  mqttPasswordInput      = container.querySelector('#mqttPasswordInput');
+  mqttConnectBtn         = container.querySelector('#mqttConnectBtn');
+  mqttDisconnectBtn      = container.querySelector('#mqttDisconnectBtn');
+  mqttStatusLabel        = container.querySelector('#mqttStatusLabel');
+  mqttRateLabel          = container.querySelector('#mqttRateLabel');
+  mqttRawMinInput        = container.querySelector('#mqttRawMinInput');
+  mqttRawMaxInput        = container.querySelector('#mqttRawMaxInput');
+  mqttDriveModelCheckbox = container.querySelector('#mqttDriveModelCheckbox');
+
   initGrids();
   renderCalibrationBanner();
   activeDoctorTargets = Array(5).fill(getDefaultTarget());
@@ -337,8 +357,146 @@ export function mount(container, gloveState, threeEngine) {
     assessmentStatus.style.color = 'var(--c-ok)';
   });
 
+  function connectMqttPatient() {
+    if (mqttClient) {
+      mqttClient.end();
+    }
+
+    const brokerUrl = mqttHostInput?.value?.trim() || '';
+    const topic = mqttTopicInput?.value?.trim() || '';
+    const username = mqttUsernameInput?.value?.trim() || '';
+    const password = mqttPasswordInput?.value?.trim() || '';
+
+    if (mqttStatusLabel) {
+      mqttStatusLabel.textContent = 'Connecting...';
+      mqttStatusLabel.style.color = 'var(--c-warn)';
+    }
+    if (mqttConnectBtn) mqttConnectBtn.disabled = true;
+
+    const clientId = 'sim_receiver_' + Math.random().toString(16).substring(2, 8);
+
+    try {
+      mqttClient = mqtt.connect(brokerUrl, {
+        username: username,
+        password: password,
+        clientId: clientId,
+        connectTimeout: 5000,
+        reconnectPeriod: 2000
+      });
+
+      mqttClient.on('connect', () => {
+        if (mqttStatusLabel) {
+          mqttStatusLabel.textContent = 'Connected & Listening';
+          mqttStatusLabel.style.color = 'var(--c-ok)';
+        }
+        if (mqttConnectBtn) mqttConnectBtn.disabled = true;
+        if (mqttDisconnectBtn) mqttDisconnectBtn.disabled = false;
+        mqttClient.subscribe(topic);
+
+        mqttMsgCounter = 0;
+        if (mqttHzInterval) clearInterval(mqttHzInterval);
+        mqttHzInterval = setInterval(() => {
+          if (mqttRateLabel) mqttRateLabel.textContent = mqttMsgCounter + ' Hz';
+          mqttMsgCounter = 0;
+        }, 1000);
+      });
+
+      mqttClient.on('message', (receivedTopic, message) => {
+        if (receivedTopic !== topic) return;
+        mqttMsgCounter++;
+
+        if (message.length === 10) {
+          const view = new DataView(message.buffer, message.byteOffset, message.byteLength);
+          const r0 = view.getUint16(0, true);
+          const r1 = view.getUint16(2, true);
+          const r2 = view.getUint16(4, true);
+          const r3 = view.getUint16(6, true);
+          const r4 = view.getUint16(8, true);
+          const rawValues = [r0, r1, r2, r3, r4];
+
+          const minLimit = parseInt(mqttRawMinInput?.value || '1000', 10);
+          const maxLimit = parseInt(mqttRawMaxInput?.value || '3500', 10);
+
+          const patientAngles = rawValues.map((rawVal, i) => {
+            const rawEl = _container?.querySelector('#mqttRawVal' + i);
+            const angEl = _container?.querySelector('#mqttAngVal' + i);
+            const t = (rawVal - minLimit) / (maxLimit - minLimit);
+            const angle = Math.max(0, Math.min(90, t * 90));
+
+            if (rawEl) rawEl.textContent = rawVal;
+            if (angEl) angEl.textContent = angle.toFixed(1) + '°';
+            return angle;
+          });
+
+          // Feed MQTT data to Live Assessment
+          processLiveStream(patientAngles);
+
+          // Animate 3D Model if option is checked
+          if (mqttDriveModelCheckbox?.checked && _engine.isModelLoaded) {
+            _engine.setPose(buildPoseFromAngles(patientAngles));
+          }
+        }
+      });
+
+      mqttClient.on('error', (err) => {
+        console.error('MQTT error:', err);
+        if (mqttStatusLabel) {
+          mqttStatusLabel.textContent = 'Error: ' + err.message;
+          mqttStatusLabel.style.color = 'var(--c-danger)';
+        }
+        disconnectMqttPatient();
+      });
+
+      mqttClient.on('offline', () => {
+        if (mqttStatusLabel) {
+          mqttStatusLabel.textContent = 'Offline';
+          mqttStatusLabel.style.color = 'var(--c-danger)';
+        }
+      });
+
+    } catch (err) {
+      console.error('MQTT Connect setup failed:', err);
+      if (mqttStatusLabel) {
+        mqttStatusLabel.textContent = 'Setup Error';
+        mqttStatusLabel.style.color = 'var(--c-danger)';
+      }
+      if (mqttConnectBtn) mqttConnectBtn.disabled = false;
+    }
+  }
+
+  function disconnectMqttPatient() {
+    if (mqttClient) {
+      mqttClient.end();
+      mqttClient = null;
+    }
+    if (mqttHzInterval) {
+      clearInterval(mqttHzInterval);
+      mqttHzInterval = null;
+    }
+    if (mqttStatusLabel) {
+      mqttStatusLabel.textContent = 'Disconnected';
+      mqttStatusLabel.style.color = 'var(--c-danger)';
+    }
+    if (mqttRateLabel) mqttRateLabel.textContent = '0 Hz';
+    if (mqttConnectBtn) mqttConnectBtn.disabled = false;
+    if (mqttDisconnectBtn) mqttDisconnectBtn.disabled = true;
+
+    for (let i = 0; i < 5; i++) {
+      const rawEl = _container?.querySelector('#mqttRawVal' + i);
+      const angEl = _container?.querySelector('#mqttAngVal' + i);
+      if (rawEl) rawEl.textContent = '--';
+      if (angEl) angEl.textContent = '--°';
+    }
+  }
+
+  mqttConnectBtn?.addEventListener('click', connectMqttPatient);
+  mqttDisconnectBtn?.addEventListener('click', disconnectMqttPatient);
+
   // Wire State
   _state.onPacket = (packet) => {
+    if (mqttClient && mqttClient.connected && mqttDriveModelCheckbox?.checked) {
+      return;
+    }
     const angles = getCurrentAngles(packet);
     processLiveStream(angles);
     
@@ -353,6 +511,15 @@ export function mount(container, gloveState, threeEngine) {
 }
 
 export function unmount() {
+  if (mqttClient) {
+    mqttClient.end();
+    mqttClient = null;
+  }
+  if (mqttHzInterval) {
+    clearInterval(mqttHzInterval);
+    mqttHzInterval = null;
+  }
+
   if (_state) {
     _state.onPacket = null;
     _state.onStatus = null;
@@ -367,5 +534,8 @@ export function unmount() {
   targetSourceLabel = repSetStatus = resetRepsBtn = null;
   startAssessmentBtn = stopAssessmentBtn = resetPeaksBtn = saveBaselineBtn = assessmentStatus = null;
   matchGrid = peakGrid = null;
+  mqttHostInput = mqttTopicInput = mqttUsernameInput = mqttPasswordInput = null;
+  mqttConnectBtn = mqttDisconnectBtn = mqttStatusLabel = mqttRateLabel = null;
+  mqttRawMinInput = mqttRawMaxInput = mqttDriveModelCheckbox = null;
   _container = null;
 }

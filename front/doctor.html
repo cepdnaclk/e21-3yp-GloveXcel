@@ -580,6 +580,7 @@
             background: #6c7a90;
         }
     </style>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
     <div class="page">
@@ -628,6 +629,76 @@
                     <div class="mini-card"><strong>Middle</strong><div id="calMiddle">Min: -- | Max: --</div></div>
                     <div class="mini-card"><strong>Ring</strong><div id="calRing">Min: -- | Max: --</div></div>
                     <div class="mini-card"><strong>Pinky</strong><div id="calPinky">Min: -- | Max: --</div></div>
+                </div>
+            </section>
+
+            <!-- ── Real-Time Session: Patient MQTT Stream Connection ── -->
+            <section class="section hidden" id="rtMqttSection">
+                <h3 class="rt-section-heading">Patient MQTT Connection <span class="rt-badge" style="background:#4e8ef7; color:#fff;">MQTT</span></h3>
+                
+                <div style="background:#fafafa; border:1px solid #dce2ed; border-radius:10px; padding:16px; margin-bottom:12px;">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-bottom:12px;">
+                        <div>
+                            <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Broker Host (WebSocket)</label>
+                            <input id="mqttHostInput" type="text" value="wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Topic</label>
+                            <input id="mqttTopicInput" type="text" value="project/glove01/status" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Username</label>
+                            <input id="mqttUsernameInput" type="text" value="Glovexl" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Password</label>
+                            <input id="mqttPasswordInput" type="password" value="200209Ost" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px;">
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                        <div style="display:flex; gap:10px;">
+                            <button id="mqttConnectBtn" type="button" style="font-size:13px; font-weight:600; padding:8px 14px; border-radius:6px; cursor:pointer;">Connect Patient MQTT</button>
+                            <button id="mqttDisconnectBtn" class="secondary" type="button" disabled style="font-size:13px; font-weight:600; padding:8px 14px; border-radius:6px; cursor:pointer;">Disconnect</button>
+                        </div>
+                        <div style="font-size:13px; font-weight:600;">
+                            Status: <span id="mqttStatusLabel" style="color:#dc2626;">Disconnected</span> | 
+                            Rate: <span id="mqttRateLabel" style="color:#627188;">0 Hz</span>
+                        </div>
+                    </div>
+
+                    <!-- MQTT Sensor Calibration limits -->
+                    <div style="border-top:1px dashed #dce2ed; padding-top:12px; margin-top:12px;">
+                        <h4 style="margin:0 0 8px; font-size:12px; font-weight:700; color:#4b5d78; text-transform:uppercase;">MQTT Sensor Range (Calibration)</h4>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px; margin-bottom:8px;">
+                            <div>
+                                <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Raw Min (Relaxed)</label>
+                                <input id="mqttRawMinInput" type="number" value="1000" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px; text-align:center;">
+                            </div>
+                            <div>
+                                <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Raw Max (Fully Flexed)</label>
+                                <input id="mqttRawMaxInput" type="number" value="3500" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px; text-align:center;">
+                            </div>
+                        </div>
+                        <p style="margin:0; font-size:11px; color:#627188; font-style:italic;">Incoming uint16 values will be mapped to 0°–90° based on this raw range.</p>
+                    </div>
+
+                    <!-- Toggle to drive model -->
+                    <div style="margin-top:12px; display:flex; align-items:center; gap:8px;">
+                        <input id="mqttDriveModelCheckbox" type="checkbox" checked style="width:16px; height:16px; cursor:pointer;">
+                        <label for="mqttDriveModelCheckbox" style="font-size:12px; font-weight:600; color:#1f2a38; cursor:pointer;">Drive 3D Model with Patient MQTT Stream</label>
+                    </div>
+                </div>
+
+                <div style="background:#f4f6fa; border:1px solid #dce2ed; border-radius:8px; padding:10px 14px; margin-bottom:12px;">
+                    <div style="font-weight:600; font-size:12px; color:#4b5d78; margin-bottom:6px; text-transform:uppercase;">Live MQTT Raw & Angles</div>
+                    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; text-align:center;">
+                        <div style="background:#fff; border:1px solid #e2e8f0; padding:6px; border-radius:6px;"><b style="font-size:11px; color:#627188; display:block;">Thumb</b><span id="mqttRawVal0" style="font-size:12px; font-weight:600; color:#1f2a38;">--</span><br><span id="mqttAngVal0" style="font-size:11px; color:#4e8ef7;">--°</span></div>
+                        <div style="background:#fff; border:1px solid #e2e8f0; padding:6px; border-radius:6px;"><b style="font-size:11px; color:#627188; display:block;">Index</b><span id="mqttRawVal1" style="font-size:12px; font-weight:600; color:#1f2a38;">--</span><br><span id="mqttAngVal1" style="font-size:11px; color:#4e8ef7;">--°</span></div>
+                        <div style="background:#fff; border:1px solid #e2e8f0; padding:6px; border-radius:6px;"><b style="font-size:11px; color:#627188; display:block;">Middle</b><span id="mqttRawVal2" style="font-size:12px; font-weight:600; color:#1f2a38;">--</span><br><span id="mqttAngVal2" style="font-size:11px; color:#4e8ef7;">--°</span></div>
+                        <div style="background:#fff; border:1px solid #e2e8f0; padding:6px; border-radius:6px;"><b style="font-size:11px; color:#627188; display:block;">Ring</b><span id="mqttRawVal3" style="font-size:12px; font-weight:600; color:#1f2a38;">--</span><br><span id="mqttAngVal3" style="font-size:11px; color:#4e8ef7;">--°</span></div>
+                        <div style="background:#fff; border:1px solid #e2e8f0; padding:6px; border-radius:6px;"><b style="font-size:11px; color:#627188; display:block;">Pinky</b><span id="mqttRawVal4" style="font-size:12px; font-weight:600; color:#1f2a38;">--</span><br><span id="mqttAngVal4" style="font-size:11px; color:#4e8ef7;">--°</span></div>
+                    </div>
                 </div>
             </section>
 
@@ -945,6 +1016,7 @@
         const savedExercisesSectionEl = document.getElementById('savedExercisesSection');
         const rtMatchSectionEl = document.getElementById('rtMatchSection');
         const rtPeakSectionEl = document.getElementById('rtPeakSection');
+        const rtMqttSectionEl = document.getElementById('rtMqttSection');
         const saveExerciseBtn = document.getElementById('saveExerciseBtn');
         const exportExerciseBtn = document.getElementById('exportExerciseBtn');
         const captureAllExerciseBtn = document.getElementById('captureAllExerciseBtn');
@@ -1041,6 +1113,9 @@
             }
             if (rtPeakSectionEl) {
                 rtPeakSectionEl.classList.toggle('hidden', !isRealtime);
+            }
+            if (rtMqttSectionEl) {
+                rtMqttSectionEl.classList.toggle('hidden', !isRealtime);
             }
 
             // Start / stop mock patient stream
@@ -1988,6 +2063,9 @@
         const RELEASE_THRESHOLD = 0.40; // all fingers must drop to ≤40% to reset latch
 
         function mockPatientStream() {
+            if (typeof mqttClient !== 'undefined' && mqttClient && mqttClient.connected) {
+                return;
+            }
             patientGloveState.t += 0.035;
             const t = patientGloveState.t;
 
@@ -2174,6 +2252,197 @@
                 }
             });
         }
+
+        // ── Patient MQTT Connection Logic ──
+        let mqttClient = null;
+        let mqttMsgCounter = 0;
+        let mqttHzInterval = null;
+
+        const mqttHostInput = document.getElementById('mqttHostInput');
+        const mqttTopicInput = document.getElementById('mqttTopicInput');
+        const mqttUsernameInput = document.getElementById('mqttUsernameInput');
+        const mqttPasswordInput = document.getElementById('mqttPasswordInput');
+        const mqttConnectBtn = document.getElementById('mqttConnectBtn');
+        const mqttDisconnectBtn = document.getElementById('mqttDisconnectBtn');
+        const mqttStatusLabel = document.getElementById('mqttStatusLabel');
+        const mqttRateLabel = document.getElementById('mqttRateLabel');
+        const mqttRawMinInput = document.getElementById('mqttRawMinInput');
+        const mqttRawMaxInput = document.getElementById('mqttRawMaxInput');
+        const mqttDriveModelCheckbox = document.getElementById('mqttDriveModelCheckbox');
+
+        function connectMqttPatient() {
+            if (mqttClient) {
+                mqttClient.end();
+            }
+
+            const brokerUrl = mqttHostInput.value.trim();
+            const topic = mqttTopicInput.value.trim();
+            const username = mqttUsernameInput.value.trim();
+            const password = mqttPasswordInput.value.trim();
+
+            mqttStatusLabel.textContent = 'Connecting...';
+            mqttStatusLabel.style.color = '#f59e0b';
+            mqttConnectBtn.disabled = true;
+
+            const clientId = 'sim_receiver_' + Math.random().toString(16).substring(2, 8);
+            
+            try {
+                mqttClient = mqtt.connect(brokerUrl, {
+                    username: username,
+                    password: password,
+                    clientId: clientId,
+                    connectTimeout: 5000,
+                    reconnectPeriod: 2000
+                });
+
+                mqttClient.on('connect', () => {
+                    mqttStatusLabel.textContent = 'Connected & Listening';
+                    mqttStatusLabel.style.color = '#22c55e';
+                    mqttConnectBtn.disabled = true;
+                    mqttDisconnectBtn.disabled = false;
+                    mqttClient.subscribe(topic);
+                    
+                    mqttMsgCounter = 0;
+                    if (mqttHzInterval) clearInterval(mqttHzInterval);
+                    mqttHzInterval = setInterval(() => {
+                        mqttRateLabel.textContent = mqttMsgCounter + ' Hz';
+                        mqttMsgCounter = 0;
+                    }, 1000);
+                });
+
+                mqttClient.on('message', (receivedTopic, message) => {
+                    if (receivedTopic !== topic) return;
+                    mqttMsgCounter++;
+                    
+                    if (message.length === 10) {
+                        const view = new DataView(message.buffer, message.byteOffset, message.byteLength);
+                        const r0 = view.getUint16(0, true);
+                        const r1 = view.getUint16(2, true);
+                        const r2 = view.getUint16(4, true);
+                        const r3 = view.getUint16(6, true);
+                        const r4 = view.getUint16(8, true);
+                        const rawValues = [r0, r1, r2, r3, r4];
+
+                        const minLimit = parseInt(mqttRawMinInput.value, 10) || 1000;
+                        const maxLimit = parseInt(mqttRawMaxInput.value, 10) || 3500;
+
+                        // Update raw and angle UI elements
+                        const patientAngles = rawValues.map((rawVal, i) => {
+                            const rawEl = document.getElementById('mqttRawVal' + i);
+                            const angEl = document.getElementById('mqttAngVal' + i);
+                            const t = (rawVal - minLimit) / (maxLimit - minLimit);
+                            const angle = Math.max(0, Math.min(90, t * 90));
+
+                            if (rawEl) rawEl.textContent = rawVal;
+                            if (angEl) angEl.textContent = angle.toFixed(1) + '°';
+                            return angle;
+                        });
+
+                        patientGloveState.angles = patientAngles;
+
+                        if (assessmentActive) {
+                            patientAngles.forEach((angle, i) => {
+                                if (angle < patientCapturedMin[i]) patientCapturedMin[i] = angle;
+                                if (angle > patientCapturedMax[i]) patientCapturedMax[i] = angle;
+                            });
+                        }
+
+                        // Rep state machine using patientAngles
+                        const ratios = patientAngles.map((a, i) => {
+                            const target = activeDoctorTargets[i];
+                            return target > 0 ? a / target : 0;
+                        });
+
+                        const allInSafeZone = ratios.every(r => r >= LATCH_ENTRY);
+                        const anyOverFlex = ratios.some(r => r > SAFE_HIGH);
+                        const allReleased = ratios.every(r => r <= RELEASE_THRESHOLD);
+
+                        if (!repLatched) {
+                            if (allInSafeZone) {
+                                repLatched = true;
+                                disqualifyRep = false;
+                            }
+                        } else {
+                            if (anyOverFlex) {
+                                disqualifyRep = true;
+                            }
+                            if (allReleased) {
+                                repLatched = false;
+                                if (disqualifyRep) {
+                                    disqualifyRep = false;
+                                    updateRepSetStatus(true);
+                                } else {
+                                    currentReps++;
+                                    const tReps = getTargetReps();
+                                    if (tReps && currentReps >= tReps) {
+                                        currentSets++;
+                                        currentReps = 0;
+                                    }
+                                    updateRepSetStatus(false);
+                                }
+                            }
+                        }
+
+                        updateMatchGrid();
+                        updatePeakGrid();
+
+                        if (mqttDriveModelCheckbox.checked) {
+                            window.doctorShared.angles = patientAngles;
+                            window.doctorShared.latestPacket = rawValues;
+                            window.doctorShared.calibrationReady = true;
+                        }
+                    }
+                });
+
+                mqttClient.on('error', (err) => {
+                    console.error('MQTT error:', err);
+                    mqttStatusLabel.textContent = 'Error: ' + err.message;
+                    mqttStatusLabel.style.color = '#dc2626';
+                    disconnectMqttPatient();
+                });
+
+                mqttClient.on('offline', () => {
+                    mqttStatusLabel.textContent = 'Offline';
+                    mqttStatusLabel.style.color = '#dc2626';
+                });
+
+            } catch (err) {
+                console.error('MQTT Connect setup failed:', err);
+                mqttStatusLabel.textContent = 'Setup Error';
+                mqttStatusLabel.style.color = '#dc2626';
+                mqttConnectBtn.disabled = false;
+            }
+        }
+
+        function disconnectMqttPatient() {
+            if (mqttClient) {
+                mqttClient.end();
+                mqttClient = null;
+            }
+            if (mqttHzInterval) {
+                clearInterval(mqttHzInterval);
+                mqttHzInterval = null;
+            }
+            mqttStatusLabel.textContent = 'Disconnected';
+            mqttStatusLabel.style.color = '#dc2626';
+            mqttRateLabel.textContent = '0 Hz';
+            mqttConnectBtn.disabled = false;
+            mqttDisconnectBtn.disabled = true;
+
+            for (let i = 0; i < 5; i++) {
+                const rawEl = document.getElementById('mqttRawVal' + i);
+                const angEl = document.getElementById('mqttAngVal' + i);
+                if (rawEl) rawEl.textContent = '--';
+                if (angEl) angEl.textContent = '--°';
+            }
+        }
+
+        if (mqttConnectBtn) mqttConnectBtn.addEventListener('click', connectMqttPatient);
+        if (mqttDisconnectBtn) mqttDisconnectBtn.addEventListener('click', disconnectMqttPatient);
+
+        window.addEventListener('beforeunload', () => {
+            if (mqttClient) mqttClient.end();
+        });
     </script>
 
     <script type="importmap">

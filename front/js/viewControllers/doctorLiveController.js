@@ -414,14 +414,30 @@ export function mount(container, gloveState, threeEngine) {
           const r4 = view.getUint16(8, true);
           const rawValues = [r0, r1, r2, r3, r4];
 
-          const minLimit = parseInt(mqttRawMinInput?.value || '1000', 10);
-          const maxLimit = parseInt(mqttRawMaxInput?.value || '3500', 10);
+          let minLimit = parseInt(mqttRawMinInput?.value || '1000', 10);
+          let maxLimit = parseInt(mqttRawMaxInput?.value || '3500', 10);
 
+          // Auto-detect small-scale payloads (e.g. 0-255 ADC) and adjust mapping
+          const observedMax = Math.max(...rawValues);
+          const observedMin = Math.min(...rawValues);
+          if (observedMax <= 255 && observedMax < minLimit) {
+            minLimit = 0;
+            maxLimit = 255;
+          }
+
+          const span = maxLimit - minLimit;
           const patientAngles = rawValues.map((rawVal, i) => {
             const rawEl = _container?.querySelector('#mqttRawVal' + i);
             const angEl = _container?.querySelector('#mqttAngVal' + i);
-            const t = (rawVal - minLimit) / (maxLimit - minLimit);
-            const angle = Math.max(0, Math.min(90, t * 90));
+            let angle = 0;
+            if (span > 0) {
+              const t = (rawVal - minLimit) / span;
+              angle = Math.max(0, Math.min(90, t * 90));
+            } else {
+              // Fallback: if no valid span, map 0..255
+              const t = (rawVal) / 255;
+              angle = Math.max(0, Math.min(90, t * 90));
+            }
 
             if (rawEl) rawEl.textContent = rawVal;
             if (angEl) angEl.textContent = angle.toFixed(1) + '°';

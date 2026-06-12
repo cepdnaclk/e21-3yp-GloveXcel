@@ -42,6 +42,15 @@ let liveStatusEl, liveGloveStatusEl, liveCalibStatusEl;
 let liveRawGridEl, liveMatchGridEl, liveOverallBadgeEl;
 let liveConnectGloveBtn, liveLoadCalibBtn;
 let liveRefAngleInput, applyLiveRefBtn, clearLiveRefBtn;
+let mqttToggleBtn;
+
+// MQTT publisher state (initialized when user clicks MQTT button)
+let _mqttClient = null;
+let _mqttConnected = false;
+const MQTT_BROKER_URL = 'wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt';
+const MQTT_USERNAME = 'Glovexl';
+const MQTT_PASSWORD = '200209Ost';
+const MQTT_TOPIC = 'project/glove01/status';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MATH HELPERS
@@ -315,6 +324,7 @@ export function mount(container, gloveState, threeEngine) {
   liveOverallBadgeEl  = container.querySelector('#liveOverallBadge');
   liveConnectGloveBtn = container.querySelector('#liveConnectGloveBtn');
   liveLoadCalibBtn    = container.querySelector('#liveLoadCalibBtn');
+  mqttToggleBtn       = container.querySelector('#mqttToggleBtn');
   liveRefAngleInput   = container.querySelector('#liveRefAngle');
   applyLiveRefBtn     = container.querySelector('#applyLiveRefBtn');
   clearLiveRefBtn     = container.querySelector('#clearLiveRefBtn');
@@ -334,6 +344,20 @@ export function mount(container, gloveState, threeEngine) {
     renderLiveMatchGrid(packet);
     if (_engine.isModelLoaded) {
       _engine.setPose(buildPoseFromPacket(packet));
+    }
+    // Publish to MQTT when enabled/connected
+    if (_mqttClient && _mqttConnected) {
+      try {
+        const buffer = new ArrayBuffer(10);
+        const view = new DataView(buffer);
+        for (let i = 0; i < 5; i += 1) {
+          const v = Number(packet[i]) || 0;
+          view.setUint16(i * 2, v & 0xffff, true);
+        }
+        _mqttClient.publish(MQTT_TOPIC, new Uint8Array(buffer), { qos: 0, retain: false });
+      } catch (err) {
+        console.warn('[MQTT] publish failed', err);
+      }
     }
   };
 
@@ -399,6 +423,54 @@ export function mount(container, gloveState, threeEngine) {
     setStatus('Manual reference target cleared. Showing raw extension range.');
   });
 
+  // MQTT toggle (connect / disconnect) — publishes binary packets when connected
+  mqttToggleBtn?.addEventListener('click', () => {
+    if (!_mqttConnected) {
+      if (!globalThis.mqtt) {
+        setStatus('MQTT library not loaded in page.');
+        return;
+      }
+      setStatus('Connecting to MQTT broker...');
+      try {
+        _mqttClient = globalThis.mqtt.connect(MQTT_BROKER_URL, {
+          username: MQTT_USERNAME,
+          password: MQTT_PASSWORD,
+          clientId: 'patient_' + Math.random().toString(16).substring(2,8),
+          reconnectPeriod: 2000,
+        });
+
+        _mqttClient.on('connect', () => {
+          _mqttConnected = true;
+          mqttToggleBtn.textContent = 'MQTT: Connected';
+          mqttToggleBtn.classList.remove('btn-secondary');
+          setStatus('Connected to MQTT broker — streaming enabled.');
+        });
+
+        _mqttClient.on('error', (err) => {
+          console.warn('[MQTT] error', err);
+          setStatus('MQTT error');
+        });
+
+        _mqttClient.on('close', () => {
+          _mqttConnected = false;
+          mqttToggleBtn.textContent = 'MQTT';
+          mqttToggleBtn.classList.add('btn-secondary');
+          setStatus('MQTT disconnected');
+        });
+      } catch (err) {
+        console.warn('[MQTT] init failed', err);
+        setStatus('MQTT init failed');
+      }
+    } else {
+      try { _mqttClient.end(true); } catch (e) { /* ignore */ }
+      _mqttClient = null;
+      _mqttConnected = false;
+      mqttToggleBtn.textContent = 'MQTT';
+      mqttToggleBtn.classList.add('btn-secondary');
+      setStatus('MQTT disconnected');
+    }
+  });
+
   // ── Initial render ────────────────────────────────────────────────
   renderCalibStatus();
   _renderCalibrationBanner();    // Show immediately if not calibrated
@@ -425,11 +497,18 @@ export function unmount() {
     _engine.onModelStatus = null;
     _engine.clearPose();
   }
+  // Disconnect MQTT client if present
+  if (_mqttClient) {
+    try { _mqttClient.end(true); } catch (e) { /* ignore */ }
+    _mqttClient = null;
+    _mqttConnected = false;
+  }
   // 3. No window-level listeners were added by this controller.
   // 4. Null all DOM refs to break stale closure chains
   liveStatusEl = liveGloveStatusEl = liveCalibStatusEl = null;
   liveRawGridEl = liveMatchGridEl = liveOverallBadgeEl = null;
   liveConnectGloveBtn = liveLoadCalibBtn = null;
+  mqttToggleBtn = null;
   liveRefAngleInput = applyLiveRefBtn = clearLiveRefBtn = null;
   _container = null;
 }

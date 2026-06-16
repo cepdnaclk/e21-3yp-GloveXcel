@@ -133,7 +133,7 @@ async function _saveCalibration() {
   _calibration.targetMaxAngle = levelToAngle(_selectedLevel);
   _calibration.capturedAt     = new Date().toISOString();
   _persistCalibrationLocally(_calibration.capturedAt);
-  await _savePatientCalibrationToDatabase();
+  return await _savePatientCalibrationToDatabase();
 }
 
 /**
@@ -203,15 +203,20 @@ async function _savePatientCalibrationToDatabase() {
  * capturePass: identical to patient_calibration.html:763
  * Snapshots latestPacket for the given sensor indexes.
  */
-async function _capturePass(indexes, targetArray) {
+async function _capturePass(indexes, targetArray, mode) {
   if (!_state.isConnected && !_state.broadcastChannel) {
     alert('Connect glove first.');
     return;
   }
   indexes.forEach(idx => { targetArray[idx] = _state.latestPacket[idx]; });
-  await _saveCalibration();
+  const result = await _saveCalibration();
   _renderAll();
-  _setStatus('Calibration snapshot saved.');
+
+  if (result && result.remoteSaved) {
+    _setStatus(`${mode} captured and synced to database for patient ${_state.patientId}.`);
+  } else {
+    _setStatus(`${mode} captured. Database sync failed, stored locally only.`);
+  }
 }
 
 // ─── Preview helpers ──────────────────────────────────────────────────────────
@@ -448,14 +453,14 @@ export function mount(container, gloveState, threeEngine) {
   previewLevelBtn?.addEventListener('click', () => { _setPreviewToLevel(_selectedLevel); });
   previewResetBtn?.addEventListener('click', () => { _resetPreview(); _engine.clearPose(); });
 
-  captureNonThumbMinBtn?.addEventListener('click', () =>
-    _capturePass(NON_THUMB_INDEXES, _calibration.nonThumbMin));
-  captureNonThumbMaxBtn?.addEventListener('click', () =>
-    _capturePass(NON_THUMB_INDEXES, _calibration.nonThumbMax));
-  captureThumbMinBtn?.addEventListener('click', () =>
-    _capturePass([0], _calibration.thumbMin));
-  captureThumbMaxBtn?.addEventListener('click', () =>
-    _capturePass([0], _calibration.thumbMax));
+  captureNonThumbMinBtn?.addEventListener('click', async () =>
+    await _capturePass(NON_THUMB_INDEXES, _calibration.nonThumbMin, 'Min'));
+  captureNonThumbMaxBtn?.addEventListener('click', async () =>
+    await _capturePass(NON_THUMB_INDEXES, _calibration.nonThumbMax, 'Max'));
+  captureThumbMinBtn?.addEventListener('click', async () =>
+    await _capturePass([0], _calibration.thumbMin, 'Min'));
+  captureThumbMaxBtn?.addEventListener('click', async () =>
+    await _capturePass([0], _calibration.thumbMax, 'Max'));
 
   previewNonThumbMinBtn?.addEventListener('click', () => _previewCalibrationPose('non-thumb-min'));
   previewNonThumbMaxBtn?.addEventListener('click', () => _previewCalibrationPose('non-thumb-max'));

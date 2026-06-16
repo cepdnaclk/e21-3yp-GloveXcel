@@ -63,6 +63,28 @@ app.use('/api/therapy-sessions', therapySessionRoutes);
 const PORT = process.env.PORT || 3000;
 connectDatabase()
   .then(() => {
+    // Automatically download unpkg mqtt.min.js locally on startup if it does not exist
+    const fs = require('fs');
+    const https = require('https');
+    const dest = path.resolve(__dirname, '../front/js/mqtt.min.js');
+    if (!fs.existsSync(dest)) {
+      console.log('Downloading mqtt.min.js locally to avoid tracking prevention...');
+      https.get('https://unpkg.com/mqtt@5.15.1/dist/mqtt.min.js', (res) => {
+        if (res.statusCode === 200) {
+          const fileStream = fs.createWriteStream(dest);
+          res.pipe(fileStream);
+          fileStream.on('finish', () => {
+            fileStream.close();
+            console.log('✅ Local mqtt.min.js downloaded successfully.');
+          });
+        } else {
+          console.error('Failed to download mqtt.min.js: HTTP ' + res.statusCode);
+        }
+      }).on('error', (err) => {
+        console.error('Error downloading mqtt.min.js:', err);
+      });
+    }
+
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
     });

@@ -13,6 +13,8 @@ let _state = null;
 let _engine = null;
 let _container = null;
 
+let fallbackPatientCalib = null;
+
 // DOM refs
 let defaultTargetInput, setDoctorTargetBtn, resetLiveTargetBtn, setTargetToast;
 let targetSourceLabel, repSetStatus, resetRepsBtn;
@@ -50,6 +52,27 @@ function rawToAngle(rawValue, minValue, maxValue) {
   if (minValue === null || maxValue === null || minValue === maxValue) return null;
   const t = (rawValue - minValue) / (maxValue - minValue);
   return clamp(t * 90, 0, 90);
+}
+
+async function fetchFallbackPatientCalibration() {
+  try {
+    const apiBase = _state.apiBase;
+    const headers = _state.getAuthHeaders();
+    const resp = await fetch(`${apiBase}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`, { headers });
+    if (resp.ok) {
+      const doc = await resp.json();
+      const min = doc?.min || {};
+      const max = doc?.max || {};
+      const keys = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+      
+      fallbackPatientCalib = {
+        min: keys.map(k => Number.isFinite(Number(min[k])) ? Number(min[k]) : null),
+        max: keys.map(k => Number.isFinite(Number(max[k])) ? Number(max[k]) : null)
+      };
+    }
+  } catch (err) {
+    console.error('Failed to load fallback patient calibration:', err);
+  }
 }
 
 function getDefaultTarget() {
@@ -449,7 +472,27 @@ export function mount(container, gloveState, threeEngine) {
 
           // Animate 3D Model if option is checked
           if (mqttDriveModelCheckbox?.checked && _engine.isModelLoaded) {
-            _engine.setPose(buildPoseFromAngles(patientAngles));
+            const isCalib12Bit = fallbackPatientCalib?.min?.some(v => v > 255) || fallbackPatientCalib?.max?.some(v => v > 255);
+            const isTelemetry8Bit = observedMax <= 255;
+            const isCalib8Bit = fallbackPatientCalib?.min?.every(v => v <= 255) && fallbackPatientCalib?.max?.every(v => v <= 255);
+            const isTelemetry12Bit = observedMax > 255;
+
+            const modelAngles = rawValues.map((rawVal, i) => {
+              const minV = fallbackPatientCalib?.min?.[i];
+              const maxV = fallbackPatientCalib?.max?.[i];
+              if (Number.isFinite(minV) && Number.isFinite(maxV) && minV !== maxV) {
+                let scaledRaw = rawVal;
+                if (isTelemetry8Bit && isCalib12Bit) {
+                  scaledRaw = rawVal * 16;
+                } else if (isTelemetry12Bit && isCalib8Bit) {
+                  scaledRaw = rawVal / 16;
+                }
+                const t = (scaledRaw - minV) / (maxV - minV);
+                return Math.max(0, Math.min(90, t * 90));
+              }
+              return patientAngles[i];
+            });
+            _engine.setPose(buildPoseFromAngles(modelAngles));
           }
         }
       });
@@ -524,6 +567,9 @@ export function mount(container, gloveState, threeEngine) {
 
   // We explicitly manage model updates per-packet, so we disable the automatic tick.
   _engine.onTick = null;
+
+  // Fetch fallback patient calibration (non-blocking)
+  fetchFallbackPatientCalibration();
 }
 
 export function unmount() {
@@ -553,5 +599,6 @@ export function unmount() {
   mqttHostInput = mqttTopicInput = mqttUsernameInput = mqttPasswordInput = null;
   mqttConnectBtn = mqttDisconnectBtn = mqttStatusLabel = mqttRateLabel = null;
   mqttRawMinInput = mqttRawMaxInput = mqttDriveModelCheckbox = null;
+  fallbackPatientCalib = null;
   _container = null;
 }

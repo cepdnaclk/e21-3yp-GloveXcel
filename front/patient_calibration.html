@@ -467,7 +467,7 @@
       calibration.targetMaxAngle = levelToAngle(selectedLevel);
       calibration.capturedAt = new Date().toISOString();
       persistCalibrationLocally(calibration.capturedAt);
-      await savePatientCalibrationToDatabase();
+      return await savePatientCalibrationToDatabase();
     }
 
     async function savePatientCalibrationToDatabase() {
@@ -566,17 +566,34 @@
 
     async function fetchPatientCalibrationFromDatabase() {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(PATIENT_ID)}`, {
+        let response = await fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(PATIENT_ID)}`, {
           headers: { ...getAuthHeaders() }
         });
-        if (response.status === 404) {
-          return null;
-        }
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+
+        let is404 = response.status === 404;
+        let doc = null;
+        if (response.ok) {
+          doc = await response.json();
         }
 
-        return await response.json();
+        const isCalibrationEmpty = (d) => {
+          if (!d) return true;
+          const keys = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+          const minAllZero = keys.every(k => !d.min || Number(d.min[k]) === 0);
+          const maxAllZero = keys.every(k => !d.max || Number(d.max[k]) === 0);
+          return minAllZero && maxAllZero;
+        };
+
+        if (is404 || isCalibrationEmpty(doc)) {
+          let fallbackResponse = await fetch(`${API_BASE_URL}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`, {
+            headers: { ...getAuthHeaders() }
+          });
+          if (fallbackResponse.ok) {
+            return await fallbackResponse.json();
+          }
+        }
+
+        return doc;
       } catch (error) {
         console.error("Failed to fetch patient calibration from database:", error);
         return null;
@@ -760,7 +777,7 @@
       renderReadyBadge();
     }
 
-    async function capturePass(indexes, targetArray) {
+    async function capturePass(indexes, targetArray, mode) {
       if (!isAnyDataSourceConnected()) {
         alert("Connect glove first.");
         return;
@@ -770,8 +787,14 @@
         targetArray[idx] = latestPacket[idx];
       });
 
-      await saveCalibration();
+      const result = await saveCalibration();
       renderAll();
+
+      if (result && result.remoteSaved) {
+        setStatus(`${mode} captured and synced to database for patient ${PATIENT_ID}.`);
+      } else {
+        setStatus(`${mode} captured. Database sync failed, stored locally only.`);
+      }
     }
 
     async function connectGlove() {
@@ -882,24 +905,20 @@
     previewThumbMinBtn.addEventListener("click", () => previewCalibrationPose("thumb-min"));
     previewThumbMaxBtn.addEventListener("click", () => previewCalibrationPose("thumb-max"));
 
-    captureNonThumbMinBtn.addEventListener("click", () => {
-      capturePass(NON_THUMB_INDEXES, calibration.nonThumbMin);
-      setStatus("Captured non-thumb min values.");
+    captureNonThumbMinBtn.addEventListener("click", async () => {
+      await capturePass(NON_THUMB_INDEXES, calibration.nonThumbMin, "Min");
     });
 
-    captureNonThumbMaxBtn.addEventListener("click", () => {
-      capturePass(NON_THUMB_INDEXES, calibration.nonThumbMax);
-      setStatus("Captured non-thumb max values.");
+    captureNonThumbMaxBtn.addEventListener("click", async () => {
+      await capturePass(NON_THUMB_INDEXES, calibration.nonThumbMax, "Max");
     });
 
-    captureThumbMinBtn.addEventListener("click", () => {
-      capturePass([0], calibration.thumbMin);
-      setStatus("Captured thumb min value.");
+    captureThumbMinBtn.addEventListener("click", async () => {
+      await capturePass([0], calibration.thumbMin, "Min");
     });
 
-    captureThumbMaxBtn.addEventListener("click", () => {
-      capturePass([0], calibration.thumbMax);
-      setStatus("Captured thumb max value.");
+    captureThumbMaxBtn.addEventListener("click", async () => {
+      await capturePass([0], calibration.thumbMax, "Max");
     });
 
     clearBtn.addEventListener("click", clearCalibration);

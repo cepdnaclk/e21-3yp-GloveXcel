@@ -19,7 +19,7 @@ const {
 const router = express.Router();
 
 router.get('/hospitals', listHospitals);
-router.get('/patients', authenticateToken, requireRole('doctor', 'admin'), listPatients);
+router.get('/patients', authenticateToken, requireRole('doctor', 'admin', 'patient'), listPatients);
 router.post('/hospitals', createHospital);
 router.post('/admin/signup', adminSignup);
 router.post('/admin/login', adminLogin);

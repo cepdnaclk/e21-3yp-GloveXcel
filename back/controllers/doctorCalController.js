@@ -17,7 +17,11 @@ const updateDoctorMaxThumb = async (req, res) => {
         const update = buildUpdateQuery(req.body, { "max.thumb": req.body.thumb });
 
         // Update existing doctor calibration or create one if it does not exist
-        const doc = await DoctorCalibration.findOneAndUpdate({ doctor_id }, update, { returnDocument: 'after', upsert: true });
+        const doc = await DoctorCalibration.findOneAndUpdate(
+            { doctor_id }, 
+            update, 
+            { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+        );
 
         // Return the updated doctor calibration data
         res.status(200).json(doc);
@@ -40,7 +44,11 @@ const updateDoctorMaxFingers = async (req, res) => {
         });
 
         // Update existing doctor calibration or create one if it does not exist
-        const doc = await DoctorCalibration.findOneAndUpdate({ doctor_id }, update, { returnDocument: 'after', upsert: true });
+        const doc = await DoctorCalibration.findOneAndUpdate(
+            { doctor_id }, 
+            update, 
+            { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+        );
 
         // Return the updated doctor calibration data
         res.status(200).json(doc);
@@ -61,7 +69,11 @@ const updateDoctorMinThumb = async (req, res) => {
         const update = buildUpdateQuery(req.body, { "min.thumb": req.body.thumb });
 
         // Update existing doctor calibration or create one if it does not exist
-        const doc = await DoctorCalibration.findOneAndUpdate({ doctor_id }, update, { returnDocument: 'after', upsert: true });
+        const doc = await DoctorCalibration.findOneAndUpdate(
+            { doctor_id }, 
+            update, 
+            { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+        );
 
         // Return the updated doctor calibration data
         res.status(200).json(doc);
@@ -84,7 +96,11 @@ const updateDoctorMinFingers = async (req, res) => {
         });
 
         // Update existing doctor calibration or create one if it does not exist
-        const doc = await DoctorCalibration.findOneAndUpdate({ doctor_id }, update, { returnDocument: 'after', upsert: true });
+        const doc = await DoctorCalibration.findOneAndUpdate(
+            { doctor_id }, 
+            update, 
+            { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+        );
 
         // Return the updated doctor calibration data
         res.status(200).json(doc);

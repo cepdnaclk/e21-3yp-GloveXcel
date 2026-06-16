@@ -811,19 +811,34 @@
     async function fetchPatientCalibrationFromDatabase() {
       const patientId = resolvePatientId();
       try {
-        const response = await fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(patientId)}`, {
+        let response = await fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(patientId)}`, {
           headers: { ...getAuthHeaders() }
         });
 
-        if (response.status === 404) {
-          return null;
+        let is404 = response.status === 404;
+        let doc = null;
+        if (response.ok) {
+          doc = await response.json();
         }
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+        const isCalibrationEmpty = (d) => {
+          if (!d) return true;
+          const keys = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+          const minAllZero = keys.every(k => !d.min || Number(d.min[k]) === 0);
+          const maxAllZero = keys.every(k => !d.max || Number(d.max[k]) === 0);
+          return minAllZero && maxAllZero;
+        };
+
+        if (is404 || isCalibrationEmpty(doc)) {
+          let fallbackResponse = await fetch(`${API_BASE_URL}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`, {
+            headers: { ...getAuthHeaders() }
+          });
+          if (fallbackResponse.ok) {
+            return await fallbackResponse.json();
+          }
         }
 
-        return await response.json();
+        return doc;
       } catch (error) {
         console.error('Failed to fetch patient calibration:', error);
         return null;

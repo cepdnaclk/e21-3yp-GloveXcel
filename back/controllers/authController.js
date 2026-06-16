@@ -94,11 +94,12 @@ const listPatients = async (req, res) => {
         const role = req.user?.role;
         const tokenDoctorId = req.user?.sub;
         const requestedDoctorId = (req.query.doctor_id || '').trim();
+        const fetchAll = req.query.all === 'true';
         const doctorId = role === 'doctor'
             ? tokenDoctorId
             : (requestedDoctorId || null);
 
-        if (doctorId) {
+        if (!fetchAll && doctorId) {
             const patients = await pool.query(
                 `
                 SELECT DISTINCT p.patient_id, p.name, p.age, p.email, p.primary_hospital_id

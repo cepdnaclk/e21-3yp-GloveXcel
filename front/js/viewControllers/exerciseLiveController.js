@@ -149,6 +149,67 @@ function renderCalibStatus() {
     : 'Patient calibration status: Not loaded. Open Calibration view first.';
 }
 
+async function hydratePatientCalibrationFromDatabase() {
+  try {
+    let resp = await fetch(
+      `${_state.apiBase}/api/patient-cal/${encodeURIComponent(_state.patientId)}`,
+      { headers: _state.getAuthHeaders() }
+    );
+    
+    let is404 = resp.status === 404;
+    let doc = null;
+    if (resp.ok) {
+      doc = await resp.json();
+    }
+
+    const isCalibrationEmpty = (d) => {
+      if (!d) return true;
+      const keys = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+      const minAllZero = keys.every(k => !d.min || Number(d.min[k]) === 0);
+      const maxAllZero = keys.every(k => !d.max || Number(d.max[k]) === 0);
+      return minAllZero && maxAllZero;
+    };
+
+    if (is404 || isCalibrationEmpty(doc)) {
+      const fallbackResp = await fetch(
+        `${_state.apiBase}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`,
+        { headers: _state.getAuthHeaders() }
+      );
+      if (fallbackResp.ok) {
+        doc = await fallbackResp.json();
+      }
+    }
+
+    if (!doc) return;
+
+    const min  = doc?.min || {};
+    const max  = doc?.max || {};
+    const keys = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+
+    const finalMin = keys.map(k => { const v = Number(min[k]); return Number.isFinite(v) ? v : null; });
+    const finalMax = keys.map(k => { const v = Number(max[k]); return Number.isFinite(v) ? v : null; });
+    const ready    = finalMin.every(Number.isFinite) && finalMax.every(Number.isFinite);
+
+    _patientCalibration = { finalMin, finalMax, ready, capturedAt: doc?.updatedAt || null };
+
+    // Also sync into the shared GloveState for other views
+    _state.patientCalibration = {
+      finalMin, finalMax, ready, capturedAt: doc?.updatedAt || null,
+    };
+
+    renderCalibStatus();
+    _renderCalibrationBanner();
+    const packet = _state.latestPacket || [0,0,0,0,0];
+    renderRawGrid(packet);
+    renderLiveMatchGrid(packet);
+    if (_engine.isModelLoaded && ready) {
+      _engine.setPose(buildPoseFromPacket(packet));
+    }
+  } catch (error) {
+    console.error('[LiveCtrl] Failed to fetch patient calibration from DB:', error);
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // RENDER HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -382,6 +443,7 @@ export function mount(container, gloveState, threeEngine) {
       _state.isConnected              = true;
       liveConnectGloveBtn.textContent = 'Glove Connected';
       if (liveGloveStatusEl) liveGloveStatusEl.textContent = 'Patient glove status: Connected.';
+      await hydratePatientCalibrationFromDatabase();
       setStatus('Glove connected. Monitoring live sensor stream in real time.');
     } catch (error) {
       console.error('[LiveCtrl] BLE connect failed:', error);
@@ -481,6 +543,9 @@ export function mount(container, gloveState, threeEngine) {
     _engine.setPose(buildPoseFromPacket(initialPacket));
   }
   setStatus('Connect the patient glove to begin real-time monitoring.');
+
+  // Try to load latest DB calibration on load (non-blocking)
+  hydratePatientCalibrationFromDatabase();
 }
 
 export function unmount() {

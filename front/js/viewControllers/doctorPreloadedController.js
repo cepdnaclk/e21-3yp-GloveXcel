@@ -67,7 +67,7 @@ async function loadPatients() {
   if (!exercisePatientId) return;
   exercisePatientId.innerHTML = '<option value="">-- Loading patients... --</option>';
   try {
-    const resp = await fetch(`${_state.apiBase}/api/auth/patients`, { headers: _state.getAuthHeaders() });
+    const resp = await fetch(`${_state.apiBase}/api/auth/patients?all=true`, { headers: _state.getAuthHeaders() });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     const patients = Array.isArray(data.patients) ? data.patients : [];

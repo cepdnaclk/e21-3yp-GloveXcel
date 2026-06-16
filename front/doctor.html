@@ -580,7 +580,7 @@
             background: #6c7a90;
         }
     </style>
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="./js/mqtt.min.js"></script>
 </head>
 <body>
     <div class="page">
@@ -1301,7 +1301,7 @@
             exercisePatientIdEl.disabled = true;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/auth/patients`, {
+                const response = await fetch(`${API_BASE_URL}/api/auth/patients?all=true`, {
                     headers: { ...getAuthHeaders() }
                 });
                 if (!response.ok) {
@@ -1839,6 +1839,7 @@
         broadcastDoctorState();
         updateDoctorSessionModeUi();
         syncCalibrationFromDatabase();
+        fetchFallbackPatientCalibration();
 
         /* ════════════════════════════════════════════════════════════════
            REAL-TIME SESSION — Mock Patient Stream + Peak Detection
@@ -2258,6 +2259,29 @@
         let mqttMsgCounter = 0;
         let mqttHzInterval = null;
 
+        let fallbackPatientCalib = null;
+
+        async function fetchFallbackPatientCalibration() {
+            try {
+                const resp = await fetch(`${API_BASE_URL}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`, {
+                    headers: getAuthHeaders()
+                });
+                if (resp.ok) {
+                    const doc = await resp.json();
+                    const min = doc?.min || {};
+                    const max = doc?.max || {};
+                    const keys = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+                    
+                    fallbackPatientCalib = {
+                        min: keys.map(k => Number.isFinite(Number(min[k])) ? Number(min[k]) : null),
+                        max: keys.map(k => Number.isFinite(Number(max[k])) ? Number(max[k]) : null)
+                    };
+                }
+            } catch (err) {
+                console.error('Failed to load fallback patient calibration:', err);
+            }
+        }
+
         const mqttHostInput = document.getElementById('mqttHostInput');
         const mqttTopicInput = document.getElementById('mqttTopicInput');
         const mqttUsernameInput = document.getElementById('mqttUsernameInput');
@@ -2323,8 +2347,16 @@
                         const r4 = view.getUint16(8, true);
                         const rawValues = [r0, r1, r2, r3, r4];
 
-                        const minLimit = parseInt(mqttRawMinInput.value, 10) || 1000;
-                        const maxLimit = parseInt(mqttRawMaxInput.value, 10) || 3500;
+                        let minLimit = parseInt(mqttRawMinInput.value, 10) || 1000;
+                        let maxLimit = parseInt(mqttRawMaxInput.value, 10) || 3500;
+
+                        // Auto-detect small-scale payloads (e.g. 0-255 ADC) and adjust mapping
+                        const observedMax = Math.max(...rawValues);
+                        const observedMin = Math.min(...rawValues);
+                        if (observedMax <= 255 && observedMax < minLimit) {
+                            minLimit = 0;
+                            maxLimit = 255;
+                        }
 
                         // Update raw and angle UI elements
                         const patientAngles = rawValues.map((rawVal, i) => {
@@ -2387,7 +2419,28 @@
                         updatePeakGrid();
 
                         if (mqttDriveModelCheckbox.checked) {
-                            window.doctorShared.angles = patientAngles;
+                            const isCalib12Bit = fallbackPatientCalib?.min?.some(v => v > 255) || fallbackPatientCalib?.max?.some(v => v > 255);
+                            const isTelemetry8Bit = observedMax <= 255;
+                            const isCalib8Bit = fallbackPatientCalib?.min?.every(v => v <= 255) && fallbackPatientCalib?.max?.every(v => v <= 255);
+                            const isTelemetry12Bit = observedMax > 255;
+
+                            const modelAngles = rawValues.map((rawVal, i) => {
+                                const minV = fallbackPatientCalib?.min?.[i];
+                                const maxV = fallbackPatientCalib?.max?.[i];
+                                if (Number.isFinite(minV) && Number.isFinite(maxV) && minV !== maxV) {
+                                    let scaledRaw = rawVal;
+                                    if (isTelemetry8Bit && isCalib12Bit) {
+                                        scaledRaw = rawVal * 16;
+                                    } else if (isTelemetry12Bit && isCalib8Bit) {
+                                        scaledRaw = rawVal / 16;
+                                    }
+                                    const t = (scaledRaw - minV) / (maxV - minV);
+                                    return Math.max(0, Math.min(90, t * 90));
+                                }
+                                return patientAngles[i];
+                            });
+
+                            window.doctorShared.angles = modelAngles;
                             window.doctorShared.latestPacket = rawValues;
                             window.doctorShared.calibrationReady = true;
                         }

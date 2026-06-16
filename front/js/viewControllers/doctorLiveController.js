@@ -23,6 +23,7 @@ let matchGrid, peakGrid;
 let mqttHostInput, mqttTopicInput, mqttUsernameInput, mqttPasswordInput;
 let mqttConnectBtn, mqttDisconnectBtn, mqttStatusLabel, mqttRateLabel;
 let mqttRawMinInput, mqttRawMaxInput, mqttDriveModelCheckbox;
+let liveForceLevelInput, applyForceBtn, liveForceStatus;
 
 // MQTT Client State
 let mqttClient = null;
@@ -72,6 +73,28 @@ async function fetchFallbackPatientCalibration() {
     }
   } catch (err) {
     console.error('Failed to load fallback patient calibration:', err);
+  }
+}
+
+async function fetchCurrentForceLevel() {
+  try {
+    const apiBase = _state.apiBase;
+    const headers = _state.getAuthHeaders();
+    const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
+    const resp = await fetch(`${apiBase}/api/forces?patient_id=${patientId}`, { headers });
+    if (resp.ok) {
+      const data = await resp.json();
+      const level = data?.level;
+      if (Number.isFinite(level) && level >= 1 && level <= 10) {
+        if (liveForceLevelInput) liveForceLevelInput.value = level;
+        if (liveForceStatus) {
+          liveForceStatus.textContent = `✓ Current active force level: ${level}`;
+          liveForceStatus.style.color = 'var(--c-ok)';
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[DoctorLive] Failed to fetch current force level:', err);
   }
 }
 
@@ -304,6 +327,10 @@ export function mount(container, gloveState, threeEngine) {
   mqttRawMinInput        = container.querySelector('#mqttRawMinInput');
   mqttRawMaxInput        = container.querySelector('#mqttRawMaxInput');
   mqttDriveModelCheckbox = container.querySelector('#mqttDriveModelCheckbox');
+
+  liveForceLevelInput    = container.querySelector('#liveForceLevelInput');
+  applyForceBtn          = container.querySelector('#applyForceBtn');
+  liveForceStatus        = container.querySelector('#liveForceStatus');
 
   initGrids();
   renderCalibrationBanner();
@@ -570,6 +597,92 @@ export function mount(container, gloveState, threeEngine) {
 
   // Fetch fallback patient calibration (non-blocking)
   fetchFallbackPatientCalibration();
+
+  // Fetch current active force level (non-blocking)
+  fetchCurrentForceLevel();
+
+  // Add event listeners for Force input & button
+  liveForceLevelInput?.addEventListener('keydown', (e) => {
+    if (!/^[0-9]$/.test(e.key) && !['Backspace', 'ArrowLeft', 'ArrowRight', 'Tab', 'Delete'].includes(e.key)) {
+      e.preventDefault();
+    }
+  });
+
+  liveForceLevelInput?.addEventListener('input', (e) => {
+    let val = parseInt(e.target.value, 10);
+    if (!isNaN(val)) {
+      if (val > 10) e.target.value = '10';
+      if (val < 1) e.target.value = '';
+    } else {
+      e.target.value = '';
+    }
+  });
+
+  applyForceBtn?.addEventListener('click', async () => {
+    const levelVal = liveForceLevelInput?.value;
+    const level = parseInt(levelVal, 10);
+    if (isNaN(level) || level < 1 || level > 10) {
+      alert('Please enter a valid motor force level (1-10).');
+      return;
+    }
+
+    if (liveForceStatus) {
+      liveForceStatus.textContent = 'Sending force command...';
+      liveForceStatus.style.color = 'var(--c-warn)';
+    }
+
+    const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
+    const doctorId = localStorage.getItem('doctorId') || 'D001';
+    const exerciseId = `ex_live_force_${Date.now()}`;
+
+    // 1. Create realtime exercise in the database
+    const exercisePayload = {
+      exercise_id: exerciseId,
+      description: 'Live Force Assessment',
+      level: level,
+      target_reps: 10,
+      target_sets: 3,
+      start_date: new Date().toISOString().split('T')[0],
+      end_date: new Date().toISOString().split('T')[0],
+      patient_id: patientId,
+      doctor_id: doctorId,
+      max_angles: { thumb: 90, index: 90, middle: 90, ring: 90, pinky: 90 }
+    };
+
+    try {
+      // Create exercise
+      const exResp = await fetch(`${_state.apiBase}/api/exercises`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
+        body: JSON.stringify(exercisePayload)
+      });
+      if (!exResp.ok) throw new Error(`Exercise API returned ${exResp.status}`);
+
+      // 2. Set force level in MongoDB
+      const forcePayload = {
+        level: level,
+        patient_id: patientId,
+        exercise_id: exerciseId
+      };
+      const forceResp = await fetch(`${_state.apiBase}/api/forces`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
+        body: JSON.stringify(forcePayload)
+      });
+      if (!forceResp.ok) throw new Error(`Force API returned ${forceResp.status}`);
+
+      if (liveForceStatus) {
+        liveForceStatus.textContent = `✓ Force level ${level} applied (Exercise ID: ${exerciseId})`;
+        liveForceStatus.style.color = 'var(--c-ok)';
+      }
+    } catch (err) {
+      console.error('[DoctorLive] Failed to apply force:', err);
+      if (liveForceStatus) {
+        liveForceStatus.textContent = `❌ Failed to apply force: ${err.message}`;
+        liveForceStatus.style.color = 'var(--c-danger)';
+      }
+    }
+  });
 }
 
 export function unmount() {
@@ -599,6 +712,7 @@ export function unmount() {
   mqttHostInput = mqttTopicInput = mqttUsernameInput = mqttPasswordInput = null;
   mqttConnectBtn = mqttDisconnectBtn = mqttStatusLabel = mqttRateLabel = null;
   mqttRawMinInput = mqttRawMaxInput = mqttDriveModelCheckbox = null;
+  liveForceLevelInput = applyForceBtn = liveForceStatus = null;
   fallbackPatientCalib = null;
   _container = null;
 }

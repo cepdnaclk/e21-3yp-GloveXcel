@@ -38,9 +38,9 @@ let _patientCalibration = {
 let _manualRefAngle = null;
 
 // ─── DOM references ───────────────────────────────────────────────────────────
-let liveStatusEl, liveGloveStatusEl, liveCalibStatusEl;
+let liveStatusEl, liveGloveStatusEl, liveCalibStatusEl, liveForceStatusEl;
 let liveRawGridEl, liveMatchGridEl, liveOverallBadgeEl;
-let liveConnectGloveBtn, liveLoadCalibBtn;
+let liveConnectGloveBtn, liveLoadCalibBtn, fetchForceBtn;
 let liveRefAngleInput, applyLiveRefBtn, clearLiveRefBtn;
 let mqttToggleBtn;
 
@@ -207,6 +207,65 @@ async function hydratePatientCalibrationFromDatabase() {
     }
   } catch (error) {
     console.error('[LiveCtrl] Failed to fetch patient calibration from DB:', error);
+  }
+}
+
+async function fetchAndApplyForce() {
+  if (!_state) return;
+  
+  if (liveForceStatusEl) {
+    liveForceStatusEl.textContent = 'Fetching force level...';
+  }
+  
+  try {
+    const apiBase = _state.apiBase;
+    const headers = _state.getAuthHeaders();
+    const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
+    const resp = await fetch(`${apiBase}/api/forces?patient_id=${patientId}`, { headers });
+    
+    if (resp.status === 404) {
+      if (liveForceStatusEl) {
+        liveForceStatusEl.textContent = 'Resistive force level: Not set yet in database.';
+      }
+      alert('No force level has been set by the doctor yet.');
+      return;
+    }
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const level = data?.level;
+      if (Number.isFinite(level) && level >= 1 && level <= 10) {
+        if (!_state.isConnected || !_state.bleClient) {
+          if (liveForceStatusEl) {
+            liveForceStatusEl.textContent = `Resistive force level: ${level} (glove disconnected).`;
+          }
+          alert(`Fetched force level ${level}, but patient glove is not connected. Please connect the glove first.`);
+          return;
+        }
+
+        console.log(`[LiveCtrl] Applying manual fetched force level ${level} to patient glove`);
+        await _state.bleClient.sendMotorLevel(level);
+        
+        if (liveForceStatusEl) {
+          liveForceStatusEl.textContent = `Resistive force level: ${level} (applied to motor).`;
+        }
+        setStatus(`Force level ${level} fetched and applied to motor.`);
+        alert(`Successfully fetched and applied force level ${level} to the glove motor.`);
+      } else {
+        if (liveForceStatusEl) {
+          liveForceStatusEl.textContent = 'Resistive force level: Invalid or not set.';
+        }
+        alert('Active force level in database is not set or invalid.');
+      }
+    } else {
+      throw new Error(`Server returned ${resp.status}`);
+    }
+  } catch (err) {
+    console.error('[LiveCtrl] Error fetching active force:', err);
+    if (liveForceStatusEl) {
+      liveForceStatusEl.textContent = 'Failed to fetch force level.';
+    }
+    alert(`Failed to fetch force level: ${err.message}`);
   }
 }
 
@@ -380,11 +439,13 @@ export function mount(container, gloveState, threeEngine) {
   liveStatusEl        = container.querySelector('#liveStatus');
   liveGloveStatusEl   = container.querySelector('#liveGloveStatus');
   liveCalibStatusEl   = container.querySelector('#liveCalibStatus');
+  liveForceStatusEl   = container.querySelector('#liveForceStatus');
   liveRawGridEl       = container.querySelector('#liveRawGrid');
   liveMatchGridEl     = container.querySelector('#liveMatchGrid');
   liveOverallBadgeEl  = container.querySelector('#liveOverallBadge');
   liveConnectGloveBtn = container.querySelector('#liveConnectGloveBtn');
   liveLoadCalibBtn    = container.querySelector('#liveLoadCalibBtn');
+  fetchForceBtn       = container.querySelector('#fetchForceBtn');
   mqttToggleBtn       = container.querySelector('#mqttToggleBtn');
   liveRefAngleInput   = container.querySelector('#liveRefAngle');
   applyLiveRefBtn     = container.querySelector('#applyLiveRefBtn');
@@ -467,6 +528,8 @@ export function mount(container, gloveState, threeEngine) {
         : 'Patient calibration not found. Open Calibration view first.'
     );
   });
+
+  fetchForceBtn?.addEventListener('click', fetchAndApplyForce);
 
   applyLiveRefBtn?.addEventListener('click', () => {
     const v = Number(liveRefAngleInput?.value);
@@ -570,9 +633,9 @@ export function unmount() {
   }
   // 3. No window-level listeners were added by this controller.
   // 4. Null all DOM refs to break stale closure chains
-  liveStatusEl = liveGloveStatusEl = liveCalibStatusEl = null;
+  liveStatusEl = liveGloveStatusEl = liveCalibStatusEl = liveForceStatusEl = null;
   liveRawGridEl = liveMatchGridEl = liveOverallBadgeEl = null;
-  liveConnectGloveBtn = liveLoadCalibBtn = null;
+  liveConnectGloveBtn = liveLoadCalibBtn = fetchForceBtn = null;
   mqttToggleBtn = null;
   liveRefAngleInput = applyLiveRefBtn = clearLiveRefBtn = null;
   _container = null;

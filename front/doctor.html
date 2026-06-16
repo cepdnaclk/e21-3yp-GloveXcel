@@ -373,24 +373,6 @@
         .peak-card-row .pk-max  { color: #f59e0b; }
         .peak-card-row .pk-live { color: #22c55e; }
 
-        .assessment-controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .assessment-controls button {
-            font-size: 13px;
-            padding: 8px 14px;
-        }
-
-        #assessmentStatus {
-            font-size: 12px;
-            color: var(--muted);
-            margin-bottom: 6px;
-        }
-
         .target-note {
             font-size: 11px;
             color: #627188;
@@ -637,24 +619,10 @@
                 <h3 class="rt-section-heading">Patient MQTT Connection <span class="rt-badge" style="background:#4e8ef7; color:#fff;">MQTT</span></h3>
                 
                 <div style="background:#fafafa; border:1px solid #dce2ed; border-radius:10px; padding:16px; margin-bottom:12px;">
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-bottom:12px;">
-                        <div>
-                            <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Broker Host (WebSocket)</label>
-                            <input id="mqttHostInput" type="text" value="wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px;">
-                        </div>
-                        <div>
-                            <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Topic</label>
-                            <input id="mqttTopicInput" type="text" value="project/glove01/status" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px;">
-                        </div>
-                        <div>
-                            <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Username</label>
-                            <input id="mqttUsernameInput" type="text" value="Glovexl" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px;">
-                        </div>
-                        <div>
-                            <label style="font-size:11px; font-weight:600; color:#627188; display:block; margin-bottom:4px;">Password</label>
-                            <input id="mqttPasswordInput" type="password" value="200209Ost" style="width:100%; padding:6px; border:1px solid #dce2ed; border-radius:6px; font-size:12px;">
-                        </div>
-                    </div>
+                    <input id="mqttHostInput" type="hidden" value="wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt">
+                    <input id="mqttTopicInput" type="hidden" value="project/glove01/status">
+                    <input id="mqttUsernameInput" type="hidden" value="Glovexl">
+                    <input id="mqttPasswordInput" type="hidden" value="200209Ost">
                     
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
                         <div style="display:flex; gap:10px;">
@@ -795,13 +763,6 @@
             <!-- ── Real-Time Session: Peak Detection ── -->
             <section class="section hidden" id="rtPeakSection">
                 <h3 class="rt-section-heading">Live Capture Snapshot <span class="rt-badge">Peak</span></h3>
-                <div class="assessment-controls">
-                    <button id="startAssessmentBtn" type="button">▶ Start Assessment</button>
-                    <button id="stopAssessmentBtn" class="secondary" type="button" disabled>■ Stop Assessment</button>
-                    <button id="resetPeaksBtn" class="secondary" type="button">↺ Reset Peaks</button>
-                    <button id="saveBaselineBtn" class="success" type="button">💾 Save Baseline</button>
-                </div>
-                <div id="assessmentStatus">Assessment not started. Press "Start Assessment" to begin capturing peaks.</div>
                 <div class="peak-grid" id="peakGrid">
                     <div class="peak-card" id="pkCardThumb">
                         <div class="peak-card-name">Thumb</div>
@@ -1869,7 +1830,7 @@
         function getTargetReps() { return Number(exerciseTargetRepsEl?.value) || null; }
         function getTargetSets() { return Number(exerciseTargetSetsEl?.value) || null; }
 
-        let assessmentActive = false;
+        let assessmentActive = true;
         let patientCapturedMin = [90, 90, 90, 90, 90];
         let patientCapturedMax = [0, 0, 0, 0, 0];
         // (mockPatientStreamId is declared at the top-level variable block above)
@@ -2027,13 +1988,6 @@
             document.getElementById('pkLiveRing'),
             document.getElementById('pkLivePinky')
         ];
-
-        // ── DOM refs — Assessment Controls ─────────────────────────────
-        const startAssessmentBtn = document.getElementById('startAssessmentBtn');
-        const stopAssessmentBtn = document.getElementById('stopAssessmentBtn');
-        const resetPeaksBtn = document.getElementById('resetPeaksBtn');
-        const saveBaselineBtn = document.getElementById('saveBaselineBtn');
-        const assessmentStatusEl = document.getElementById('assessmentStatus');
 
         // ── Mock Patient Stream ────────────────────────────────────────
         // Each finger has a slightly different phase offset and speed so they
@@ -2195,61 +2149,6 @@
                 }
                 if (peakLiveEls[i]) {
                     peakLiveEls[i].textContent = `${angle.toFixed(1)}°`;
-                }
-            });
-        }
-
-        // ── Assessment Controls ─────────────────────────────────────────
-        if (startAssessmentBtn) {
-            startAssessmentBtn.addEventListener('click', () => {
-                assessmentActive = true;
-                startAssessmentBtn.disabled = true;
-                if (stopAssessmentBtn) stopAssessmentBtn.disabled = false;
-                if (assessmentStatusEl) {
-                    assessmentStatusEl.textContent = '⏺ Assessment running — capturing continuous min/max peaks...';
-                    assessmentStatusEl.style.color = '#22c55e';
-                }
-            });
-        }
-
-        if (stopAssessmentBtn) {
-            stopAssessmentBtn.addEventListener('click', () => {
-                assessmentActive = false;
-                stopAssessmentBtn.disabled = true;
-                if (startAssessmentBtn) startAssessmentBtn.disabled = false;
-                if (assessmentStatusEl) {
-                    assessmentStatusEl.textContent = '⏹ Assessment stopped. Peaks frozen. Press "Save Baseline" to persist.';
-                    assessmentStatusEl.style.color = '#f59e0b';
-                }
-            });
-        }
-
-        if (resetPeaksBtn) {
-            resetPeaksBtn.addEventListener('click', () => {
-                patientCapturedMin = [90, 90, 90, 90, 90];
-                patientCapturedMax = [0, 0, 0, 0, 0];
-                updatePeakGrid();
-                if (assessmentStatusEl) {
-                    assessmentStatusEl.textContent = 'Peaks reset. Start a new assessment to begin capturing.';
-                    assessmentStatusEl.style.color = 'var(--muted)';
-                }
-            });
-        }
-
-        if (saveBaselineBtn) {
-            saveBaselineBtn.addEventListener('click', () => {
-                const baseline = {
-                    capturedMin: [...patientCapturedMin],
-                    capturedMax: [...patientCapturedMax],
-                    targetAngle: PATIENT_TARGET_ANGLE,
-                    fingers: FINGER_LABELS,
-                    timestamp: new Date().toISOString()
-                };
-                console.log('[GloveXcel] Assessment Baseline Saved:', JSON.stringify(baseline, null, 2));
-                localStorage.setItem('patientAssessmentBaseline', JSON.stringify(baseline));
-                if (assessmentStatusEl) {
-                    assessmentStatusEl.textContent = `✓ Baseline saved to localStorage at ${baseline.timestamp}`;
-                    assessmentStatusEl.style.color = '#22c55e';
                 }
             });
         }

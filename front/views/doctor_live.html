@@ -13,25 +13,10 @@
       Patient MQTT Connection
       <span style="font-size:10px; font-weight:700; background:#4e8ef7; color:#fff; padding:2px 8px; border-radius:20px; margin-left:8px; text-transform:uppercase;">MQTT</span>
     </h3>
-    
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:16px;">
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <label for="mqttHostInput" style="font-size:12px; font-weight:600; color:var(--c-text-muted);">Broker Host (WebSocket)</label>
-        <input id="mqttHostInput" type="text" class="form-control" value="wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt" style="padding:8px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; font-size:13px;">
-      </div>
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <label for="mqttTopicInput" style="font-size:12px; font-weight:600; color:var(--c-text-muted);">Topic</label>
-        <input id="mqttTopicInput" type="text" class="form-control" value="project/glove01/status" style="padding:8px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; font-size:13px;">
-      </div>
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <label for="mqttUsernameInput" style="font-size:12px; font-weight:600; color:var(--c-text-muted);">Username</label>
-        <input id="mqttUsernameInput" type="text" class="form-control" value="Glovexl" style="padding:8px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; font-size:13px;">
-      </div>
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <label for="mqttPasswordInput" style="font-size:12px; font-weight:600; color:var(--c-text-muted);">Password</label>
-        <input id="mqttPasswordInput" type="password" class="form-control" value="200209Ost" style="padding:8px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; font-size:13px;">
-      </div>
-    </div>
+    <input id="mqttHostInput" type="hidden" value="wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt">
+    <input id="mqttTopicInput" type="hidden" value="project/glove01/status">
+    <input id="mqttUsernameInput" type="hidden" value="Glovexl">
+    <input id="mqttPasswordInput" type="hidden" value="200209Ost">
 
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; border-bottom:1px solid var(--c-border); padding-bottom:16px;">
       <div style="display:flex; gap:10px;">
@@ -143,21 +128,26 @@
       Live Capture Snapshot
       <span style="font-size:10px; font-weight:700; background:var(--c-brand); color:#fff; padding:2px 8px; border-radius:20px; margin-left:8px; text-transform:uppercase;">Peak</span>
     </h3>
-    
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-      <button id="startAssessmentBtn" class="btn-primary" type="button">▶ Start Assessment</button>
-      <button id="stopAssessmentBtn" class="btn-secondary" type="button" disabled>■ Stop Assessment</button>
-      <button id="resetPeaksBtn" class="btn-secondary" type="button">↺ Reset Peaks</button>
-      <button id="saveBaselineBtn" class="btn-success" type="button">💾 Save Baseline</button>
-    </div>
-    
-    <div id="assessmentStatus" style="font-size:13px; color:var(--c-text-muted); margin-bottom:16px;">
-      Assessment not started. Press "Start Assessment" to begin capturing peaks.
-    </div>
 
     <div class="peak-grid" id="peakGrid">
       <!-- Injected by JS -->
     </div>
+
+    <div class="live-exercise-actions">
+      <button id="createLiveExerciseBtn" class="btn-primary" type="button">Create Exercise</button>
+      <button id="saveLiveExerciseBtn" class="btn-success" type="button" disabled>Save Exercise</button>
+    </div>
+
+    <div id="liveExerciseDraft" class="live-exercise-draft">
+      No live exercise created yet.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3 class="panel-title">Saved Live Exercises</h3>
+    <ul id="liveExerciseList" class="live-exercise-list">
+      <li>Loading saved exercises...</li>
+    </ul>
   </div>
 
   <style>
@@ -234,6 +224,58 @@
       justify-content: space-between;
       font-size: 13px;
       margin-bottom: 4px;
+    }
+    .view-namespace-doctor-live .live-exercise-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .view-namespace-doctor-live .live-exercise-draft {
+      margin-top: 12px;
+      color: var(--c-text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .view-namespace-doctor-live .live-exercise-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .view-namespace-doctor-live .live-exercise-list li {
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      color: var(--c-text-muted);
+      font-size: 13px;
+      line-height: 1.45;
+      padding: 10px 12px;
+    }
+    .view-namespace-doctor-live .live-exercise-list-item-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .view-namespace-doctor-live .live-exercise-list strong {
+      color: #fff;
+    }
+    .view-namespace-doctor-live .live-exercise-delete-btn {
+      background: rgba(220, 38, 38, 0.14);
+      border: 1px solid rgba(220, 38, 38, 0.45);
+      border-radius: var(--radius-sm);
+      color: #fca5a5;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 10px;
+    }
+    .view-namespace-doctor-live .live-exercise-delete-btn:hover {
+      background: rgba(220, 38, 38, 0.24);
+      color: #fff;
     }
     @keyframes overFlexFlash {
       0%, 100% { color: var(--c-danger); }

@@ -18,6 +18,7 @@ const authRoutes = require('./routes/authRoutes');
 const therapyRoutes = require('./routes/therapyRoutes');
 const exerciseRoutes = require('./routes/exerciseRoutes');
 const exerciseMaxRoutes = require('./routes/exerciseMaxRoutes');
+const liveExerciseRoutes = require('./routes/liveExerciseRoutes');
 const therapySessionRoutes = require('./routes/therapySessionRoutes');
 
 const app = express();
@@ -57,6 +58,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/therapy-plans', therapyRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/exercise-max', exerciseMaxRoutes);
+app.use('/api/live-exercises', liveExerciseRoutes);
 app.use('/api/therapy-sessions', therapySessionRoutes);
 
 // Start Server

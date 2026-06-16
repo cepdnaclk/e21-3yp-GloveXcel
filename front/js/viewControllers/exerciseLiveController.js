@@ -20,7 +20,9 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const FINGER_LABELS     = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+const FINGER_KEYS       = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const PATIENT_CALIB_KEY = 'patientCalibrationV1';
+const LIVE_EXERCISE_DOCTOR_ID = 'D001';
 
 // ─── Module-level mutable state ───────────────────────────────────────────────
 let _state     = null;
@@ -42,7 +44,11 @@ let liveStatusEl, liveGloveStatusEl, liveCalibStatusEl, liveForceStatusEl;
 let liveRawGridEl, liveMatchGridEl, liveOverallBadgeEl;
 let liveConnectGloveBtn, liveLoadCalibBtn, fetchForceBtn;
 let liveRefAngleInput, applyLiveRefBtn, clearLiveRefBtn;
+let patientLiveExercisesListEl, patientLiveExerciseSelectEl, patientLiveExerciseSliderGridEl;
 let mqttToggleBtn;
+let _liveExercises = [];
+let _selectedLiveExercise = null;
+let _latestPatientPacket = [0, 0, 0, 0, 0];
 
 // MQTT publisher state (initialized when user clicks MQTT button)
 let _mqttClient = null;
@@ -277,6 +283,178 @@ function setStatus(text) {
   if (liveStatusEl) liveStatusEl.textContent = text;
 }
 
+function formatAngle(value) {
+  return Number.isFinite(value) ? `${value.toFixed(1)}deg` : '--';
+}
+
+function getPacketAngles(packet) {
+  return FINGER_KEYS.map((_, index) => {
+    const raw = Number(packet?.[index]);
+    const minV = _patientCalibration.finalMin[index];
+    const maxV = _patientCalibration.finalMax[index];
+    const angle = rawToAngle(raw, minV, maxV);
+    return angle === null ? null : Number(angle.toFixed(1));
+  });
+}
+
+function getLiveExerciseTargets(exercise) {
+  return FINGER_KEYS.map((key) => {
+    const fromLiveAngles = Number(exercise?.live_angles?.[key]);
+    if (Number.isFinite(fromLiveAngles)) return fromLiveAngles;
+
+    const fromFinger = Number(exercise?.fingers?.[key]?.angle);
+    return Number.isFinite(fromFinger) ? fromFinger : 0;
+  });
+}
+
+function renderPatientLiveExercises(exercises) {
+  if (!patientLiveExercisesListEl) return;
+
+  if (!Array.isArray(exercises) || exercises.length === 0) {
+    patientLiveExercisesListEl.textContent = 'No live exercises found for this doctor.';
+    if (patientLiveExerciseSelectEl) {
+      patientLiveExerciseSelectEl.innerHTML = '<option value="">-- No live exercises found --</option>';
+      patientLiveExerciseSelectEl.disabled = true;
+    }
+    renderSelectedLiveExerciseSliders();
+    return;
+  }
+
+  if (patientLiveExerciseSelectEl) {
+    patientLiveExerciseSelectEl.disabled = false;
+    patientLiveExerciseSelectEl.innerHTML = '<option value="">-- Select live exercise --</option>';
+    exercises.forEach((exercise) => {
+      const option = document.createElement('option');
+      option.value = exercise.exercise_id;
+      option.textContent = exercise.exercise_id || 'Live Exercise';
+      patientLiveExerciseSelectEl.appendChild(option);
+    });
+  }
+
+  patientLiveExercisesListEl.innerHTML = '';
+  exercises.forEach((exercise) => {
+    const card = document.createElement('div');
+    card.className = 'live-exercise-card';
+    if (_selectedLiveExercise?.exercise_id === exercise.exercise_id) {
+      card.classList.add('is-selected');
+    }
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `Select live exercise ${exercise.exercise_id || ''}`);
+
+    const captured = exercise.capturedAt || exercise.createdAt
+      ? new Date(exercise.capturedAt || exercise.createdAt).toLocaleString()
+      : '--';
+
+    const values = FINGER_KEYS.map((key, index) => {
+      const finger = exercise.fingers?.[key] || {};
+      const angle = Number.isFinite(Number(finger.angle))
+        ? Number(finger.angle)
+        : Number(exercise.live_angles?.[key]);
+      const min = Number.isFinite(Number(finger.min))
+        ? Number(finger.min)
+        : Number(exercise.min_angles?.[key]);
+      const max = Number.isFinite(Number(finger.max))
+        ? Number(finger.max)
+        : Number(exercise.max_angles?.[key]);
+      const raw = exercise.raw_values?.[key];
+      return `<div>${FINGER_LABELS[index]}: raw ${Number.isFinite(Number(raw)) ? raw : '--'}, angle ${formatAngle(angle)}, min ${formatAngle(min)}, max ${formatAngle(max)}</div>`;
+    }).join('');
+
+    card.innerHTML = `
+      <strong>${exercise.exercise_id || 'Live Exercise'}</strong>
+      <div>Doctor: ${exercise.doctor_id || '--'}</div>
+      <div>Captured: ${captured}</div>
+      <div class="live-exercise-values">${values}</div>
+    `;
+    card.addEventListener('click', () => selectLiveExercise(exercise.exercise_id));
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectLiveExercise(exercise.exercise_id);
+      }
+    });
+    patientLiveExercisesListEl.appendChild(card);
+  });
+}
+
+function selectLiveExercise(exerciseId) {
+  _selectedLiveExercise = _liveExercises.find((exercise) => exercise.exercise_id === exerciseId) || null;
+
+  if (patientLiveExerciseSelectEl) {
+    patientLiveExerciseSelectEl.value = _selectedLiveExercise?.exercise_id || '';
+  }
+
+  renderPatientLiveExercises(_liveExercises);
+  renderSelectedLiveExerciseSliders();
+  setStatus(
+    _selectedLiveExercise
+      ? `Live exercise ${exerciseId} selected. Database live angles are now the max targets.`
+      : 'Live exercise target cleared.'
+  );
+}
+
+function renderSelectedLiveExerciseSliders() {
+  if (!patientLiveExerciseSliderGridEl) return;
+
+  if (!_selectedLiveExercise) {
+    patientLiveExerciseSliderGridEl.textContent = 'Select a live exercise to compare patient movement.';
+    return;
+  }
+
+  const patientAngles = getPacketAngles(_latestPatientPacket);
+  const targets = getLiveExerciseTargets(_selectedLiveExercise);
+
+  patientLiveExerciseSliderGridEl.innerHTML = '';
+  FINGER_KEYS.forEach((key, index) => {
+    const angle = patientAngles[index];
+    const target = Number(targets[index]);
+    const ratio = angle !== null && target > 0 ? angle / target : 0;
+    const fillPct = target > 0 ? Math.min(ratio * 100, 100) : 0;
+
+    let color = '#93c5fd';
+    if (target <= 0) color = '#4b5563';
+    else if (ratio >= 0.95) color = '#22c55e';
+    else if (ratio >= 0.5) color = '#3b82f6';
+
+    const row = document.createElement('div');
+    row.className = 'exercise-slider-row';
+    row.innerHTML = `
+      <div class="exercise-slider-label">${FINGER_LABELS[index]}</div>
+      <div class="exercise-slider-track">
+        <div class="exercise-slider-fill" style="width:${fillPct.toFixed(1)}%; background:${color};"></div>
+      </div>
+      <div class="exercise-slider-value" style="color:${color};">${Number.isFinite(target) ? target.toFixed(1) : '--'}°</div>
+    `;
+    patientLiveExerciseSliderGridEl.appendChild(row);
+  });
+}
+
+async function loadPatientLiveExercises() {
+  if (!patientLiveExercisesListEl) return;
+
+  patientLiveExercisesListEl.textContent = 'Loading live exercises...';
+
+  try {
+    const resp = await fetch(
+      `${_state.apiBase}/api/live-exercises?doctor_id=${encodeURIComponent(LIVE_EXERCISE_DOCTOR_ID)}`,
+      { headers: _state.getAuthHeaders() }
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data = await resp.json();
+    _liveExercises = Array.isArray(data.exercises) ? data.exercises : [];
+    if (!_selectedLiveExercise && _liveExercises.length > 0) {
+      _selectedLiveExercise = _liveExercises[0];
+    }
+    renderPatientLiveExercises(_liveExercises);
+    renderSelectedLiveExerciseSliders();
+  } catch (error) {
+    console.error('[LiveCtrl] Failed to load live exercises:', error);
+    patientLiveExercisesListEl.textContent = 'Failed to load live exercises from database.';
+  }
+}
+
 /**
  * renderRawGrid
  * Shows per-finger raw ADC value and computed angle for each finger.
@@ -450,6 +628,9 @@ export function mount(container, gloveState, threeEngine) {
   liveRefAngleInput   = container.querySelector('#liveRefAngle');
   applyLiveRefBtn     = container.querySelector('#applyLiveRefBtn');
   clearLiveRefBtn     = container.querySelector('#clearLiveRefBtn');
+  patientLiveExercisesListEl = container.querySelector('#patientLiveExercisesList');
+  patientLiveExerciseSelectEl = container.querySelector('#patientLiveExerciseSelect');
+  patientLiveExerciseSliderGridEl = container.querySelector('#patientLiveExerciseSliderGrid');
 
   // ── Reflect existing BLE connection state ─────────────────────────────
   if (_state.isConnected && liveConnectGloveBtn) {
@@ -461,9 +642,11 @@ export function mount(container, gloveState, threeEngine) {
   // ── Wire GloveState callbacks ─────────────────────────────────────────
 
   _state.onPacket = (packet) => {
+    _latestPatientPacket = Array.isArray(packet) ? packet.slice(0, 5) : _latestPatientPacket;
     // Real-time: every packet drives both the UI and the 3D hand
     renderRawGrid(packet);
     renderLiveMatchGrid(packet);
+    renderSelectedLiveExerciseSliders();
     if (_engine.isModelLoaded) {
       _engine.setPose(buildPoseFromPacket(packet));
     }
@@ -548,6 +731,10 @@ export function mount(container, gloveState, threeEngine) {
     setStatus('Manual reference target cleared. Showing raw extension range.');
   });
 
+  patientLiveExerciseSelectEl?.addEventListener('change', (event) => {
+    selectLiveExercise(event.target.value);
+  });
+
   // MQTT toggle (connect / disconnect) — publishes binary packets when connected
   mqttToggleBtn?.addEventListener('click', () => {
     if (!_mqttConnected) {
@@ -600,8 +787,10 @@ export function mount(container, gloveState, threeEngine) {
   renderCalibStatus();
   _renderCalibrationBanner();    // Show immediately if not calibrated
   const initialPacket = _state.latestPacket || [0,0,0,0,0];
+  _latestPatientPacket = Array.isArray(initialPacket) ? initialPacket.slice(0, 5) : [0,0,0,0,0];
   renderRawGrid(initialPacket);
   renderLiveMatchGrid(initialPacket);
+  renderSelectedLiveExerciseSliders();
   if (_engine.isModelLoaded && _patientCalibration.ready) {
     _engine.setPose(buildPoseFromPacket(initialPacket));
   }
@@ -609,6 +798,7 @@ export function mount(container, gloveState, threeEngine) {
 
   // Try to load latest DB calibration on load (non-blocking)
   hydratePatientCalibrationFromDatabase();
+  loadPatientLiveExercises();
 }
 
 export function unmount() {
@@ -638,5 +828,9 @@ export function unmount() {
   liveConnectGloveBtn = liveLoadCalibBtn = fetchForceBtn = null;
   mqttToggleBtn = null;
   liveRefAngleInput = applyLiveRefBtn = clearLiveRefBtn = null;
+  patientLiveExercisesListEl = patientLiveExerciseSelectEl = patientLiveExerciseSliderGridEl = null;
+  _liveExercises = [];
+  _selectedLiveExercise = null;
+  _latestPatientPacket = [0, 0, 0, 0, 0];
   _container = null;
 }

@@ -46,19 +46,6 @@
     </p>
   </section>
 
-  <!-- ── Real-Time Movement Match ─────────────────────────────────────── -->
-  <section class="card match-hero">
-    <h3 class="card-title">Patient Movement (Real-Time Session)</h3>
-    <span id="liveOverallBadge" class="pill pill-ok">Overall: --</span>
-    <div id="liveMatchGrid" class="match-grid">
-      <!-- Populated by the controller on each packet -->
-    </div>
-    <p class="note">
-      Each bar shows how far the finger has moved relative to the patient's personal
-      calibrated maximum. Green = full extension reached.
-    </p>
-  </section>
-
   <!-- ── Optional Manual Reference Target ─────────────────────────────── -->
   <section class="card">
     <h3 class="card-title">Manual Reference Target (Optional)</h3>
@@ -74,5 +61,112 @@
       target. Leave blank for a simple range display.
     </p>
   </section>
+
+  <section class="card">
+    <h3 class="card-title">Live Exercises</h3>
+    <div class="actions">
+      <label for="patientLiveExerciseSelect">Exercise</label>
+      <select id="patientLiveExerciseSelect" aria-label="Select live exercise">
+        <option value="">-- Loading live exercises... --</option>
+      </select>
+    </div>
+    <div id="patientLiveExercisesList" class="live-exercises-list">
+      Loading live exercises...
+    </div>
+    <div class="live-exercise-target">
+      <p class="note">
+        Bar track = selected exercise max. Full bar = prescribed max (100%).
+        <span style="color:#3b82f6;">■</span> Approaching&nbsp;
+        <span style="color:#22c55e;">■</span> Safe Zone (95-105%)&nbsp;
+        <span style="color:#dc2626;">■</span> Over-flexion (&gt;105%)
+      </p>
+      <div id="patientLiveExerciseSliderGrid" class="live-exercise-slider-grid">
+        Select a live exercise to compare patient movement.
+      </div>
+    </div>
+  </section>
+
+  <style>
+    .view-namespace-live #patientLiveExerciseSelect {
+      padding: 8px 10px;
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      color: #fff;
+      min-width: 260px;
+    }
+    .view-namespace-live .live-exercises-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .view-namespace-live .live-exercise-card {
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--c-text-muted);
+      cursor: pointer;
+      transition: border-color 0.18s ease, background-color 0.18s ease;
+    }
+    .view-namespace-live .live-exercise-card:hover,
+    .view-namespace-live .live-exercise-card.is-selected {
+      border-color: var(--c-brand);
+      background: rgba(78, 142, 247, 0.08);
+    }
+    .view-namespace-live .live-exercise-card strong {
+      display: block;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+    .view-namespace-live .live-exercise-values {
+      margin-top: 8px;
+      display: grid;
+      gap: 4px;
+    }
+    .view-namespace-live .live-exercise-target {
+      margin-top: 16px;
+    }
+    .view-namespace-live .live-exercise-slider-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 12px;
+      color: var(--c-text-muted);
+      font-size: 13px;
+    }
+    .view-namespace-live .exercise-slider-row {
+      display: grid;
+      grid-template-columns: 72px minmax(180px, 1fr) 110px;
+      align-items: center;
+      gap: 10px;
+    }
+    .view-namespace-live .exercise-slider-label {
+      color: #fff;
+      font-weight: 700;
+    }
+    .view-namespace-live .exercise-slider-track {
+      height: 16px;
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    .view-namespace-live .exercise-slider-fill {
+      height: 100%;
+      border-radius: 7px;
+      width: 0%;
+      transition: width 0.08s linear, background-color 0.2s ease;
+    }
+    .view-namespace-live .exercise-slider-value {
+      color: #93c5fd;
+      font-weight: 700;
+      text-align: right;
+    }
+  </style>
 
 </div><!-- /.view-namespace-live -->

@@ -8,6 +8,7 @@
 import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 
 const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
 let _state = null;
 let _engine = null;
@@ -18,8 +19,8 @@ let fallbackPatientCalib = null;
 // DOM refs
 let defaultTargetInput, setDoctorTargetBtn, resetLiveTargetBtn, setTargetToast;
 let targetSourceLabel, repSetStatus, resetRepsBtn;
-let startAssessmentBtn, stopAssessmentBtn, resetPeaksBtn, saveBaselineBtn, assessmentStatus;
 let matchGrid, peakGrid;
+let createLiveExerciseBtn, saveLiveExerciseBtn, liveExerciseDraftEl, liveExerciseListEl;
 let mqttHostInput, mqttTopicInput, mqttUsernameInput, mqttPasswordInput;
 let mqttConnectBtn, mqttDisconnectBtn, mqttStatusLabel, mqttRateLabel;
 let mqttRawMinInput, mqttRawMaxInput, mqttDriveModelCheckbox;
@@ -35,9 +36,13 @@ let currentReps = 0;
 let currentSets = 0;
 let repLatched = false;
 let disqualifyRep = false;
-let assessmentActive = false;
+let assessmentActive = true;
 let patientCapturedMin = [90, 90, 90, 90, 90];
 let patientCapturedMax = [0, 0, 0, 0, 0];
+let currentLiveAngles = [null, null, null, null, null];
+let currentRawValues = [0, 0, 0, 0, 0];
+let liveExerciseDraft = null;
+let liveExercises = [];
 
 // Thresholds
 const SAFE_LOW = 0.95;
@@ -107,6 +112,47 @@ function buildPoseFromAngles(angles) {
 }
 
 // ── UI Updaters ──
+function getDoctorId() {
+  try {
+    const profile = JSON.parse(localStorage.getItem('auth_profile') || '{}');
+    if (profile?.doctor_id) return profile.doctor_id;
+  } catch { /* fall through */ }
+  return localStorage.getItem('doctorId') || 'D001';
+}
+
+function generateLiveExerciseId() {
+  return `live_ex_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function formatAngle(value) {
+  return Number.isFinite(value) ? `${value.toFixed(1)}°` : '--';
+}
+
+function buildLiveExerciseDraft() {
+  const fingers = {};
+
+  FINGER_KEYS.forEach((key, index) => {
+    const min = Number(patientCapturedMin[index]);
+    const max = Number(patientCapturedMax[index]);
+    const angle = Number(currentLiveAngles[index]);
+    const raw = Number(currentRawValues[index]);
+
+    fingers[key] = {
+      min: Number.isFinite(min) ? Number(min.toFixed(1)) : 90,
+      max: Number.isFinite(max) ? Number(max.toFixed(1)) : 0,
+      angle: Number.isFinite(angle) ? Number(angle.toFixed(1)) : 0,
+      raw: Number.isFinite(raw) ? raw : 0
+    };
+  });
+
+  return {
+    exercise_id: generateLiveExerciseId(),
+    doctor_id: getDoctorId(),
+    fingers,
+    capturedAt: new Date().toISOString()
+  };
+}
+
 function showToast(msg, type) {
   if (!setTargetToast) return;
   setTargetToast.textContent = msg;
@@ -132,6 +178,98 @@ function updateRepSetStatus(warn) {
     setTimeout(() => { if (repSetStatus) repSetStatus.classList.remove('warning'); }, 1600);
   } else {
     repSetStatus.classList.remove('warning');
+  }
+}
+
+function renderLiveExerciseDraft() {
+  if (!liveExerciseDraftEl || !saveLiveExerciseBtn) return;
+
+  if (!liveExerciseDraft) {
+    liveExerciseDraftEl.textContent = 'No live exercise created yet.';
+    saveLiveExerciseBtn.disabled = true;
+    return;
+  }
+
+  const summary = FINGER_KEYS.map((key, index) => {
+    const finger = liveExerciseDraft.fingers[key];
+    return `${FINGER_LABELS[index]} raw ${finger.raw}, min ${formatAngle(finger.min)}, max ${formatAngle(finger.max)}, angle ${formatAngle(finger.angle)}`;
+  }).join(' | ');
+
+  liveExerciseDraftEl.textContent = `Ready to save ${liveExerciseDraft.exercise_id}: ${summary}`;
+  saveLiveExerciseBtn.disabled = false;
+}
+
+function renderLiveExerciseList() {
+  if (!liveExerciseListEl) return;
+
+  if (!liveExercises.length) {
+    liveExerciseListEl.innerHTML = '<li>No live exercises saved yet.</li>';
+    return;
+  }
+
+  liveExerciseListEl.innerHTML = '';
+  liveExercises.forEach((exercise) => {
+    const li = document.createElement('li');
+    const created = exercise.createdAt ? new Date(exercise.createdAt).toLocaleString() : '--';
+    const maxSummary = FINGER_KEYS.map((key, index) => {
+      const finger = exercise.fingers?.[key] || {};
+      const raw = exercise.raw_values?.[key];
+      return `${FINGER_LABELS[index]} raw ${Number.isFinite(Number(raw)) ? raw : '--'} angle ${formatAngle(Number(finger.angle))}`;
+    }).join(', ');
+
+    li.innerHTML = `
+      <div class="live-exercise-list-item-head">
+        <strong>${exercise.exercise_id}</strong>
+        <button class="live-exercise-delete-btn" type="button" data-exercise-id="${exercise.exercise_id}">Delete</button>
+      </div>
+      <div>Saved: ${created}</div>
+      <div>${maxSummary}</div>
+    `;
+    liveExerciseListEl.appendChild(li);
+  });
+
+  liveExerciseListEl.querySelectorAll('.live-exercise-delete-btn').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const exerciseId = button.dataset.exerciseId;
+      if (!exerciseId) return;
+      if (!window.confirm(`Delete live exercise ${exerciseId}?`)) return;
+
+      button.disabled = true;
+      button.textContent = 'Deleting...';
+      try {
+        const resp = await fetch(`${_state.apiBase}/api/live-exercises/${encodeURIComponent(exerciseId)}`, {
+          method: 'DELETE',
+          headers: _state.getAuthHeaders()
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        liveExercises = liveExercises.filter(exercise => exercise.exercise_id !== exerciseId);
+        renderLiveExerciseList();
+      } catch (error) {
+        console.error('[DoctorLive] Failed to delete live exercise:', error);
+        button.disabled = false;
+        button.textContent = 'Delete';
+        window.alert('Failed to delete live exercise. Check the backend connection.');
+      }
+    });
+  });
+}
+
+async function loadLiveExercises() {
+  if (!liveExerciseListEl) return;
+
+  try {
+    const doctorId = getDoctorId();
+    const resp = await fetch(`${_state.apiBase}/api/live-exercises?doctor_id=${encodeURIComponent(doctorId)}`, {
+      headers: _state.getAuthHeaders()
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data = await resp.json();
+    liveExercises = Array.isArray(data.exercises) ? data.exercises : [];
+    renderLiveExerciseList();
+  } catch (error) {
+    console.error('[DoctorLive] Failed to load live exercises:', error);
+    liveExerciseListEl.innerHTML = '<li>Failed to load saved live exercises.</li>';
   }
 }
 
@@ -162,6 +300,8 @@ function initGrids() {
 }
 
 function processLiveStream(angles) {
+  currentLiveAngles = angles.map(angle => Number.isFinite(angle) ? angle : null);
+
   // Peak Detection
   if (assessmentActive) {
     angles.forEach((angle, i) => {
@@ -287,11 +427,10 @@ export function mount(container, gloveState, threeEngine) {
   resetRepsBtn       = container.querySelector('#resetRepsBtn');
   matchGrid          = container.querySelector('#matchGrid');
   peakGrid           = container.querySelector('#peakGrid');
-  startAssessmentBtn = container.querySelector('#startAssessmentBtn');
-  stopAssessmentBtn  = container.querySelector('#stopAssessmentBtn');
-  resetPeaksBtn      = container.querySelector('#resetPeaksBtn');
-  saveBaselineBtn    = container.querySelector('#saveBaselineBtn');
-  assessmentStatus   = container.querySelector('#assessmentStatus');
+  createLiveExerciseBtn = container.querySelector('#createLiveExerciseBtn');
+  saveLiveExerciseBtn   = container.querySelector('#saveLiveExerciseBtn');
+  liveExerciseDraftEl   = container.querySelector('#liveExerciseDraft');
+  liveExerciseListEl    = container.querySelector('#liveExerciseList');
 
   mqttHostInput          = container.querySelector('#mqttHostInput');
   mqttTopicInput         = container.querySelector('#mqttTopicInput');
@@ -313,6 +452,7 @@ export function mount(container, gloveState, threeEngine) {
 
   // Initial render with latest packet
   const initialAngles = getCurrentAngles(_state.latestPacket);
+  currentRawValues = Array.isArray(_state.latestPacket) ? _state.latestPacket.slice(0, 5) : [0, 0, 0, 0, 0];
   processLiveStream(initialAngles);
   if (_engine.isModelLoaded && _state.doctorCalibration?.ready) {
     _engine.setPose(buildPoseFromAngles(initialAngles));
@@ -346,38 +486,44 @@ export function mount(container, gloveState, threeEngine) {
     updateRepSetStatus(false);
   });
 
-  startAssessmentBtn.addEventListener('click', () => {
-    assessmentActive = true;
-    startAssessmentBtn.disabled = true;
-    stopAssessmentBtn.disabled = false;
-    assessmentStatus.textContent = '⏺ Assessment running — capturing continuous peaks...';
-    assessmentStatus.style.color = 'var(--c-ok)';
+  createLiveExerciseBtn?.addEventListener('click', () => {
+    liveExerciseDraft = buildLiveExerciseDraft();
+    renderLiveExerciseDraft();
   });
 
-  stopAssessmentBtn.addEventListener('click', () => {
-    assessmentActive = false;
-    stopAssessmentBtn.disabled = true;
-    startAssessmentBtn.disabled = false;
-    assessmentStatus.textContent = '⏹ Assessment stopped. Peaks frozen.';
-    assessmentStatus.style.color = 'var(--c-warn)';
-  });
+  saveLiveExerciseBtn?.addEventListener('click', async () => {
+    if (!liveExerciseDraft) return;
 
-  resetPeaksBtn.addEventListener('click', () => {
-    patientCapturedMin = [90, 90, 90, 90, 90];
-    patientCapturedMax = [0, 0, 0, 0, 0];
-    assessmentStatus.textContent = 'Peaks reset.';
-    assessmentStatus.style.color = 'var(--c-text-muted)';
-  });
+    saveLiveExerciseBtn.disabled = true;
+    try {
+      liveExerciseDraft = {
+        ...buildLiveExerciseDraft(),
+        exercise_id: liveExerciseDraft.exercise_id
+      };
+      renderLiveExerciseDraft();
 
-  saveBaselineBtn.addEventListener('click', () => {
-    const baseline = {
-      capturedMin: [...patientCapturedMin],
-      capturedMax: [...patientCapturedMax],
-      timestamp: new Date().toISOString()
-    };
-    localStorage.setItem('doctorAssessmentBaseline', JSON.stringify(baseline));
-    assessmentStatus.textContent = `✓ Baseline saved locally at ${baseline.timestamp}`;
-    assessmentStatus.style.color = 'var(--c-ok)';
+      const resp = await fetch(`${_state.apiBase}/api/live-exercises`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
+        body: JSON.stringify(liveExerciseDraft)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const data = await resp.json();
+      liveExercises = [
+        data.exercise,
+        ...liveExercises.filter(ex => ex.exercise_id !== data.exercise.exercise_id)
+      ];
+      liveExerciseDraft = null;
+      renderLiveExerciseDraft();
+      await loadLiveExercises();
+    } catch (error) {
+      console.error('[DoctorLive] Failed to save live exercise:', error);
+      saveLiveExerciseBtn.disabled = false;
+      if (liveExerciseDraftEl) {
+        liveExerciseDraftEl.textContent = 'Failed to save live exercise. Check the backend connection and try again.';
+      }
+    }
   });
 
   function connectMqttPatient() {
@@ -436,6 +582,7 @@ export function mount(container, gloveState, threeEngine) {
           const r3 = view.getUint16(6, true);
           const r4 = view.getUint16(8, true);
           const rawValues = [r0, r1, r2, r3, r4];
+          currentRawValues = rawValues;
 
           let minLimit = parseInt(mqttRawMinInput?.value || '1000', 10);
           let maxLimit = parseInt(mqttRawMaxInput?.value || '3500', 10);
@@ -556,6 +703,7 @@ export function mount(container, gloveState, threeEngine) {
     if (mqttClient && mqttClient.connected && mqttDriveModelCheckbox?.checked) {
       return;
     }
+    currentRawValues = Array.isArray(packet) ? packet.slice(0, 5) : currentRawValues;
     const angles = getCurrentAngles(packet);
     processLiveStream(angles);
     
@@ -570,6 +718,8 @@ export function mount(container, gloveState, threeEngine) {
 
   // Fetch fallback patient calibration (non-blocking)
   fetchFallbackPatientCalibration();
+  renderLiveExerciseDraft();
+  loadLiveExercises();
 }
 
 export function unmount() {
@@ -594,11 +744,14 @@ export function unmount() {
   
   defaultTargetInput = setDoctorTargetBtn = resetLiveTargetBtn = setTargetToast = null;
   targetSourceLabel = repSetStatus = resetRepsBtn = null;
-  startAssessmentBtn = stopAssessmentBtn = resetPeaksBtn = saveBaselineBtn = assessmentStatus = null;
   matchGrid = peakGrid = null;
+  createLiveExerciseBtn = saveLiveExerciseBtn = liveExerciseDraftEl = liveExerciseListEl = null;
   mqttHostInput = mqttTopicInput = mqttUsernameInput = mqttPasswordInput = null;
   mqttConnectBtn = mqttDisconnectBtn = mqttStatusLabel = mqttRateLabel = null;
   mqttRawMinInput = mqttRawMaxInput = mqttDriveModelCheckbox = null;
   fallbackPatientCalib = null;
+  currentRawValues = [0, 0, 0, 0, 0];
+  liveExerciseDraft = null;
+  liveExercises = [];
   _container = null;
 }

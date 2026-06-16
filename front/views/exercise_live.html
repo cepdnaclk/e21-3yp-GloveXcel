@@ -25,9 +25,11 @@
       <button id="liveConnectGloveBtn" type="button">Connect Patient Glove</button>
       <button id="mqttToggleBtn" type="button" class="btn-secondary">MQTT</button>
       <button id="liveLoadCalibBtn" class="btn-secondary" type="button">Load Patient Calibration</button>
+      <button id="fetchForceBtn" class="btn-secondary" type="button">Fetch Force</button>
     </div>
     <p id="liveGloveStatus" class="note">Patient glove status: Not connected.</p>
     <p id="liveCalibStatus" class="note">Patient calibration status: Not loaded.</p>
+    <p id="liveForceStatus" class="note">Resistive force level: Not set.</p>
     <p class="note">
       In real-time mode the 3D hand mirrors the patient's live glove data directly.
       No loop animation runs — the hand pose is driven entirely by incoming sensor packets.

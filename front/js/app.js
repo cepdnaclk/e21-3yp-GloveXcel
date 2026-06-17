@@ -33,7 +33,8 @@ const patientIdBadgeEl = document.getElementById("patientIdBadge");
 const CALIBRATION_STORAGE_KEY_V1 = "patientCalibrationV1";
 const PATIENT_ID_STORAGE_KEY = "patientId";
 const AUTH_TOKEN_STORAGE_KEY = "auth_token";
-const FIXED_PATIENT_ID = "patient_003";
+const FIXED_PATIENT_ID = "PAT-a7a19957fb68446f8314d672bfccfa8b";
+const LEGACY_PATIENT_ID = "patient_003";
 const API_BASE = (localStorage.getItem("apiBaseUrl") || "http://localhost:3000").replace(/\/$/, "");
 const DATA_API_BASE = `${API_BASE}/api/data`;
 const THERAPY_SESSIONS_API_BASE = `${API_BASE}/api/therapy-sessions`;
@@ -86,16 +87,17 @@ function loadCalibration() {
 }
 
 function getStoredPatientId() {
+  const storedPatientId = localStorage.getItem(PATIENT_ID_STORAGE_KEY);
   const rawProfile = localStorage.getItem("auth_profile");
   if (!rawProfile) {
-    return localStorage.getItem(PATIENT_ID_STORAGE_KEY) || FIXED_PATIENT_ID;
+    return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : FIXED_PATIENT_ID;
   }
 
   try {
     const profile = JSON.parse(rawProfile);
-    return profile?.patient_id || localStorage.getItem(PATIENT_ID_STORAGE_KEY) || FIXED_PATIENT_ID;
+    return profile?.patient_id || (storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : FIXED_PATIENT_ID);
   } catch {
-    return localStorage.getItem(PATIENT_ID_STORAGE_KEY) || FIXED_PATIENT_ID;
+    return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : FIXED_PATIENT_ID;
   }
 }
 
@@ -425,7 +427,7 @@ async function loadExercisesForPatient() {
     if (exerciseEmptyStateEl) {
       exerciseEmptyStateEl.style.display = "none";
     }
-    alert("Failed to load exercises for patient_003. Is the Node server running?");
+    alert(`Failed to load exercises for ${getStoredPatientId()}. Is the Node server running?`);
   } finally {
     exerciseSelectEl.disabled = !isConnected;
     updateEnhancedAccessState();
@@ -496,7 +498,7 @@ async function fetchSavedData() {
 
   try {
     const res = await fetch(
-      `${DATA_API_BASE}/${encodeURIComponent(FIXED_PATIENT_ID)}?exercise_id=${encodeURIComponent(selectedExerciseId)}`
+      `${DATA_API_BASE}/${encodeURIComponent(getStoredPatientId())}?exercise_id=${encodeURIComponent(selectedExerciseId)}`
     );
     if (!res.ok) {
       throw new Error(`Server responded ${res.status}`);

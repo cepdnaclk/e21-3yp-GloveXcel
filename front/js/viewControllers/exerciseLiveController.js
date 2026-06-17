@@ -22,7 +22,7 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 const FINGER_LABELS     = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const FINGER_KEYS       = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const PATIENT_CALIB_KEY = 'patientCalibrationV1';
-const LIVE_EXERCISE_DOCTOR_ID = 'D001';
+const LIVE_EXERCISE_DOCTOR_ID = 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
 
 // ─── Module-level mutable state ───────────────────────────────────────────────
 let _state     = null;

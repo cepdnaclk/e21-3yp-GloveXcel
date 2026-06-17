@@ -422,7 +422,8 @@
     const AUTH_TOKEN_STORAGE_KEY = "auth_token";
     const API_BASE_STORAGE_KEY = "apiBaseUrl";
     const PATIENT_ID_STORAGE_KEY = "patientId";
-    const DEFAULT_PATIENT_ID = "patient_003";
+    const DEFAULT_PATIENT_ID = "PAT-a7a19957fb68446f8314d672bfccfa8b";
+    const LEGACY_PATIENT_ID = "patient_003";
     const PATIENT_CALIB_KEY = "patientCalibrationV1";
     const DOCTOR_CALIB_V2_KEY = "doctorCalibrationV2";
     const DOCTOR_CALIB_V1_KEY = "doctorCalibrationV1";
@@ -589,16 +590,17 @@
     }
 
     function resolvePatientId() {
+      const storedPatientId = localStorage.getItem(PATIENT_ID_STORAGE_KEY);
       const rawProfile = localStorage.getItem("auth_profile");
       if (!rawProfile) {
-        return localStorage.getItem(PATIENT_ID_STORAGE_KEY) || DEFAULT_PATIENT_ID;
+        return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : DEFAULT_PATIENT_ID;
       }
 
       try {
         const profile = JSON.parse(rawProfile);
-        return profile?.patient_id || localStorage.getItem(PATIENT_ID_STORAGE_KEY) || DEFAULT_PATIENT_ID;
+        return profile?.patient_id || (storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : DEFAULT_PATIENT_ID);
       } catch {
-        return localStorage.getItem(PATIENT_ID_STORAGE_KEY) || DEFAULT_PATIENT_ID;
+        return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : DEFAULT_PATIENT_ID;
       }
     }
 

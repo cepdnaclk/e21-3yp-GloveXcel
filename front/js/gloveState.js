@@ -18,7 +18,8 @@ import { BleGloveClient } from './bleGloveClient.js';
 const PATIENT_CALIB_KEY      = 'patientCalibrationV1';
 const PATIENT_ID_STORAGE_KEY = 'patientId';
 const AUTH_TOKEN_STORAGE_KEY = 'auth_token';
-const DEFAULT_PATIENT_ID     = 'patient_003';
+const DEFAULT_PATIENT_ID     = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
+const LEGACY_PATIENT_ID      = 'patient_003';
 const CROSS_PAGE_CHANNEL_KEY = 'patientCrossPageV1';
 const DOCTOR_CALIB_KEY_V2    = 'doctorCalibrationV2';
 
@@ -80,7 +81,11 @@ class GlobalGloveState {
       const profile = JSON.parse(localStorage.getItem('auth_profile') || '{}');
       if (profile?.patient_id) return profile.patient_id;
     } catch { /* fall through */ }
-    return localStorage.getItem(PATIENT_ID_STORAGE_KEY) || DEFAULT_PATIENT_ID;
+
+    const storedPatientId = localStorage.getItem(PATIENT_ID_STORAGE_KEY);
+    return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID
+      ? storedPatientId
+      : DEFAULT_PATIENT_ID;
   }
 
   /** Expose the channel so controllers can check if cross-page sync is active */

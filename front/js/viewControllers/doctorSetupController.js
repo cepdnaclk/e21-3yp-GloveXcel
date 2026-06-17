@@ -9,7 +9,6 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 
 const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const DOCTOR_CALIB_KEY_V2 = 'doctorCalibrationV2';
-const DOCTOR_ID = localStorage.getItem('doctorId') || 'D001';
 
 let _state = null;
 let _engine = null;
@@ -34,6 +33,15 @@ function rawToAngle(rawValue, minValue, maxValue) {
   if (minValue === null || maxValue === null || minValue === maxValue) return null;
   const t = (rawValue - minValue) / (maxValue - minValue);
   return clamp(t * 90, 0, 90);
+}
+
+function getDoctorId() {
+  try {
+    const profile = JSON.parse(localStorage.getItem('auth_profile') || '{}');
+    if (profile?.doctor_id) return profile.doctor_id;
+  } catch { /* fall through */ }
+
+  return localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
 }
 
 // ── Doctor Calibration Logic ──
@@ -67,7 +75,7 @@ function loadDoctorCalibrationLocally() {
 
 async function fetchDoctorCalibrationFromDB() {
   try {
-    const resp = await fetch(`${_state.apiBase}/api/doctor-cal/${encodeURIComponent(DOCTOR_ID)}`, {
+    const resp = await fetch(`${_state.apiBase}/api/doctor-cal/${encodeURIComponent(getDoctorId())}`, {
       headers: _state.getAuthHeaders()
     });
     if (!resp.ok) {

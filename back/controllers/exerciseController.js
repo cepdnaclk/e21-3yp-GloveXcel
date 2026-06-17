@@ -1,4 +1,4 @@
-const { getPool } = require('../config/supabaseDb');
+const { getPool, ensureDoctorAndPatientExist } = require('../config/supabaseDb');
 const ExerciseMax = require('../models/ExerciseMax');
 
 const createExercise = async (req, res) => {
@@ -24,11 +24,24 @@ const createExercise = async (req, res) => {
             return res.status(400).json({ error: 'max_angles with all 5 finger values is required.' });
         }
 
-        if (!patient_id || !doctor_id) {
+        if (req.user && !['doctor', 'admin'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Only doctors or admins can create exercises.' });
+        }
+
+        const effectiveDoctorId = req.user?.role === 'doctor'
+            ? req.user.sub
+            : doctor_id;
+
+        if (!patient_id || !effectiveDoctorId) {
             return res.status(400).json({ error: 'patient_id and doctor_id are required.' });
         }
 
         const pool = getPool();
+        await ensureDoctorAndPatientExist(pool, effectiveDoctorId, patient_id);
+        const today = new Date().toISOString().slice(0, 10);
+        const effectiveStartDate = start_date || today;
+        const effectiveEndDate = end_date || effectiveStartDate;
+
         const query = `
             INSERT INTO Exercises 
             (exercise_id, description, level, target_reps, target_sets, start_date, end_date, patient_id, doctor_id) 
@@ -42,10 +55,10 @@ const createExercise = async (req, res) => {
             level || 1, 
             target_reps, 
             target_sets, 
-            start_date, 
-            end_date,
+            effectiveStartDate, 
+            effectiveEndDate,
             patient_id || null,
-            doctor_id || null
+            effectiveDoctorId || null
         ];
 
         const result = await pool.query(query, values);
@@ -55,7 +68,7 @@ const createExercise = async (req, res) => {
             {
                 $set: {
                     exercise_id,
-                    doctor_id,
+                    doctor_id: effectiveDoctorId,
                     patient_id,
                     max_angles: {
                         thumb: Number(max_angles.thumb),

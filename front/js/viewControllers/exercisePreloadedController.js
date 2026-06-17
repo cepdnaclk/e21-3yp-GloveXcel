@@ -58,6 +58,7 @@ let connectGloveBtn, loadPatientCalibBtn;
 let startLoopBtn, stopLoopBtn, resetPoseBtn;
 let levelSelect, cycleMsInput;
 let exerciseSelectEl, exerciseDetailsEl;
+let exerciseForceLevelEl, sendExerciseMotorBtn, exerciseMotorStatusEl;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MATH — preserved VERBATIM from patient_exercise.html
@@ -392,9 +393,68 @@ async function loadDoctorCalibration(doctorId) {
  * applyExerciseSelection — patient_exercise.html:695
  * Loads doctor calibration + exercise max angles for the selected exercise.
  */
+function normalizeForceLevel(level) {
+  const value = Number(level);
+  if (!Number.isFinite(value)) return null;
+  return clamp(Math.round(value), 1, 10);
+}
+
+function updateMotorControlState() {
+  if (!sendExerciseMotorBtn) return;
+
+  const forceLevel = normalizeForceLevel(exerciseForceLevelEl?.value);
+  sendExerciseMotorBtn.disabled = !_state?.isConnected || !forceLevel;
+}
+
+function setExerciseForceLevel(level) {
+  const forceLevel = normalizeForceLevel(level);
+
+  if (exerciseForceLevelEl) {
+    exerciseForceLevelEl.value = forceLevel ? String(forceLevel) : '';
+  }
+
+  if (exerciseMotorStatusEl) {
+    exerciseMotorStatusEl.textContent = forceLevel
+      ? `Assigned force level ${forceLevel}. Connect the patient glove, then test motor.`
+      : 'Select an exercise to load its force level.';
+  }
+
+  updateMotorControlState();
+}
+
+async function sendSelectedExerciseMotorLevel() {
+  const forceLevel = normalizeForceLevel(exerciseForceLevelEl?.value);
+
+  if (!forceLevel) {
+    if (exerciseMotorStatusEl) exerciseMotorStatusEl.textContent = 'Select an exercise with a valid force level first.';
+    return;
+  }
+
+  if (!_state?.isConnected) {
+    if (exerciseMotorStatusEl) exerciseMotorStatusEl.textContent = 'Connect the patient glove before testing motor force.';
+    return;
+  }
+
+  if (sendExerciseMotorBtn) sendExerciseMotorBtn.disabled = true;
+  if (exerciseMotorStatusEl) exerciseMotorStatusEl.textContent = `Sending force level ${forceLevel} to glove...`;
+
+  try {
+    await _state.bleClient.sendMotorLevel(forceLevel);
+    if (exerciseMotorStatusEl) exerciseMotorStatusEl.textContent = `Force level ${forceLevel} sent to glove.`;
+  } catch (error) {
+    console.error('[PreloadedCtrl] Motor command failed:', error);
+    if (exerciseMotorStatusEl) {
+      exerciseMotorStatusEl.textContent = `Motor command failed: ${error.message}`;
+    }
+  } finally {
+    updateMotorControlState();
+  }
+}
+
 async function applyExerciseSelection(exerciseId) {
   if (!exerciseId) {
     if (exerciseDetailsEl) exerciseDetailsEl.textContent = 'Select an exercise to view details.';
+    setExerciseForceLevel(null);
     return;
   }
 
@@ -404,6 +464,7 @@ async function applyExerciseSelection(exerciseId) {
 
   if (!exercise) {
     if (exerciseDetailsEl) exerciseDetailsEl.textContent = 'Selected exercise not found.';
+    setExerciseForceLevel(null);
     return;
   }
 
@@ -411,7 +472,10 @@ async function applyExerciseSelection(exerciseId) {
     exerciseDetailsEl.textContent = `${exercise.description || 'No description'} | Doctor: ${exercise.doctor_id || '--'} | Sets: ${exercise.target_sets || '--'} | Reps: ${exercise.target_reps || '--'} | Level: ${exercise.level || '--'} | ${exercise.start_date || '--'} → ${exercise.end_date || '--'}`;
   }
 
-  _doctorData.level      = Number(exercise.level) || _doctorData.level;
+  const forceLevel = normalizeForceLevel(exercise.level);
+  setExerciseForceLevel(forceLevel);
+
+  _doctorData.level      = forceLevel ? clamp(forceLevel, 1, 6) : _doctorData.level;
   _doctorData.targetReps = Number(exercise.target_reps) || null;
   _doctorData.targetSets = Number(exercise.target_sets) || null;
   if (levelSelect) levelSelect.value = String(_doctorData.level);
@@ -703,12 +767,16 @@ export function mount(container, gloveState, threeEngine) {
   cycleMsInput         = container.querySelector('#cycleMsInput');
   exerciseSelectEl     = container.querySelector('#exerciseSelect');
   exerciseDetailsEl    = container.querySelector('#exerciseDetails');
+  exerciseForceLevelEl = container.querySelector('#exerciseForceLevel');
+  sendExerciseMotorBtn = container.querySelector('#sendExerciseMotorBtn');
+  exerciseMotorStatusEl = container.querySelector('#exerciseMotorStatus');
 
   // ── Reflect existing BLE connection state ─────────────────────────────
   if (_state.isConnected && connectGloveBtn) {
     connectGloveBtn.textContent = 'Glove Connected';
     connectGloveBtn.disabled    = true;
     if (gloveStatusEl) gloveStatusEl.textContent = 'Patient glove status: Connected.';
+    updateMotorControlState();
   }
 
   // ── Wire GloveState callbacks ─────────────────────────────────────────
@@ -726,6 +794,7 @@ export function mount(container, gloveState, threeEngine) {
       connectGloveBtn.disabled    = false;
       connectGloveBtn.textContent = 'Reconnect Patient Glove';
     }
+    updateMotorControlState();
   };
 
   // ── Wire ThreeEngine tick — cosine wave loop animation ────────────────
@@ -749,6 +818,7 @@ export function mount(container, gloveState, threeEngine) {
       _state.isConnected          = true;
       connectGloveBtn.textContent = 'Glove Connected';
       if (gloveStatusEl) gloveStatusEl.textContent = 'Patient glove status: Connected.';
+      updateMotorControlState();
       await hydratePatientCalibrationFromDatabase();
       setStatus('Patient glove connected. Follow the movement and watch match bars.');
     } catch (error) {
@@ -756,6 +826,7 @@ export function mount(container, gloveState, threeEngine) {
       _state.isConnected          = false;
       connectGloveBtn.textContent = 'Connect Patient Glove';
       connectGloveBtn.disabled    = false;
+      updateMotorControlState();
       setStatus(`Patient glove connection failed: ${error?.name || 'Error'} - ${error?.message || 'Unknown'}`);
     }
   });
@@ -776,6 +847,8 @@ export function mount(container, gloveState, threeEngine) {
   exerciseSelectEl?.addEventListener('change', (event) => {
     applyExerciseSelection(event.target.value);
   });
+
+  sendExerciseMotorBtn?.addEventListener('click', sendSelectedExerciseMotorLevel);
 
   levelSelect?.addEventListener('change', () => {
     pullInputsIntoState();
@@ -823,6 +896,7 @@ export function mount(container, gloveState, threeEngine) {
   setLoopBadge();
   renderMatchGrid();
   updateRepSetStatus();
+  setExerciseForceLevel(null);
   setStatus('Load an assigned exercise and start the loop.');
 
   // Load exercise list from API (non-blocking)
@@ -855,5 +929,6 @@ export function unmount() {
   startLoopBtn = stopLoopBtn = resetPoseBtn = null;
   levelSelect = cycleMsInput = null;
   exerciseSelectEl = exerciseDetailsEl = null;
+  exerciseForceLevelEl = sendExerciseMotorBtn = exerciseMotorStatusEl = null;
   _container = null;
 }

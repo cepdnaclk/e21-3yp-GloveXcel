@@ -8,7 +8,6 @@
 const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const EXERCISE_STORAGE_KEY = 'doctorExercisesV1';
-const DOCTOR_ID = localStorage.getItem('doctorId') || 'D001';
 const BLE_MOTOR_CMD_UUID = '11111111-2222-3333-4444-555555555555';
 
 let _state = null;
@@ -60,6 +59,15 @@ function saveExercisesLocally() {
 
 function generateExerciseId() {
   return `ex_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getDoctorId() {
+  try {
+    const profile = JSON.parse(localStorage.getItem('auth_profile') || '{}');
+    if (profile?.doctor_id) return profile.doctor_id;
+  } catch { /* fall through */ }
+
+  return localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
 }
 
 // ── API Calls ──
@@ -257,16 +265,20 @@ export function mount(container, gloveState, threeEngine) {
       return;
     }
     
+    const today = new Date().toISOString().slice(0, 10);
+    const startDate = exerciseStartDate.value || today;
+    const endDate = exerciseEndDate.value || startDate;
+
     const payload = {
       exercise_id: generateExerciseId(),
       description: desc,
       level: Number(exerciseMotorLevel.value),
       target_sets: sets,
       target_reps: reps,
-      start_date: exerciseStartDate.value || null,
-      end_date: exerciseEndDate.value || null,
+      start_date: startDate,
+      end_date: endDate,
       patient_id: patientId,
-      doctor_id: DOCTOR_ID,
+      doctor_id: getDoctorId(),
       max_angles: { ..._exerciseDraft }
     };
     

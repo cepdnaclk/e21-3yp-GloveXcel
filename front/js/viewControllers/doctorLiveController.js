@@ -140,7 +140,7 @@ function getDoctorId() {
     const profile = JSON.parse(localStorage.getItem('auth_profile') || '{}');
     if (profile?.doctor_id) return profile.doctor_id;
   } catch { /* fall through */ }
-  return localStorage.getItem('doctorId') || 'D001';
+  return localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
 }
 
 function generateLiveExerciseId() {
@@ -780,7 +780,7 @@ export function mount(container, gloveState, threeEngine) {
     }
 
     const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
-    const doctorId = localStorage.getItem('doctorId') || 'D001';
+    const doctorId = localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
     const exerciseId = `ex_live_force_${Date.now()}`;
 
     // 1. Create realtime exercise in the database

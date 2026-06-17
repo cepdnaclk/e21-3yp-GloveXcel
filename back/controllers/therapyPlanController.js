@@ -1,5 +1,4 @@
-// 1. IMPORT FIX: We must import 'getPool', not 'pgPool'
-const { getPool } = require('../config/supabaseDb'); 
+const { getPool, ensureDoctorAndPatientExist } = require('../config/supabaseDb'); 
 const { v4: uuidv4 } = require('uuid');
 
 const createTherapyPlan = async (req, res) => {
@@ -9,8 +8,8 @@ const createTherapyPlan = async (req, res) => {
     const plan_id = `plan_${uuidv4()}`;
 
     try {
-        // 2. USAGE FIX: We must call getPool() to get the actual active database connection
         const pool = getPool(); 
+        await ensureDoctorAndPatientExist(pool, doctor_id, patient_id);
 
         const query = `
             INSERT INTO Therapy_Plans 
@@ -20,7 +19,6 @@ const createTherapyPlan = async (req, res) => {
         `;
         const values = [plan_id, doctor_id, patient_id, exercise_id];
         
-        // 3. We use the 'pool' variable we just created above
         const result = await pool.query(query, values);
 
         res.status(201).json({

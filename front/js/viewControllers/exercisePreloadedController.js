@@ -541,11 +541,12 @@ function setLoopBadge() {
   loopBadgeEl.style.borderColor = _isLoopRunning ? '#b7e3c9' : '#f0d491';
 }
 
-function getBarColor(score) {
-  // patient_exercise.html:907
-  if (score >= 0.75) return '#28a745';
-  if (score >= 0.45) return '#d18a00';
-  return '#d94e4e';
+function getMatchBarColor(actual, target) {
+  if (!Number.isFinite(actual) || target <= 0) return '#3b82f6';
+  const ratio = actual / target;
+  if (ratio > 1.05) return '#dc2626';
+  if (ratio >= 0.95) return '#22c55e';
+  return '#3b82f6';
 }
 
 /**
@@ -578,37 +579,41 @@ function renderMatchGrid() {
     const target = Number(targetMaxAngles[i]) || 0;
     const actual = patientAngles[i];
 
-    let score       = 0;
-    let diffText    = '--';
-    let reachedText = 'Not yet';
+    let score = 0;
 
     if (Number.isFinite(actual)) {
       const tolerance = Math.max(5, target * 0.1);
       const diff      = Math.max(0, target - actual);
       score           = clamp(1 - diff / (tolerance * 2), 0, 1);
-      diffText        = `${diff.toFixed(1)}deg`;
       const reached   = actual >= (target - tolerance);
-      reachedText     = reached ? 'Reached' : 'Not yet';
       perFingerReached[i] = reached;
       sumScore   += score;
       validCount += 1;
     }
 
-    const card = document.createElement('div');
-    card.className = 'match-card';
+    const row = document.createElement('div');
+    row.className = 'match-row';
 
     const fill = document.createElement('div');
-    fill.className           = 'bar-fill';
-    fill.style.width         = `${(score * 100).toFixed(0)}%`;
-    fill.style.backgroundColor = getBarColor(score);
+    fill.className = 'match-bar-fill';
+    const fillPercent = Number.isFinite(actual) && target > 0
+      ? clamp((actual / (target * 1.2)) * 100, 0, 100)
+      : 0;
+    fill.style.width = `${fillPercent.toFixed(0)}%`;
+    fill.style.backgroundColor = getMatchBarColor(actual, target);
 
     const track = document.createElement('div');
-    track.className = 'bar-track';
+    track.className = 'match-bar-track';
     track.appendChild(fill);
+    track.insertAdjacentHTML('beforeend', '<div class="match-ceiling-line"></div>');
 
-    card.innerHTML = `<strong>${FINGER_LABELS[i]}</strong><div>Target Max: ${target.toFixed(1)}deg</div><div>Patient: ${Number.isFinite(actual) ? actual.toFixed(1) : '--'}deg</div><div>Remaining: ${diffText}</div><div>Status: ${reachedText}</div>`;
-    card.appendChild(track);
-    matchGridEl.appendChild(card);
+    row.innerHTML = `<span class="match-label">${FINGER_LABELS[i]}</span>`;
+    row.appendChild(track);
+    row.insertAdjacentHTML(
+      'beforeend',
+      `<span class="match-value">${Number.isFinite(actual) ? actual.toFixed(1) : '--'}&deg; / ${target.toFixed(1)}&deg;</span>`
+    );
+    matchGridEl.appendChild(row);
   }
 
   // ── Rep / set counting — patient_exercise.html:972 ──────────────────────

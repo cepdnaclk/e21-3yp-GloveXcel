@@ -50,13 +50,14 @@
 
   <!-- ── Patient Movement Match ───────────────────────────────────────── -->
   <section class="card match-hero">
-    <h3 class="card-title" id="matchTitle">Patient Movement Match (Preloaded Session)</h3>
+    <div class="match-legend">
+      Bar track = 120% of target. Blue line = prescribed max (100%).
+      <span class="legend approaching">&#9632;</span> Approaching
+      <span class="legend safe">&#9632;</span> Safe Zone (95-105%)
+      <span class="legend over">&#9632;</span> Over-flexion (&gt;105%)
+    </div>
     <span id="overallMatchBadge" class="pill pill-ok">Overall Match: --</span>
     <div id="matchGrid" class="match-grid"></div>
-    <p id="matchHint" class="note">
-      Bars compare patient glove movement against the preloaded doctor target in real time.
-      Green means correct movement.
-    </p>
   </section>
 
   <!-- ── Doctor Values ────────────────────────────────────────────────── -->

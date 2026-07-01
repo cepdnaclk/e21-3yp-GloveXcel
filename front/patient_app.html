@@ -639,6 +639,98 @@
     .view-namespace-live       .bar-fill   { transition: width 0.1s linear; }
     */
 
+    .view-namespace-preloaded .match-hero {
+      background: #111820;
+      border-color: transparent;
+      padding: 8px 14px 14px;
+    }
+
+    .view-namespace-preloaded .match-legend {
+      color: var(--c-ink-muted);
+      font-size: 13px;
+      line-height: 1.25;
+      margin-bottom: 14px;
+    }
+
+    .view-namespace-preloaded .match-legend .legend {
+      margin-left: 6px;
+      font-size: 10px;
+      vertical-align: 1px;
+    }
+
+    .view-namespace-preloaded .match-legend .approaching { color: #3b82f6; }
+    .view-namespace-preloaded .match-legend .safe        { color: #22c55e; }
+    .view-namespace-preloaded .match-legend .over        { color: #dc2626; }
+
+    .view-namespace-preloaded #overallMatchBadge {
+      display: none;
+    }
+
+    .view-namespace-preloaded .match-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 0;
+    }
+
+    .view-namespace-preloaded .match-row {
+      display: grid;
+      grid-template-columns: 70px minmax(180px, 1fr) 96px;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .view-namespace-preloaded .match-label {
+      color: var(--c-ink);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .view-namespace-preloaded .match-bar-track {
+      position: relative;
+      height: 14px;
+      overflow: hidden;
+      background: #1c2634;
+      border: 1px solid #2a3650;
+      border-radius: 999px;
+    }
+
+    .view-namespace-preloaded .match-bar-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.12s linear, background-color 0.18s ease;
+    }
+
+    .view-namespace-preloaded .match-ceiling-line {
+      position: absolute;
+      top: -3px;
+      left: 83.33%;
+      width: 2px;
+      height: calc(100% + 6px);
+      background: rgba(78, 142, 247, 0.85);
+      pointer-events: none;
+    }
+
+    .view-namespace-preloaded .match-value {
+      color: #22c55e;
+      font-size: 15px;
+      font-weight: 800;
+      text-align: right;
+    }
+
+    @media (max-width: 640px) {
+      .view-namespace-preloaded .match-row {
+        grid-template-columns: 58px minmax(90px, 1fr) 82px;
+        gap: 8px;
+      }
+
+      .view-namespace-preloaded .match-label,
+      .view-namespace-preloaded .match-value {
+        font-size: 13px;
+      }
+    }
+
   </style>
   <!-- MQTT client for publishing live glove telemetry from the patient app -->
   <script src="./js/mqtt.min.js"></script>

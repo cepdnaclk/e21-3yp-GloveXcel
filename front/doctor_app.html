@@ -96,6 +96,58 @@
       box-shadow: 0 0 12px rgba(78, 142, 247, 0.4);
     }
 
+    .doctor-profile-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      margin: -22px 0 28px;
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--c-border);
+      background: rgba(28, 34, 48, 0.78);
+    }
+
+    .doctor-profile-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--c-brand), #8b5cf6);
+      box-shadow: 0 0 0 2px rgba(78, 142, 247, 0.18);
+    }
+
+    .doctor-profile-meta {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .doctor-profile-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-text-muted);
+    }
+
+    .doctor-profile-name {
+      max-width: 172px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
     .nav-menu {
       display: flex;
       flex-direction: column;
@@ -369,6 +421,14 @@
         Doctor Dashboard
       </div>
 
+      <div class="doctor-profile-chip" id="doctorProfileChip" title="Logged-in doctor">
+        <span class="doctor-profile-avatar" id="doctorProfileAvatar" aria-hidden="true">D</span>
+        <span class="doctor-profile-meta">
+          <span class="doctor-profile-label">Doctor</span>
+          <span class="doctor-profile-name" id="doctorProfileName">Doctor</span>
+        </span>
+      </div>
+
       <nav class="nav-menu" aria-label="Main navigation">
         <button class="nav-btn" data-route="doctor-patients">Patients</button>
         <button class="nav-btn" data-route="doctor-setup">Setup & Calibration</button>
@@ -403,27 +463,51 @@
     import { ThreeEngine } from './js/threeEngine.js';
     import { createRouter } from './js/router.js';
 
+    function getDoctorSession() {
+      const role = String(localStorage.getItem('auth_role') || '').trim().toLowerCase();
+      let profile = null;
+
+      try {
+        profile = JSON.parse(localStorage.getItem('auth_profile') || 'null');
+      } catch {
+        profile = null;
+      }
+
+      if (role !== 'doctor' || !profile?.doctor_id) {
+        return null;
+      }
+
+      return profile;
+    }
+
+    function getInitials(name) {
+      const parts = String(name || 'Doctor').trim().split(/\s+/).filter(Boolean);
+      const initials = parts.slice(0, 2).map(part => part[0]).join('');
+      return initials.toUpperCase() || 'D';
+    }
+
+    function renderDoctorProfile(profile) {
+      const doctorName = profile.name || profile.email || profile.doctor_id || 'Doctor';
+      const profileNameEl = document.getElementById('doctorProfileName');
+      const profileAvatarEl = document.getElementById('doctorProfileAvatar');
+      const profileChipEl = document.getElementById('doctorProfileChip');
+
+      if (profileNameEl) profileNameEl.textContent = doctorName;
+      if (profileAvatarEl) profileAvatarEl.textContent = getInitials(doctorName);
+      if (profileChipEl) {
+        profileChipEl.title = `${doctorName} (${profile.doctor_id})`;
+      }
+
+      localStorage.setItem('doctorId', profile.doctor_id);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-      const authRole = String(localStorage.getItem('auth_role') || '').trim().toLowerCase();
-      if (authRole && !['doctor', 'admin'].includes(authRole)) {
-        const viewContainer = document.getElementById('view-container');
-        if (viewContainer) {
-          viewContainer.innerHTML = `
-            <div class="view-header">
-              <h2 class="view-title">Doctor Dashboard</h2>
-              <p class="view-subtitle">Please login as a doctor to use this dashboard.</p>
-            </div>
-            <div class="panel">
-              <div class="panel-title">Wrong login session</div>
-              <p style="color:var(--c-danger);margin:0 0 16px;">
-                This browser is currently logged in as ${authRole}. Doctor pages need a doctor account.
-              </p>
-              <a class="btn-primary" href="./login.html" style="display:inline-flex;text-decoration:none;">Go to Login</a>
-            </div>
-          `;
-        }
+      const doctorProfile = getDoctorSession();
+      if (!doctorProfile) {
+        window.location.replace('./login.html');
         return;
       }
+      renderDoctorProfile(doctorProfile);
 
       // 1. Initialize Singletons
       const viewContainer = document.getElementById('view-container');

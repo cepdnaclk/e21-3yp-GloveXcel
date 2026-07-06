@@ -22,7 +22,6 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 const FINGER_LABELS     = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const FINGER_KEYS       = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const PATIENT_CALIB_KEY = 'patientCalibrationV1';
-const LIVE_EXERCISE_DOCTOR_ID = 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
 
 // ─── Module-level mutable state ───────────────────────────────────────────────
 let _state     = null;
@@ -49,6 +48,7 @@ let mqttToggleBtn;
 let _liveExercises = [];
 let _selectedLiveExercise = null;
 let _latestPatientPacket = [0, 0, 0, 0, 0];
+let _doctorNameById = new Map();
 
 // MQTT publisher state (initialized when user clicks MQTT button)
 let _mqttClient = null;
@@ -162,7 +162,6 @@ async function hydratePatientCalibrationFromDatabase() {
       { headers: _state.getAuthHeaders() }
     );
     
-    let is404 = resp.status === 404;
     let doc = null;
     if (resp.ok) {
       doc = await resp.json();
@@ -176,17 +175,7 @@ async function hydratePatientCalibrationFromDatabase() {
       return minAllZero && maxAllZero;
     };
 
-    if (is404 || isCalibrationEmpty(doc)) {
-      const fallbackResp = await fetch(
-        `${_state.apiBase}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`,
-        { headers: _state.getAuthHeaders() }
-      );
-      if (fallbackResp.ok) {
-        doc = await fallbackResp.json();
-      }
-    }
-
-    if (!doc) return;
+    if (!doc || isCalibrationEmpty(doc)) return;
 
     const min  = doc?.min || {};
     const max  = doc?.max || {};
@@ -226,8 +215,8 @@ async function fetchAndApplyForce() {
   try {
     const apiBase = _state.apiBase;
     const headers = _state.getAuthHeaders();
-    const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
-    const resp = await fetch(`${apiBase}/api/forces?patient_id=${patientId}`, { headers });
+    const patientId = _state.patientId;
+    const resp = await fetch(`${apiBase}/api/forces?patient_id=${encodeURIComponent(patientId)}`, { headers });
     
     if (resp.status === 404) {
       if (liveForceStatusEl) {
@@ -287,6 +276,46 @@ function formatAngle(value) {
   return Number.isFinite(value) ? `${value.toFixed(1)}deg` : '--';
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatExerciseDate(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+function liveExerciseDateFromId(exerciseId) {
+  const match = String(exerciseId || '').match(/^live_ex_(\d+)/);
+  if (!match) return null;
+  return formatExerciseDate(Number(match[1]));
+}
+
+function liveExerciseName(exercise) {
+  const savedName = exercise?.exercise_name || exercise?.description || '';
+  if (savedName && savedName !== 'Live Exercise Snapshot') return savedName;
+
+  const dateLabel = formatExerciseDate(exercise?.capturedAt || exercise?.createdAt)
+    || liveExerciseDateFromId(exercise?.exercise_id);
+  return dateLabel ? `Live Exercise - ${dateLabel}` : 'Live Exercise';
+}
+
+function doctorDisplayName(doctorId) {
+  if (!doctorId) return '--';
+  return _doctorNameById.get(doctorId) || doctorId;
+}
+
 function getPacketAngles(packet) {
   return FINGER_KEYS.map((_, index) => {
     const raw = Number(packet?.[index]);
@@ -311,7 +340,7 @@ function renderPatientLiveExercises(exercises) {
   if (!patientLiveExercisesListEl) return;
 
   if (!Array.isArray(exercises) || exercises.length === 0) {
-    patientLiveExercisesListEl.textContent = 'No live exercises found for this doctor.';
+    patientLiveExercisesListEl.textContent = 'No live exercises found for this patient.';
     if (patientLiveExerciseSelectEl) {
       patientLiveExerciseSelectEl.innerHTML = '<option value="">-- No live exercises found --</option>';
       patientLiveExerciseSelectEl.disabled = true;
@@ -326,7 +355,7 @@ function renderPatientLiveExercises(exercises) {
     exercises.forEach((exercise) => {
       const option = document.createElement('option');
       option.value = exercise.exercise_id;
-      option.textContent = exercise.exercise_id || 'Live Exercise';
+      option.textContent = liveExerciseName(exercise);
       patientLiveExerciseSelectEl.appendChild(option);
     });
   }
@@ -340,32 +369,12 @@ function renderPatientLiveExercises(exercises) {
     }
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', `Select live exercise ${exercise.exercise_id || ''}`);
-
-    const captured = exercise.capturedAt || exercise.createdAt
-      ? new Date(exercise.capturedAt || exercise.createdAt).toLocaleString()
-      : '--';
-
-    const values = FINGER_KEYS.map((key, index) => {
-      const finger = exercise.fingers?.[key] || {};
-      const angle = Number.isFinite(Number(finger.angle))
-        ? Number(finger.angle)
-        : Number(exercise.live_angles?.[key]);
-      const min = Number.isFinite(Number(finger.min))
-        ? Number(finger.min)
-        : Number(exercise.min_angles?.[key]);
-      const max = Number.isFinite(Number(finger.max))
-        ? Number(finger.max)
-        : Number(exercise.max_angles?.[key]);
-      const raw = exercise.raw_values?.[key];
-      return `<div>${FINGER_LABELS[index]}: raw ${Number.isFinite(Number(raw)) ? raw : '--'}, angle ${formatAngle(angle)}, min ${formatAngle(min)}, max ${formatAngle(max)}</div>`;
-    }).join('');
+    const exerciseName = liveExerciseName(exercise);
+    card.setAttribute('aria-label', `Select live exercise ${exerciseName}`);
 
     card.innerHTML = `
-      <strong>${exercise.exercise_id || 'Live Exercise'}</strong>
-      <div>Doctor: ${exercise.doctor_id || '--'}</div>
-      <div>Captured: ${captured}</div>
-      <div class="live-exercise-values">${values}</div>
+      <strong>${escapeHtml(exerciseName)}</strong>
+      <div>Doctor: ${escapeHtml(doctorDisplayName(exercise.doctor_id))}</div>
     `;
     card.addEventListener('click', () => selectLiveExercise(exercise.exercise_id));
     card.addEventListener('keydown', (event) => {
@@ -430,14 +439,35 @@ function renderSelectedLiveExerciseSliders() {
   });
 }
 
+async function hydrateDoctorNames() {
+  try {
+    const resp = await fetch(`${_state.apiBase}/api/auth/doctors`, {
+      headers: _state.getAuthHeaders()
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data = await resp.json();
+    _doctorNameById = new Map(
+      (Array.isArray(data.doctors) ? data.doctors : [])
+        .filter(doctor => doctor.doctor_id)
+        .map(doctor => [doctor.doctor_id, doctor.name || doctor.doctor_id])
+    );
+  } catch (error) {
+    console.warn('[LiveCtrl] Failed to load doctor names:', error);
+    _doctorNameById = new Map();
+  }
+}
+
 async function loadPatientLiveExercises() {
   if (!patientLiveExercisesListEl) return;
 
   patientLiveExercisesListEl.textContent = 'Loading live exercises...';
 
   try {
+    await hydrateDoctorNames();
+
     const resp = await fetch(
-      `${_state.apiBase}/api/live-exercises?doctor_id=${encodeURIComponent(LIVE_EXERCISE_DOCTOR_ID)}`,
+      `${_state.apiBase}/api/live-exercises?patient_id=${encodeURIComponent(_state.patientId)}`,
       { headers: _state.getAuthHeaders() }
     );
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -831,6 +861,7 @@ export function unmount() {
   patientLiveExercisesListEl = patientLiveExerciseSelectEl = patientLiveExerciseSliderGridEl = null;
   _liveExercises = [];
   _selectedLiveExercise = null;
+  _doctorNameById = new Map();
   _latestPatientPacket = [0, 0, 0, 0, 0];
   _container = null;
 }

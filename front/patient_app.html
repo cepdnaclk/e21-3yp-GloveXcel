@@ -97,6 +97,58 @@
 
     .header-spacer { flex: 1; }
 
+    .patient-profile-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+      padding: 5px 12px 5px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--c-border);
+      background: rgba(28, 34, 48, 0.9);
+      color: var(--c-ink);
+    }
+
+    .patient-profile-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 800;
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--c-brand), #8b5cf6);
+      box-shadow: 0 0 0 2px rgba(78, 142, 247, 0.18);
+    }
+
+    .patient-profile-meta {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.1;
+    }
+
+    .patient-profile-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-ink-muted);
+    }
+
+    .patient-profile-name {
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--c-ink);
+    }
+
     /* BLE connection status pill */
     #ble-pill {
       display: inline-flex;
@@ -532,6 +584,27 @@
     }
 
     @media (max-width: 780px) {
+      #app-header {
+        gap: 8px;
+        padding: 0 12px;
+      }
+
+      .header-subtitle {
+        display: none;
+      }
+
+      .patient-profile-chip {
+        padding-right: 8px;
+      }
+
+      .patient-profile-label {
+        display: none;
+      }
+
+      .patient-profile-name {
+        max-width: 92px;
+      }
+
       #app-body {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr auto;
@@ -738,6 +811,14 @@
     <span class="header-subtitle">Patient Console</span>
     <div class="header-spacer"></div>
 
+    <div class="patient-profile-chip" id="patientProfileChip" title="Logged-in patient">
+      <span class="patient-profile-avatar" id="patientProfileAvatar" aria-hidden="true">P</span>
+      <span class="patient-profile-meta">
+        <span class="patient-profile-label">Patient</span>
+        <span class="patient-profile-name" id="patientProfileName">Patient</span>
+      </span>
+    </div>
+
     <!-- Global BLE connection status pill -->
     <div id="ble-pill" role="status" aria-live="polite" aria-label="BLE connection status">
       <span class="ble-dot"></span>
@@ -843,6 +924,51 @@
     import { GloveState }   from './js/gloveState.js';
     import { ThreeEngine }  from './js/threeEngine.js';
     import { createRouter } from './js/router.js';
+
+    function getPatientSession() {
+      const role = localStorage.getItem('auth_role');
+      let profile = null;
+
+      try {
+        profile = JSON.parse(localStorage.getItem('auth_profile') || 'null');
+      } catch {
+        profile = null;
+      }
+
+      if (role !== 'patient' || !profile?.patient_id) {
+        return null;
+      }
+
+      return profile;
+    }
+
+    function getInitials(name) {
+      const parts = String(name || 'Patient').trim().split(/\s+/).filter(Boolean);
+      const initials = parts.slice(0, 2).map(part => part[0]).join('');
+      return initials.toUpperCase() || 'P';
+    }
+
+    function renderPatientProfile(profile) {
+      const patientName = profile.name || profile.email || profile.patient_id || 'Patient';
+      const profileNameEl = document.getElementById('patientProfileName');
+      const profileAvatarEl = document.getElementById('patientProfileAvatar');
+      const profileChipEl = document.getElementById('patientProfileChip');
+
+      if (profileNameEl) profileNameEl.textContent = patientName;
+      if (profileAvatarEl) profileAvatarEl.textContent = getInitials(patientName);
+      if (profileChipEl) {
+        profileChipEl.title = `${patientName} (${profile.patient_id})`;
+      }
+
+      localStorage.setItem('patientId', profile.patient_id);
+    }
+
+    const patientProfile = getPatientSession();
+    if (!patientProfile) {
+      window.location.replace('./login.html');
+      throw new Error('Patient login required.');
+    }
+    renderPatientProfile(patientProfile);
 
     // ── 1. Initialise the WebGL engine inside #canvas-wrapper ───────────
     //    (Builds the scene, loads the GLB, starts the rAF loop — all once.)

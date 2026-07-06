@@ -9,14 +9,17 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 
 const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+const SELECTED_PATIENT_KEY = 'doctorSelectedPatient';
 
 let _state = null;
 let _engine = null;
 let _container = null;
+let _selectedPatient = null;
 
 let fallbackPatientCalib = null;
 
 // DOM refs
+let liveAssessmentTitle, liveAssessmentSubtitle;
 let defaultTargetInput, setDoctorTargetBtn, resetLiveTargetBtn, setTargetToast;
 let targetSourceLabel, repSetStatus, resetRepsBtn;
 let matchGrid, peakGrid;
@@ -60,11 +63,52 @@ function rawToAngle(rawValue, minValue, maxValue) {
   return clamp(t * 90, 0, 90);
 }
 
+function getSelectedPatient() {
+  try {
+    const patient = JSON.parse(localStorage.getItem(SELECTED_PATIENT_KEY) || 'null');
+    return patient?.patient_id ? patient : null;
+  } catch {
+    return null;
+  }
+}
+
+function getSelectedPatientId() {
+  return _selectedPatient?.patient_id || '';
+}
+
+function selectedPatientLabel() {
+  if (!_selectedPatient) return '';
+  return _selectedPatient.name || _selectedPatient.patient_id;
+}
+
+function patientDisplayName(patientId = getSelectedPatientId()) {
+  if (_selectedPatient?.patient_id === patientId) {
+    return _selectedPatient.name || _selectedPatient.patient_id;
+  }
+  return patientId || '--';
+}
+
+function updateSelectedPatientHeader() {
+  if (!liveAssessmentTitle || !liveAssessmentSubtitle) return;
+
+  if (_selectedPatient) {
+    const label = selectedPatientLabel();
+    liveAssessmentTitle.textContent = `Live Assessment (Patient - ${label})`;
+    liveAssessmentSubtitle.textContent = `Monitoring live exercise data for ${label} (${_selectedPatient.patient_id}).`;
+    return;
+  }
+
+  liveAssessmentTitle.textContent = 'Live Assessment';
+  liveAssessmentSubtitle.textContent = 'Patient compliance monitor and peak detection. Driven by doctor\'s physical glove stream.';
+}
+
 async function fetchFallbackPatientCalibration() {
   try {
+    const patientId = getSelectedPatientId();
+    if (!patientId) return;
     const apiBase = _state.apiBase;
     const headers = _state.getAuthHeaders();
-    const resp = await fetch(`${apiBase}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`, { headers });
+    const resp = await fetch(`${apiBase}/api/patient-cal/${encodeURIComponent(patientId)}`, { headers });
     if (resp.ok) {
       const doc = await resp.json();
       const min = doc?.min || {};
@@ -85,7 +129,8 @@ async function fetchCurrentForceLevel() {
   try {
     const apiBase = _state.apiBase;
     const headers = _state.getAuthHeaders();
-    const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
+    const patientId = getSelectedPatientId();
+    if (!patientId) return;
     const resp = await fetch(`${apiBase}/api/forces?patient_id=${patientId}`, { headers });
     if (resp.ok) {
       const data = await resp.json();
@@ -147,6 +192,27 @@ function generateLiveExerciseId() {
   return `live_ex_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function formatExerciseDate(value) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return 'Live Exercise';
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+function createLiveExerciseName(capturedAt) {
+  return `Live Exercise - ${formatExerciseDate(capturedAt)}`;
+}
+
+function liveExerciseDisplayName(exercise) {
+  const savedName = exercise?.exercise_name || exercise?.description || '';
+  if (savedName && savedName !== 'Live Exercise Snapshot') return savedName;
+  return createLiveExerciseName(exercise?.capturedAt || exercise?.createdAt);
+}
+
 function formatAngle(value) {
   return Number.isFinite(value) ? `${value.toFixed(1)}°` : '--';
 }
@@ -168,11 +234,17 @@ function buildLiveExerciseDraft() {
     };
   });
 
+  const capturedAt = new Date().toISOString();
+  const exerciseName = createLiveExerciseName(capturedAt);
+
   return {
     exercise_id: generateLiveExerciseId(),
+    exercise_name: exerciseName,
+    description: exerciseName,
     doctor_id: getDoctorId(),
+    patient_id: getSelectedPatientId(),
     fingers,
-    capturedAt: new Date().toISOString()
+    capturedAt
   };
 }
 
@@ -208,7 +280,7 @@ function renderLiveExerciseDraft() {
   if (!liveExerciseDraftEl || !saveLiveExerciseBtn) return;
 
   if (!liveExerciseDraft) {
-    liveExerciseDraftEl.textContent = 'No live exercise created yet.';
+    liveExerciseDraftEl.textContent = 'No live exercise snapshot created yet.';
     saveLiveExerciseBtn.disabled = true;
     return;
   }
@@ -218,7 +290,7 @@ function renderLiveExerciseDraft() {
     return `${FINGER_LABELS[index]} raw ${finger.raw}, min ${formatAngle(finger.min)}, max ${formatAngle(finger.max)}, angle ${formatAngle(finger.angle)}`;
   }).join(' | ');
 
-  liveExerciseDraftEl.textContent = `Ready to save ${liveExerciseDraft.exercise_id}: ${summary}`;
+  liveExerciseDraftEl.textContent = `Ready to save live exercise snapshot for ${patientDisplayName(liveExerciseDraft.patient_id)}: ${summary}`;
   saveLiveExerciseBtn.disabled = false;
 }
 
@@ -242,9 +314,10 @@ function renderLiveExerciseList() {
 
     li.innerHTML = `
       <div class="live-exercise-list-item-head">
-        <strong>${exercise.exercise_id}</strong>
+        <strong>${liveExerciseDisplayName(exercise)}</strong>
         <button class="live-exercise-delete-btn" type="button" data-exercise-id="${exercise.exercise_id}">Delete</button>
       </div>
+      <div>Patient: ${patientDisplayName(exercise.patient_id)}</div>
       <div>Saved: ${created}</div>
       <div>${maxSummary}</div>
     `;
@@ -282,7 +355,13 @@ async function loadLiveExercises() {
 
   try {
     const doctorId = getDoctorId();
-    const resp = await fetch(`${_state.apiBase}/api/live-exercises?doctor_id=${encodeURIComponent(doctorId)}`, {
+    const patientId = getSelectedPatientId();
+    if (!patientId) {
+      liveExercises = [];
+      liveExerciseListEl.innerHTML = '<li>Select a patient from My Patients to view saved live exercises.</li>';
+      return;
+    }
+    const resp = await fetch(`${_state.apiBase}/api/live-exercises?doctor_id=${encodeURIComponent(doctorId)}&patient_id=${encodeURIComponent(patientId)}`, {
       headers: _state.getAuthHeaders()
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -439,8 +518,11 @@ export function mount(container, gloveState, threeEngine) {
   _container = container;
   _state = gloveState;
   _engine = threeEngine;
+  _selectedPatient = getSelectedPatient();
   
   // DOM Bindings
+  liveAssessmentTitle = container.querySelector('#liveAssessmentTitle');
+  liveAssessmentSubtitle = container.querySelector('#liveAssessmentSubtitle');
   defaultTargetInput = container.querySelector('#defaultTargetInput');
   setDoctorTargetBtn = container.querySelector('#setDoctorTargetBtn');
   resetLiveTargetBtn = container.querySelector('#resetLiveTargetBtn');
@@ -471,6 +553,7 @@ export function mount(container, gloveState, threeEngine) {
   applyForceBtn          = container.querySelector('#applyForceBtn');
   liveForceStatus        = container.querySelector('#liveForceStatus');
 
+  updateSelectedPatientHeader();
   initGrids();
   renderCalibrationBanner();
   activeDoctorTargets = Array(5).fill(getDefaultTarget());
@@ -514,12 +597,20 @@ export function mount(container, gloveState, threeEngine) {
   });
 
   createLiveExerciseBtn?.addEventListener('click', () => {
+    if (!getSelectedPatientId()) {
+      alert('Please select a patient from My Patients before creating a live exercise.');
+      return;
+    }
     liveExerciseDraft = buildLiveExerciseDraft();
     renderLiveExerciseDraft();
   });
 
   saveLiveExerciseBtn?.addEventListener('click', async () => {
     if (!liveExerciseDraft) return;
+    if (!getSelectedPatientId()) {
+      alert('Please select a patient from My Patients before saving a live exercise.');
+      return;
+    }
 
     saveLiveExerciseBtn.disabled = true;
     try {
@@ -779,8 +870,12 @@ export function mount(container, gloveState, threeEngine) {
       liveForceStatus.style.color = 'var(--c-warn)';
     }
 
-    const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
-    const doctorId = localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
+    const patientId = getSelectedPatientId();
+    if (!patientId) {
+      alert('Please select a patient from My Patients before applying force.');
+      return;
+    }
+    const doctorId = getDoctorId();
     const exerciseId = `ex_live_force_${Date.now()}`;
 
     // 1. Create realtime exercise in the database
@@ -855,6 +950,7 @@ export function unmount() {
     _engine.clearPose();
   }
   
+  liveAssessmentTitle = liveAssessmentSubtitle = null;
   defaultTargetInput = setDoctorTargetBtn = resetLiveTargetBtn = setTargetToast = null;
   targetSourceLabel = repSetStatus = resetRepsBtn = null;
   matchGrid = peakGrid = null;
@@ -864,6 +960,7 @@ export function unmount() {
   mqttRawMinInput = mqttRawMaxInput = mqttDriveModelCheckbox = null;
   liveForceLevelInput = applyForceBtn = liveForceStatus = null;
   fallbackPatientCalib = null;
+  _selectedPatient = null;
   currentRawValues = [0, 0, 0, 0, 0];
   liveExerciseDraft = null;
   liveExercises = [];

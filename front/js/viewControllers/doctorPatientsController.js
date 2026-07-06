@@ -2,6 +2,7 @@ let _container = null;
 let _state = null;
 let requestsListEl = null;
 let patientsListEl = null;
+const SELECTED_PATIENT_KEY = 'doctorSelectedPatient';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -25,6 +26,16 @@ function patientMeta(item) {
   ].filter(Boolean);
 
   return parts.map(escapeHtml).join('<br>');
+}
+
+function patientContext(item) {
+  return {
+    patient_id: item.patient_id || '',
+    name: patientName(item),
+    email: item.patient_email || item.email || '',
+    age: item.patient_age ?? item.age ?? '',
+    hospital: item.hospital_name || item.primary_hospital_id || ''
+  };
 }
 
 function formatDate(value) {
@@ -91,13 +102,49 @@ function renderPatients(patients) {
 
   patientsListEl.innerHTML = patients.map((patient) => `
     <article class="patient-card">
-      <div class="patient-name">${escapeHtml(patientName(patient))}</div>
-      <div class="patient-meta">
-        ${patientMeta(patient)}
-        <br>Approved: ${escapeHtml(formatDate(patient.responded_at))}
+      <div class="patient-card-header">
+        <div>
+          <div class="patient-name">${escapeHtml(patientName(patient))}</div>
+          <div class="patient-meta">
+            ${patientMeta(patient)}
+            <br>Approved: ${escapeHtml(formatDate(patient.responded_at))}
+          </div>
+        </div>
+        <div class="request-actions">
+          <button
+            class="btn-primary patient-action-btn"
+            type="button"
+            data-route="doctor-preloaded"
+            data-patient="${escapeHtml(JSON.stringify(patientContext(patient)))}"
+          >
+            Build Exercise
+          </button>
+          <button
+            class="btn-secondary patient-action-btn"
+            type="button"
+            data-route="doctor-live"
+            data-patient="${escapeHtml(JSON.stringify(patientContext(patient)))}"
+          >
+            Live Exercise
+          </button>
+        </div>
       </div>
     </article>
   `).join('');
+
+  patientsListEl.querySelectorAll('.patient-action-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      try {
+        const patient = JSON.parse(button.dataset.patient || '{}');
+        if (patient.patient_id) {
+          localStorage.setItem(SELECTED_PATIENT_KEY, JSON.stringify(patient));
+        }
+      } catch (error) {
+        console.warn('[DoctorPatients] Failed to store selected patient:', error);
+      }
+      window.dispatchEvent(new CustomEvent('spa:navigate', { detail: { route: button.dataset.route } }));
+    });
+  });
 }
 
 async function loadDoctorPatients() {

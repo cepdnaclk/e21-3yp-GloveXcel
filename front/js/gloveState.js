@@ -18,7 +18,6 @@ import { BleGloveClient } from './bleGloveClient.js';
 const PATIENT_CALIB_KEY      = 'patientCalibrationV1';
 const PATIENT_ID_STORAGE_KEY = 'patientId';
 const AUTH_TOKEN_STORAGE_KEY = 'auth_token';
-const DEFAULT_PATIENT_ID     = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
 const LEGACY_PATIENT_ID      = 'patient_003';
 const CROSS_PAGE_CHANNEL_KEY = 'patientCrossPageV1';
 const DOCTOR_CALIB_KEY_V2    = 'doctorCalibrationV2';
@@ -85,7 +84,7 @@ class GlobalGloveState {
     const storedPatientId = localStorage.getItem(PATIENT_ID_STORAGE_KEY);
     return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID
       ? storedPatientId
-      : DEFAULT_PATIENT_ID;
+      : '';
   }
 
   /** Expose the channel so controllers can check if cross-page sync is active */
@@ -95,7 +94,49 @@ class GlobalGloveState {
 
   getAuthHeaders() {
     const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    if (!token || !this._isAuthTokenForCurrentSession(token)) {
+      return {};
+    }
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  _decodeJwtPayload(token) {
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+      return JSON.parse(atob(padded));
+    } catch {
+      return null;
+    }
+  }
+
+  _isAuthTokenForCurrentSession(token) {
+    const payload = this._decodeJwtPayload(token);
+    if (!payload) return false;
+
+    if (payload.exp && payload.exp * 1000 <= Date.now()) {
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      return false;
+    }
+
+    let profile = {};
+    try {
+      profile = JSON.parse(localStorage.getItem('auth_profile') || '{}');
+    } catch {
+      profile = {};
+    }
+
+    const role = String(localStorage.getItem('auth_role') || '').trim().toLowerCase();
+    const tokenRole = String(payload.role || '').trim().toLowerCase();
+    if (role && tokenRole && role !== tokenRole) return false;
+
+    if (role === 'patient') return payload.sub === profile.patient_id;
+    if (role === 'doctor') return payload.sub === profile.doctor_id;
+    if (role === 'admin') return payload.sub === profile.admin_id;
+
+    return true;
   }
 
   // ── Calibration helpers ───────────────────────────────────────────────────
@@ -149,7 +190,6 @@ class GlobalGloveState {
         { headers: this.getAuthHeaders() }
       );
       
-      let is404 = resp.status === 404;
       let doc = null;
       if (resp.ok) {
         doc = await resp.json();
@@ -163,17 +203,7 @@ class GlobalGloveState {
         return minAllZero && maxAllZero;
       };
 
-      if (is404 || isCalibrationEmpty(doc)) {
-        const fallbackResp = await fetch(
-          `${this.apiBase}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`,
-          { headers: this.getAuthHeaders() }
-        );
-        if (fallbackResp.ok) {
-          doc = await fallbackResp.json();
-        }
-      }
-
-      if (!doc) return;
+      if (!doc || isCalibrationEmpty(doc)) return;
 
       const min  = doc?.min || {};
       const max  = doc?.max || {};

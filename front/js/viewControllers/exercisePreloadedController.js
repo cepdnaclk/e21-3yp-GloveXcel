@@ -259,7 +259,6 @@ async function hydratePatientCalibrationFromDatabase() {
       { headers: _state.getAuthHeaders() }
     );
     
-    let is404 = resp.status === 404;
     let doc = null;
     if (resp.ok) {
       doc = await resp.json();
@@ -273,17 +272,7 @@ async function hydratePatientCalibrationFromDatabase() {
       return minAllZero && maxAllZero;
     };
 
-    if (is404 || isCalibrationEmpty(doc)) {
-      const fallbackResp = await fetch(
-        `${_state.apiBase}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`,
-        { headers: _state.getAuthHeaders() }
-      );
-      if (fallbackResp.ok) {
-        doc = await fallbackResp.json();
-      }
-    }
-
-    if (!doc) return;
+    if (!doc || isCalibrationEmpty(doc)) return;
 
     const min    = doc?.min || {};
     const max    = doc?.max || {};
@@ -328,10 +317,14 @@ async function loadExercisesForPatient() {
   exerciseSelectEl.disabled  = true;
 
   try {
-    const resp = await fetch(
-      `${_state.apiBase}/api/exercises?patient_id=${encodeURIComponent(_state.patientId)}`,
-      { headers: _state.getAuthHeaders() }
-    );
+    const url = `${_state.apiBase}/api/exercises?patient_id=${encodeURIComponent(_state.patientId)}`;
+    let resp = await fetch(url, { headers: _state.getAuthHeaders() });
+
+    if (resp.status === 401 || resp.status === 403) {
+      localStorage.removeItem('auth_token');
+      resp = await fetch(url);
+    }
+
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
     const data      = await resp.json();

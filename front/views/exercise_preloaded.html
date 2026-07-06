@@ -53,39 +53,6 @@
     <div id="matchGrid" class="match-grid"></div>
   </section>
 
-  <!-- ── Doctor Values ────────────────────────────────────────────────── -->
-  <section class="card" id="doctorValuesSection">
-    <h3 class="card-title">Doctor Values (From Database)</h3>
-    <div class="actions">
-      <label for="levelSelect">Doctor Level</label>
-      <select id="levelSelect" aria-label="Doctor difficulty level">
-        <option value="1">Level 1</option>
-        <option value="2">Level 2</option>
-        <option value="3">Level 3</option>
-        <option value="4">Level 4</option>
-        <option value="5">Level 5</option>
-        <option value="6">Level 6</option>
-      </select>
-
-      <label for="cycleMsInput">Loop Cycle (ms)</label>
-      <input id="cycleMsInput" type="number" min="1000" max="10000" step="100" value="3200"
-             aria-label="Loop cycle duration in milliseconds" />
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Finger</th>
-          <th>Doctor Calib Min</th>
-          <th>Doctor Calib Max</th>
-          <th>Exercise Max Angle</th>
-        </tr>
-      </thead>
-      <tbody id="doctorDataBody"></tbody>
-    </table>
-    <p id="levelInfo" class="note">Selected doctor level target angle: 0deg.</p>
-  </section>
-
   <!-- ── Loop Control ─────────────────────────────────────────────────── -->
   <section class="card" id="loopControlSection">
     <h3 class="card-title">Loop Control</h3>

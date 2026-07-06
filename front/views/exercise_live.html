@@ -22,10 +22,8 @@
   <section class="card" id="liveDataSourceSection">
     <h3 class="card-title">Glove &amp; Data Source</h3>
     <div class="actions">
-      <button id="liveConnectGloveBtn" type="button">Connect Patient Glove</button>
-      <button id="mqttToggleBtn" type="button" class="btn-secondary">MQTT</button>
+      <button id="mqttToggleBtn" type="button" class="btn-secondary">Share Live Data</button>
       <button id="liveLoadCalibBtn" class="btn-secondary" type="button">Load Patient Calibration</button>
-      <button id="fetchForceBtn" class="btn-secondary" type="button">Fetch Force</button>
     </div>
     <p id="liveGloveStatus" class="note">Patient glove status: Not connected.</p>
     <p id="liveCalibStatus" class="note">Patient calibration status: Not loaded.</p>
@@ -71,17 +69,12 @@
       <select id="patientLiveExerciseSelect" aria-label="Select live exercise">
         <option value="">-- Loading live exercises... --</option>
       </select>
+      <button id="fetchForceBtn" class="btn-secondary" type="button">Fetch Force</button>
     </div>
     <div id="patientLiveExercisesList" class="live-exercises-list">
       Loading live exercises...
     </div>
     <div class="live-exercise-target">
-      <p class="note">
-        Bar track = selected exercise max. Full bar = prescribed max (100%).
-        <span style="color:#3b82f6;">■</span> Approaching&nbsp;
-        <span style="color:#22c55e;">■</span> Safe Zone (95-105%)&nbsp;
-        <span style="color:#dc2626;">■</span> Over-flexion (&gt;105%)
-      </p>
       <div id="patientLiveExerciseSliderGrid" class="live-exercise-slider-grid">
         Select a live exercise to compare patient movement.
       </div>

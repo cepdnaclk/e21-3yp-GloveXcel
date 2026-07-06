@@ -30,10 +30,20 @@ const ROUTES = {
     controller: () => import('./viewControllers/exerciseLiveController.js'),
     label:      'Live Session',
   },
+  doctors: {
+    template:   './views/doctors.html',
+    controller: () => import('./viewControllers/doctorsController.js'),
+    label:      'Doctors',
+  },
   'doctor-setup': {
     template:   './views/doctor_setup.html',
     controller: () => import('./viewControllers/doctorSetupController.js'),
     label:      'Doctor Setup',
+  },
+  'doctor-patients': {
+    template:   './views/doctor_patients.html',
+    controller: () => import('./viewControllers/doctorPatientsController.js'),
+    label:      'Patients',
   },
   'doctor-preloaded': {
     template:   './views/doctor_preloaded.html',
@@ -57,7 +67,7 @@ const ROUTES = {
  * @param {object}      threeEngine    — ThreeEngine singleton
  * @returns {{ go(route: string): void, initial(): void, routes: object }}
  */
-export function createRouter(viewContainer, gloveState, threeEngine) {
+export function createRouter(viewContainer, gloveState, threeEngine, defaultRoute = 'calibration') {
   let _currentController = null;
   let _isNavigating      = false;
 
@@ -143,7 +153,7 @@ export function createRouter(viewContainer, gloveState, threeEngine) {
 
   // ── Browser back / forward ─────────────────────────────────────────────────
   window.addEventListener('popstate', (event) => {
-    const key = event.state?.route || _hashRoute() || 'calibration';
+    const key = event.state?.route || _hashRoute() || defaultRoute;
     navigate(key);
   });
 
@@ -189,10 +199,10 @@ export function createRouter(viewContainer, gloveState, threeEngine) {
     go(routeKey) { navigate(routeKey); },
 
     /**
-     * Navigate to the route encoded in the URL hash, or to 'calibration' if none.
+     * Navigate to the route encoded in the URL hash, or to the configured default.
      * Call this once on app startup.
      */
-    initial() { navigate(_hashRoute() || 'calibration'); },
+    initial() { navigate(_hashRoute() || defaultRoute); },
 
     /** Read-only access to the route map (useful for building nav dynamically). */
     get routes() { return ROUTES; },

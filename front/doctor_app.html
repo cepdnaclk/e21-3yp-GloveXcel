@@ -370,6 +370,7 @@
       </div>
 
       <nav class="nav-menu" aria-label="Main navigation">
+        <button class="nav-btn" data-route="doctor-patients">Patients</button>
         <button class="nav-btn" data-route="doctor-setup">Setup & Calibration</button>
         <button class="nav-btn" data-route="doctor-preloaded">Exercise Builder</button>
         <button class="nav-btn" data-route="doctor-live">Live Assessment</button>
@@ -403,6 +404,27 @@
     import { createRouter } from './js/router.js';
 
     document.addEventListener('DOMContentLoaded', () => {
+      const authRole = String(localStorage.getItem('auth_role') || '').trim().toLowerCase();
+      if (authRole && !['doctor', 'admin'].includes(authRole)) {
+        const viewContainer = document.getElementById('view-container');
+        if (viewContainer) {
+          viewContainer.innerHTML = `
+            <div class="view-header">
+              <h2 class="view-title">Doctor Dashboard</h2>
+              <p class="view-subtitle">Please login as a doctor to use this dashboard.</p>
+            </div>
+            <div class="panel">
+              <div class="panel-title">Wrong login session</div>
+              <p style="color:var(--c-danger);margin:0 0 16px;">
+                This browser is currently logged in as ${authRole}. Doctor pages need a doctor account.
+              </p>
+              <a class="btn-primary" href="./login.html" style="display:inline-flex;text-decoration:none;">Go to Login</a>
+            </div>
+          `;
+        }
+        return;
+      }
+
       // 1. Initialize Singletons
       const viewContainer = document.getElementById('view-container');
       const canvasContainer = document.getElementById('doctorRendererContainer');
@@ -419,7 +441,7 @@
       };
 
       // 2. Initialize Router
-      const router = createRouter(viewContainer, GloveState, ThreeEngine);
+      const router = createRouter(viewContainer, GloveState, ThreeEngine, 'doctor-patients');
 
       // 3. Bind Navigation Buttons
       document.querySelectorAll('.nav-btn[data-route]').forEach(btn => {
@@ -429,9 +451,9 @@
       });
 
       // 4. Start Routing
-      // Provide a fallback hash if none exists so it boots cleanly to setup
+      // Provide a fallback hash if none exists so it boots cleanly to patients
       if (!window.location.hash || window.location.hash === '#') {
-        window.location.hash = '#doctor-setup';
+        window.location.hash = '#doctor-patients';
       }
       router.initial();
     });

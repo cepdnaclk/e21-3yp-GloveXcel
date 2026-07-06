@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getPool } = require('../config/supabaseDb');
+const { getPool, ensureChannelRequestsTable } = require('../config/supabaseDb');
 
 const pool = getPool();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -100,12 +100,20 @@ const listPatients = async (req, res) => {
             : (requestedDoctorId || null);
 
         if (!fetchAll && doctorId) {
+            await ensureChannelRequestsTable(pool);
             const patients = await pool.query(
                 `
                 SELECT DISTINCT p.patient_id, p.name, p.age, p.email, p.primary_hospital_id
-                FROM public.exercises e
-                JOIN public.patients p ON p.patient_id = e.patient_id
-                WHERE e.doctor_id = $1
+                FROM public.patients p
+                WHERE p.patient_id IN (
+                    SELECT r.patient_id
+                    FROM public.doctor_patient_channel_requests r
+                    WHERE r.doctor_id = $1 AND r.status = 'approved'
+                    UNION
+                    SELECT e.patient_id
+                    FROM public.exercises e
+                    WHERE e.doctor_id = $1
+                )
                 ORDER BY p.patient_id ASC
                 `,
                 [doctorId]
@@ -126,6 +134,24 @@ const listPatients = async (req, res) => {
     } catch (error) {
         console.error('LIST_PATIENTS_ERROR:', error);
         return res.status(500).json({ message: 'Failed to load patients.' });
+    }
+};
+
+const listDoctors = async (_req, res) => {
+    try {
+        const doctors = await pool.query(
+            `
+            SELECT d.doctor_id, d.name, d.email, d.hospital_id, h.name AS hospital_name, h.location AS hospital_location
+            FROM public.doctors d
+            LEFT JOIN public.hospitals h ON h.hospital_id = d.hospital_id
+            ORDER BY d.name ASC
+            `
+        );
+
+        return res.status(200).json({ doctors: doctors.rows });
+    } catch (error) {
+        console.error('LIST_DOCTORS_ERROR:', error);
+        return res.status(500).json({ message: 'Failed to load doctors.' });
     }
 };
 
@@ -831,6 +857,7 @@ module.exports = {
     createHospital,
     listHospitals,
     listPatients,
+    listDoctors,
     adminSignup,
     adminLogin,
     getPendingDoctorRequests,

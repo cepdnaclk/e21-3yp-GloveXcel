@@ -486,7 +486,7 @@ export function mount(container, gloveState, threeEngine) {
   }
 
   // Event Listeners
-  setDoctorTargetBtn.addEventListener('click', () => {
+  setDoctorTargetBtn?.addEventListener('click', () => {
     const liveAngles = getCurrentAngles(_state.latestPacket);
     if (!liveAngles || liveAngles.some(a => a === null)) {
       showToast('⚠ Cannot set targets: Ensure glove is calibrated and connected.', 'warn');
@@ -499,7 +499,7 @@ export function mount(container, gloveState, threeEngine) {
     showToast(`✓ Targets set from live pose.`, 'ok');
   });
 
-  resetLiveTargetBtn.addEventListener('click', () => {
+  resetLiveTargetBtn?.addEventListener('click', () => {
     const def = getDefaultTarget();
     activeDoctorTargets = Array(5).fill(def);
     currentReps = 0; currentSets = 0; repLatched = false; disqualifyRep = false;
@@ -508,7 +508,7 @@ export function mount(container, gloveState, threeEngine) {
     showToast(`✓ Targets reset to ${def}°.`, 'ok');
   });
 
-  resetRepsBtn.addEventListener('click', () => {
+  resetRepsBtn?.addEventListener('click', () => {
     currentReps = 0; currentSets = 0; repLatched = false; disqualifyRep = false;
     updateRepSetStatus(false);
   });
@@ -582,7 +582,7 @@ export function mount(container, gloveState, threeEngine) {
 
       mqttClient.on('connect', () => {
         if (mqttStatusLabel) {
-          mqttStatusLabel.textContent = 'Connected & Listening';
+          mqttStatusLabel.textContent = 'Patient glove connected';
           mqttStatusLabel.style.color = 'var(--c-ok)';
         }
         if (mqttConnectBtn) mqttConnectBtn.disabled = true;
@@ -682,7 +682,7 @@ export function mount(container, gloveState, threeEngine) {
 
       mqttClient.on('offline', () => {
         if (mqttStatusLabel) {
-          mqttStatusLabel.textContent = 'Offline';
+          mqttStatusLabel.textContent = 'Patient glove offline';
           mqttStatusLabel.style.color = 'var(--c-danger)';
         }
       });
@@ -690,7 +690,7 @@ export function mount(container, gloveState, threeEngine) {
     } catch (err) {
       console.error('MQTT Connect setup failed:', err);
       if (mqttStatusLabel) {
-        mqttStatusLabel.textContent = 'Setup Error';
+        mqttStatusLabel.textContent = 'Connection setup error';
         mqttStatusLabel.style.color = 'var(--c-danger)';
       }
       if (mqttConnectBtn) mqttConnectBtn.disabled = false;

@@ -739,10 +739,10 @@ export function mount(container, gloveState, threeEngine) {
   mqttToggleBtn?.addEventListener('click', () => {
     if (!_mqttConnected) {
       if (!globalThis.mqtt) {
-        setStatus('MQTT library not loaded in page.');
+        setStatus('Live data sharing is not available on this page.');
         return;
       }
-      setStatus('Connecting to MQTT broker...');
+      setStatus('Starting live data sharing...');
       try {
         _mqttClient = globalThis.mqtt.connect(MQTT_BROKER_URL, {
           username: MQTT_USERNAME,
@@ -753,33 +753,33 @@ export function mount(container, gloveState, threeEngine) {
 
         _mqttClient.on('connect', () => {
           _mqttConnected = true;
-          mqttToggleBtn.textContent = 'MQTT: Connected';
+          mqttToggleBtn.textContent = 'Sharing Live Data';
           mqttToggleBtn.classList.remove('btn-secondary');
-          setStatus('Connected to MQTT broker — streaming enabled.');
+          setStatus('Live data sharing is on.');
         });
 
         _mqttClient.on('error', (err) => {
           console.warn('[MQTT] error', err);
-          setStatus('MQTT error');
+          setStatus('Live data sharing error.');
         });
 
         _mqttClient.on('close', () => {
           _mqttConnected = false;
-          mqttToggleBtn.textContent = 'MQTT';
+          mqttToggleBtn.textContent = 'Share Live Data';
           mqttToggleBtn.classList.add('btn-secondary');
-          setStatus('MQTT disconnected');
+          setStatus('Live data sharing stopped.');
         });
       } catch (err) {
         console.warn('[MQTT] init failed', err);
-        setStatus('MQTT init failed');
+        setStatus('Could not start live data sharing.');
       }
     } else {
       try { _mqttClient.end(true); } catch (e) { /* ignore */ }
       _mqttClient = null;
       _mqttConnected = false;
-      mqttToggleBtn.textContent = 'MQTT';
+      mqttToggleBtn.textContent = 'Share Live Data';
       mqttToggleBtn.classList.add('btn-secondary');
-      setStatus('MQTT disconnected');
+      setStatus('Live data sharing stopped.');
     }
   });
 

@@ -18,25 +18,37 @@
     <!-- Pass 1: Non-Thumb -->
     <div style="margin-bottom:24px;">
       <h3 class="panel-title" style="font-size:14px; color:var(--c-brand);">Pass 1 — Non-Thumb Calibration</h3>
-      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-        <button id="captureNonThumbMinBtn" class="btn-secondary" type="button" disabled>Capture Non-Thumb Min (0deg)</button>
-        <button id="captureNonThumbMaxBtn" class="btn-secondary" type="button" disabled>Capture Non-Thumb Max (90deg)</button>
-        <button id="previewNonThumbMinBtn" class="btn-secondary" type="button">Preview Min</button>
-        <button id="previewNonThumbMaxBtn" class="btn-secondary" type="button">Preview Max</button>
+      <div class="calibration-steps">
+        <div class="calibration-step">
+          <span class="step-number">1</span>
+          <button id="previewNonThumbMinBtn" class="btn-secondary step-preview-btn" type="button">Preview Non-Thumb Min</button>
+          <button id="captureNonThumbMinBtn" class="btn-secondary step-capture-btn" type="button" disabled>Capture Non-Thumb Min (0deg)</button>
+        </div>
+        <div class="calibration-step">
+          <span class="step-number">2</span>
+          <button id="previewNonThumbMaxBtn" class="btn-secondary step-preview-btn" type="button">Preview Non-Thumb Max</button>
+          <button id="captureNonThumbMaxBtn" class="btn-secondary step-capture-btn" type="button" disabled>Capture Non-Thumb Max (90deg)</button>
+        </div>
       </div>
-      <p style="font-size:12px; color:var(--c-text-muted);">Extend all fingers flat for Min, then curl index–pinky fully for Max.</p>
+      <p class="calibration-note">Extend all fingers flat for Min, then curl index–pinky fully for Max.</p>
     </div>
 
     <!-- Pass 2: Thumb -->
     <div style="margin-bottom:24px;">
       <h3 class="panel-title" style="font-size:14px; color:var(--c-brand);">Pass 2 — Thumb Calibration</h3>
-      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-        <button id="captureThumbMinBtn" class="btn-secondary" type="button" disabled>Capture Thumb Min (0deg)</button>
-        <button id="captureThumbMaxBtn" class="btn-secondary" type="button" disabled>Capture Thumb Max (90deg)</button>
-        <button id="previewThumbMinBtn" class="btn-secondary" type="button">Preview Min</button>
-        <button id="previewThumbMaxBtn" class="btn-secondary" type="button">Preview Max</button>
+      <div class="calibration-steps">
+        <div class="calibration-step">
+          <span class="step-number">3</span>
+          <button id="previewThumbMinBtn" class="btn-secondary step-preview-btn" type="button">Preview Thumb Min</button>
+          <button id="captureThumbMinBtn" class="btn-secondary step-capture-btn" type="button" disabled>Capture Thumb Min (0deg)</button>
+        </div>
+        <div class="calibration-step">
+          <span class="step-number">4</span>
+          <button id="previewThumbMaxBtn" class="btn-secondary step-preview-btn" type="button">Preview Thumb Max</button>
+          <button id="captureThumbMaxBtn" class="btn-secondary step-capture-btn" type="button" disabled>Capture Thumb Max (90deg)</button>
+        </div>
       </div>
-      <p style="font-size:12px; color:var(--c-text-muted);">Keep non-thumb fingers closed, then capture thumb open and closed.</p>
+      <p class="calibration-note">Keep non-thumb fingers closed, then capture thumb open and closed.</p>
     </div>
 
     <div style="margin-bottom:16px; font-size:14px; color:var(--c-text-muted);">
@@ -61,6 +73,51 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 12px;
+    }
+    .view-namespace-doctor-setup .calibration-steps {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .view-namespace-doctor-setup .calibration-step {
+      display: grid;
+      grid-template-columns: 32px minmax(220px, 270px) minmax(260px, 340px);
+      align-items: center;
+      gap: 12px;
+    }
+    .view-namespace-doctor-setup .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      color: var(--c-brand);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .view-namespace-doctor-setup .step-preview-btn,
+    .view-namespace-doctor-setup .step-capture-btn {
+      width: 100%;
+      justify-content: center;
+    }
+    .view-namespace-doctor-setup .step-preview-btn {
+      color: #fff;
+      border-color: var(--c-brand);
+    }
+    .view-namespace-doctor-setup .calibration-note {
+      color: var(--c-text-muted);
+      font-size: 12px;
+      margin: 0;
+    }
+    @media (max-width: 760px) {
+      .view-namespace-doctor-setup .calibration-step {
+        grid-template-columns: 32px 1fr;
+      }
+      .view-namespace-doctor-setup .step-capture-btn {
+        grid-column: 2;
+      }
     }
     .view-namespace-doctor-setup .mini-card {
       background: var(--c-surface-2);

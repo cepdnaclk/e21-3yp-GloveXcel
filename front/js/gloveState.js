@@ -71,7 +71,7 @@ class GlobalGloveState {
 
   get apiBase() {
     const stored = localStorage.getItem('apiBaseUrl');
-    if (stored) return stored.replace(/\/$/, '');
+    if (stored) return this._normalizeApiBase(stored);
     if (window.location.protocol === 'file:') return 'http://localhost:3000';
     return `${window.location.protocol}//${window.location.hostname}:3000`;
   }
@@ -260,6 +260,13 @@ class GlobalGloveState {
         if (typeof this.onPacket === 'function') this.onPacket(this.latestPacket);
       }
     });
+  }
+
+  _normalizeApiBase(value) {
+    let normalized = String(value || '').trim().replace(/\/$/, '');
+    normalized = normalized.replace(/\/api\/auth$/i, '');
+    normalized = normalized.replace(/\/api$/i, '');
+    return normalized || 'http://localhost:3000';
   }
 }
 

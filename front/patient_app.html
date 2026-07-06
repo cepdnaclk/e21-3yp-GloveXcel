@@ -207,13 +207,6 @@
       font-weight: 600;
     }
 
-    .nav-icon {
-      font-size: 15px;
-      width: 18px;
-      text-align: center;
-      flex-shrink: 0;
-    }
-
     .sidebar-divider {
       height: 1px;
       background: var(--c-border);
@@ -768,7 +761,6 @@
         type="button"
         aria-current="page"
       >
-        <span class="nav-icon" aria-hidden="true">🎯</span>
         Calibration
       </button>
 
@@ -779,7 +771,6 @@
         type="button"
         aria-current="false"
       >
-        <span class="nav-icon" aria-hidden="true">🏃</span>
         Preloaded Session
       </button>
 
@@ -790,8 +781,17 @@
         type="button"
         aria-current="false"
       >
-        <span class="nav-icon" aria-hidden="true">📡</span>
         Live Session
+      </button>
+
+      <button
+        class="nav-btn"
+        data-route="doctors"
+        id="nav-doctors"
+        type="button"
+        aria-current="false"
+      >
+        Doctors
       </button>
 
       <hr class="sidebar-divider" />

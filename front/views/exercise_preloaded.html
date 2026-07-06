@@ -21,12 +21,11 @@
   <section class="card" id="preloadedDataSourceSection">
     <h3 class="card-title">Glove &amp; Data Source</h3>
     <div class="actions">
-      <button id="connectGloveBtn" type="button">Connect Patient Glove</button>
       <button id="loadPatientCalibBtn" class="btn-secondary" type="button">Load Patient Calibration</button>
     </div>
     <p id="gloveStatus" class="note">Patient glove status: Not connected.</p>
     <p id="patientCalibStatus" class="note">Patient calibration status: Not loaded.</p>
-    <p class="note">Exercises and max angles are loaded from the database. Data source matches patient ID in your profile.</p>
+    <p class="note">Bluetooth connects from the Real-Time Session page. Exercises and max angles are loaded from the database for the patient ID in your profile.</p>
   </section>
 
   <!-- ── Assigned Exercise ────────────────────────────────────────────── -->
@@ -50,12 +49,6 @@
 
   <!-- ── Patient Movement Match ───────────────────────────────────────── -->
   <section class="card match-hero">
-    <div class="match-legend">
-      Bar track = 120% of target. Blue line = prescribed max (100%).
-      <span class="legend approaching">&#9632;</span> Approaching
-      <span class="legend safe">&#9632;</span> Safe Zone (95-105%)
-      <span class="legend over">&#9632;</span> Over-flexion (&gt;105%)
-    </div>
     <span id="overallMatchBadge" class="pill pill-ok">Overall Match: --</span>
     <div id="matchGrid" class="match-grid"></div>
   </section>

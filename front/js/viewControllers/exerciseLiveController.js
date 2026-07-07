@@ -290,7 +290,6 @@ async function fetchAndApplyForce() {
       return;
     }
 
-    const resp = await fetch(`${apiBase}/api/forces?patient_id=${patientId}`, { headers });
     const resp = await fetch(`${apiBase}/api/forces?patient_id=${encodeURIComponent(patientId)}`, { headers });
     
     if (resp.status === 404) {

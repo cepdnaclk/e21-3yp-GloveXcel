@@ -10,7 +10,6 @@ const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const EXERCISE_STORAGE_KEY = 'doctorExercisesV1';
 const SELECTED_PATIENT_KEY = 'doctorSelectedPatient';
 const BLE_MOTOR_CMD_UUID = '11111111-2222-3333-4444-555555555555';
-const ACTIVE_PATIENT_STORAGE_KEY = 'doctorActivePatientV1';
 
 let _state = null;
 let _engine = null;
@@ -74,31 +73,26 @@ function getDoctorId() {
   return localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
 }
 
-function getActivePatientSelection() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(ACTIVE_PATIENT_STORAGE_KEY) || '{}');
-    return {
-      patient_id: parsed.patient_id || '',
-      name: parsed.name || ''
-    };
-  } catch {
-    return { patient_id: '', name: '' };
-  }
-}
-
-function persistActivePatientSelection() {
+function persistSelectedPatientFromExerciseForm() {
   if (!exercisePatientId) return;
   const selectedOption = exercisePatientId.selectedOptions?.[0];
   const patientId = exercisePatientId.value || '';
-  const name = selectedOption?.dataset?.patientName || '';
+  const name = selectedOption?.dataset?.patientName || selectedOption?.textContent?.replace(`${patientId} - `, '') || '';
   if (!patientId) {
-    localStorage.removeItem(ACTIVE_PATIENT_STORAGE_KEY);
+    localStorage.removeItem(SELECTED_PATIENT_KEY);
+    _selectedPatient = null;
+    updateSelectedPatientHeader();
+    renderExerciseList();
     return;
   }
-  localStorage.setItem(ACTIVE_PATIENT_STORAGE_KEY, JSON.stringify({
+
+  _selectedPatient = {
     patient_id: patientId,
     name
-  }));
+  };
+  localStorage.setItem(SELECTED_PATIENT_KEY, JSON.stringify(_selectedPatient));
+  updateSelectedPatientHeader();
+  renderExerciseList();
 }
 
 function getSelectedPatient() {
@@ -150,6 +144,7 @@ async function loadPatients() {
       if (!existingOption) {
         const option = document.createElement('option');
         option.value = _selectedPatient.patient_id;
+        option.dataset.patientName = _selectedPatient.name || '';
         option.textContent = `${_selectedPatient.patient_id} - ${_selectedPatient.name || 'Selected patient'}`;
         exercisePatientId.appendChild(option);
       }
@@ -157,11 +152,6 @@ async function loadPatients() {
     }
 
     exercisePatientId.disabled = false;
-
-    const activePatient = getActivePatientSelection();
-    if (activePatient.patient_id && patients.some(p => p.patient_id === activePatient.patient_id)) {
-      exercisePatientId.value = activePatient.patient_id;
-    }
   } catch (err) {
     console.error('[DoctorPreloaded] Failed to load patients:', err);
     exercisePatientId.innerHTML = '<option value="">-- Failed to load patients --</option>';
@@ -278,7 +268,7 @@ export function mount(container, gloveState, threeEngine) {
   updateCaptureUI();
   
   // Event Listeners
-  exercisePatientId.addEventListener('change', persistActivePatientSelection);
+  exercisePatientId.addEventListener('change', persistSelectedPatientFromExerciseForm);
 
   capturePoseBtn.addEventListener('click', () => {
     const angles = getCurrentAngles();
@@ -339,7 +329,7 @@ export function mount(container, gloveState, threeEngine) {
   });
   
   saveExerciseBtn.addEventListener('click', async () => {
-    persistActivePatientSelection();
+    persistSelectedPatientFromExerciseForm();
     const patientId = _selectedPatient?.patient_id || exercisePatientId.value;
     const desc = exerciseDescription.value.trim();
     const sets = Number(exerciseTargetSets.value);

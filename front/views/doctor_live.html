@@ -9,22 +9,12 @@
   </div>
 
   <div class="panel">
-    <h3 class="panel-title">Active Patient</h3>
-    <div style="display:grid; grid-template-columns:minmax(220px, 360px); gap:12px; align-items:end; margin-bottom:12px;">
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <label for="activePatientSelect" style="font-size:12px; font-weight:600; color:var(--c-text-muted);">Patient</label>
-        <select id="activePatientSelect" class="form-control" disabled>
-          <option value="">-- Loading patients --</option>
-        </select>
-      </div>
-    </div>
-
     <h3 class="panel-title">
       Patient Glove Connection
       <span style="font-size:10px; font-weight:700; background:#4e8ef7; color:#fff; padding:2px 8px; border-radius:20px; margin-left:8px; text-transform:uppercase;">Live Data</span>
     </h3>
     <input id="mqttHostInput" type="hidden" value="wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt">
-    <input id="mqttTopicInput" type="hidden" value="glovexcel/patients/PAT-a7a19957fb68446f8314d672bfccfa8b/telemetry">
+    <input id="mqttTopicInput" type="hidden" value="">
     <input id="mqttUsernameInput" type="hidden" value="Glovexl">
     <input id="mqttPasswordInput" type="hidden" value="200209Ost">
 

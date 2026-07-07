@@ -9,8 +9,6 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 
 const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
-const DEFAULT_PATIENT_ID = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
-const ACTIVE_PATIENT_STORAGE_KEY = 'doctorActivePatientV1';
 const MQTT_TOPIC_PREFIX = 'glovexcel/patients';
 const SELECTED_PATIENT_KEY = 'doctorSelectedPatient';
 
@@ -27,7 +25,6 @@ let defaultTargetInput, setDoctorTargetBtn, resetLiveTargetBtn, setTargetToast;
 let targetSourceLabel, repSetStatus, resetRepsBtn;
 let matchGrid, peakGrid;
 let createLiveExerciseBtn, saveLiveExerciseBtn, liveExerciseDraftEl, liveExerciseListEl;
-let activePatientSelect, activePatientStatus, activePatientTopicLabel;
 let mqttHostInput, mqttTopicInput, mqttUsernameInput, mqttPasswordInput;
 let mqttConnectBtn, mqttDisconnectBtn, mqttStatusLabel, mqttRateLabel;
 let mqttRawMinInput, mqttRawMaxInput, mqttDriveModelCheckbox;
@@ -69,46 +66,16 @@ function getPatientTelemetryTopic(patientId) {
   return `${MQTT_TOPIC_PREFIX}/${sanitizeMqttTopicPart(patientId)}/telemetry`;
 }
 
-function getActivePatientSelection() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(ACTIVE_PATIENT_STORAGE_KEY) || '{}');
-    return {
-      patient_id: parsed.patient_id || '',
-      name: parsed.name || ''
-    };
-  } catch {
-    return { patient_id: '', name: '' };
-  }
-}
-
-function setActivePatientSelection(patientId, name = '') {
-  if (!patientId) {
-    localStorage.removeItem(ACTIVE_PATIENT_STORAGE_KEY);
-    return;
-  }
-  localStorage.setItem(ACTIVE_PATIENT_STORAGE_KEY, JSON.stringify({
-    patient_id: patientId,
-    name
-  }));
-}
-
 function getSelectedForceLevel() {
   const level = parseInt(liveForceLevelInput?.value || '1', 10);
   return Number.isInteger(level) && level >= 1 && level <= 10 ? level : 1;
 }
 
-function updateActivePatientUi() {
-  const active = getActivePatientSelection();
-  const topic = active.patient_id ? getPatientTelemetryTopic(active.patient_id) : '';
-
-  if (activePatientSelect && active.patient_id) activePatientSelect.value = active.patient_id;
-  if (activePatientStatus) {
-    activePatientStatus.textContent = active.patient_id
-      ? `Active patient: ${active.name ? `${active.name} - ` : ''}${active.patient_id}`
-      : 'Active patient: none selected';
+function updateSelectedPatientMqttTopic() {
+  const patientId = getSelectedPatientId();
+  if (mqttTopicInput) {
+    mqttTopicInput.value = patientId ? getPatientTelemetryTopic(patientId) : '';
   }
-  if (activePatientTopicLabel) activePatientTopicLabel.textContent = topic || '--';
-  if (mqttTopicInput) mqttTopicInput.value = topic;
 }
 
 function rawToAngle(rawValue, minValue, maxValue) {
@@ -227,8 +194,13 @@ function getSelectedPatient() {
   }
 }
 
+function refreshSelectedPatient() {
+  _selectedPatient = getSelectedPatient();
+  return _selectedPatient;
+}
+
 function getSelectedPatientId() {
-  return _selectedPatient?.patient_id || getActivePatientSelection().patient_id || DEFAULT_PATIENT_ID;
+  return refreshSelectedPatient()?.patient_id || '';
 }
 
 function selectedPatientLabel() {
@@ -277,47 +249,6 @@ async function fetchFallbackPatientCalibration() {
     }
   } catch (err) {
     console.error('Failed to load fallback patient calibration:', err);
-  }
-}
-
-async function loadActivePatientOptions() {
-  if (!activePatientSelect) {
-    updateActivePatientUi();
-    return;
-  }
-
-  activePatientSelect.innerHTML = '<option value="">-- Loading patients --</option>';
-  activePatientSelect.disabled = true;
-
-  try {
-    const resp = await fetch(`${_state.apiBase}/api/auth/patients?all=true`, {
-      headers: _state.getAuthHeaders()
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-    const data = await resp.json();
-    const patients = Array.isArray(data.patients) ? data.patients : [];
-    const active = getActivePatientSelection();
-
-    activePatientSelect.innerHTML = '<option value="">-- Select patient --</option>';
-    patients.forEach((patient) => {
-      const option = document.createElement('option');
-      option.value = patient.patient_id;
-      option.dataset.patientName = patient.name || '';
-      option.textContent = `${patient.name || 'Unnamed'} - ${patient.patient_id}`;
-      activePatientSelect.appendChild(option);
-    });
-
-    if (active.patient_id && patients.some(patient => patient.patient_id === active.patient_id)) {
-      activePatientSelect.value = active.patient_id;
-    }
-
-    activePatientSelect.disabled = false;
-    updateActivePatientUi();
-  } catch (err) {
-    console.error('[DoctorLive] Failed to load patient options:', err);
-    activePatientSelect.innerHTML = '<option value="">-- Failed to load patients --</option>';
-    updateActivePatientUi();
   }
 }
 
@@ -718,10 +649,6 @@ export function mount(container, gloveState, threeEngine) {
   saveLiveExerciseBtn   = container.querySelector('#saveLiveExerciseBtn');
   liveExerciseDraftEl   = container.querySelector('#liveExerciseDraft');
   liveExerciseListEl    = container.querySelector('#liveExerciseList');
-  activePatientSelect   = container.querySelector('#activePatientSelect');
-  activePatientStatus   = container.querySelector('#activePatientStatus');
-  activePatientTopicLabel = container.querySelector('#activePatientTopicLabel');
-
   mqttHostInput          = container.querySelector('#mqttHostInput');
   mqttTopicInput         = container.querySelector('#mqttTopicInput');
   mqttUsernameInput      = container.querySelector('#mqttUsernameInput');
@@ -745,8 +672,7 @@ export function mount(container, gloveState, threeEngine) {
   activeDoctorTargets = Array(5).fill(getDefaultTarget());
   updateTargetSourceLabel();
   updateRepSetStatus(false);
-  updateActivePatientUi();
-  loadActivePatientOptions();
+  updateSelectedPatientMqttTopic();
 
   // Initial render with latest packet
   const initialAngles = getCurrentAngles(_state.latestPacket);
@@ -757,19 +683,6 @@ export function mount(container, gloveState, threeEngine) {
   }
 
   // Event Listeners
-  activePatientSelect?.addEventListener('change', () => {
-    const selectedOption = activePatientSelect.selectedOptions?.[0];
-    setActivePatientSelection(activePatientSelect.value, selectedOption?.dataset?.patientName || '');
-    updateActivePatientUi();
-    fallbackPatientCalib = null;
-    fetchFallbackPatientCalibration();
-    if (liveExerciseDraft) {
-      liveExerciseDraft.patient_id = getSelectedPatientId();
-      renderLiveExerciseDraft();
-    }
-    if (mqttClient) disconnectMqttPatient();
-  });
-
   setDoctorTargetBtn?.addEventListener('click', () => {
     const liveAngles = getCurrentAngles(_state.latestPacket);
     if (!liveAngles || liveAngles.some(a => a === null)) {
@@ -798,11 +711,13 @@ export function mount(container, gloveState, threeEngine) {
   });
 
   createLiveExerciseBtn?.addEventListener('click', () => {
-    if (!_selectedPatient?.patient_id && !getActivePatientSelection().patient_id) {
-      window.alert('Please select an active patient before creating a live exercise.');
+    const selectedPatientId = getSelectedPatientId();
+    if (!selectedPatientId) {
+      window.alert('Please select a patient from My Patients before creating a live exercise.');
       return;
     }
     liveExerciseDraft = buildLiveExerciseDraft();
+    liveExerciseDraft.patient_id = selectedPatientId;
     liveExerciseDraft.force_level = getSelectedForceLevel();
     if (liveForceStatus) {
       liveForceStatus.textContent = `Force level ${liveExerciseDraft.force_level} selected for this snapshot.`;
@@ -813,8 +728,9 @@ export function mount(container, gloveState, threeEngine) {
 
   saveLiveExerciseBtn?.addEventListener('click', async () => {
     if (!liveExerciseDraft) return;
-    if (!_selectedPatient?.patient_id && !getActivePatientSelection().patient_id) {
-      window.alert('Please select an active patient before saving this live exercise.');
+    const selectedPatientId = getSelectedPatientId();
+    if (!selectedPatientId) {
+      window.alert('Please select a patient from My Patients before saving this live exercise.');
       return;
     }
 
@@ -822,7 +738,7 @@ export function mount(container, gloveState, threeEngine) {
     try {
       liveExerciseDraft = {
         ...liveExerciseDraft,
-        patient_id: getSelectedPatientId(),
+        patient_id: selectedPatientId,
         force_level: getSelectedForceLevel()
       };
       renderLiveExerciseDraft();
@@ -861,15 +777,14 @@ export function mount(container, gloveState, threeEngine) {
     }
 
     const brokerUrl = mqttHostInput?.value?.trim() || '';
-    const activePatient = getActivePatientSelection();
-    const patientId = activePatient.patient_id;
+    const patientId = getSelectedPatientId();
     if (!patientId) {
       if (mqttStatusLabel) {
         mqttStatusLabel.textContent = 'Select a patient first';
         mqttStatusLabel.style.color = 'var(--c-danger)';
       }
       if (mqttConnectBtn) mqttConnectBtn.disabled = false;
-      window.alert('Please select an active patient before connecting MQTT.');
+      window.alert('Please select a patient from My Patients before connecting MQTT.');
       return;
     }
     const topic = getPatientTelemetryTopic(patientId);
@@ -1113,17 +1028,16 @@ export function mount(container, gloveState, threeEngine) {
       liveForceStatus.style.color = 'var(--c-warn)';
     }
 
-    const activePatient = getActivePatientSelection();
-    const patientId = _selectedPatient?.patient_id || activePatient.patient_id;
-    if (!patientId) {
-      alert('Please select an active patient before applying force.');
+    const selectedPatientId = getSelectedPatientId();
+    if (!selectedPatientId) {
+      alert('Please select a patient from My Patients before applying force.');
       if (liveForceStatus) {
-        liveForceStatus.textContent = 'Select a patient before applying force.';
+        liveForceStatus.textContent = 'Select a patient from My Patients before applying force.';
         liveForceStatus.style.color = 'var(--c-danger)';
       }
       return;
     }
-    liveExerciseDraft.patient_id = patientId;
+    liveExerciseDraft.patient_id = selectedPatientId;
     liveExerciseDraft.force_level = level;
     renderLiveExerciseDraft();
     const exerciseId = liveExerciseDraft.exercise_id;
@@ -1134,7 +1048,7 @@ export function mount(container, gloveState, threeEngine) {
         headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
         body: JSON.stringify({
           level,
-          patient_id: patientId,
+          patient_id: selectedPatientId,
           exercise_id: exerciseId
         })
       });
@@ -1181,7 +1095,6 @@ export function unmount() {
   targetSourceLabel = repSetStatus = resetRepsBtn = null;
   matchGrid = peakGrid = null;
   createLiveExerciseBtn = saveLiveExerciseBtn = liveExerciseDraftEl = liveExerciseListEl = null;
-  activePatientSelect = activePatientStatus = activePatientTopicLabel = null;
   mqttHostInput = mqttTopicInput = mqttUsernameInput = mqttPasswordInput = null;
   mqttConnectBtn = mqttDisconnectBtn = mqttStatusLabel = mqttRateLabel = null;
   mqttRawMinInput = mqttRawMaxInput = mqttDriveModelCheckbox = null;

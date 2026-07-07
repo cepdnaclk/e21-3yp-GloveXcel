@@ -61,3 +61,22 @@ CREATE TABLE public.therapy_sessions (
   status character varying DEFAULT 'completed',
   CONSTRAINT therapy_sessions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.therapy_plans(plan_id)
 );
+
+CREATE TABLE public.doctor_patient_channel_requests (
+  request_id character varying PRIMARY KEY DEFAULT ('REQ-' || replace(gen_random_uuid()::text, '-', '')),
+  doctor_id character varying NOT NULL,
+  patient_id character varying NOT NULL,
+  status character varying NOT NULL DEFAULT 'pending',
+  requested_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  responded_at timestamp without time zone,
+  CONSTRAINT doctor_patient_channel_requests_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.doctors(doctor_id) ON DELETE CASCADE,
+  CONSTRAINT doctor_patient_channel_requests_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(patient_id) ON DELETE CASCADE,
+  CONSTRAINT doctor_patient_channel_requests_status_check CHECK (status IN ('pending', 'approved', 'rejected')),
+  CONSTRAINT doctor_patient_channel_requests_doctor_patient_unique UNIQUE (doctor_id, patient_id)
+);
+
+CREATE INDEX doctor_patient_channel_requests_doctor_status_idx
+  ON public.doctor_patient_channel_requests (doctor_id, status);
+
+CREATE INDEX doctor_patient_channel_requests_patient_status_idx
+  ON public.doctor_patient_channel_requests (patient_id, status);

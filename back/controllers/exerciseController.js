@@ -95,9 +95,12 @@ const createExercise = async (req, res) => {
 };
 
 const listExercises = async (req, res) => {
-    const { patient_id } = req.query;
+    const requestedPatientId = req.query.patient_id;
+    const effectivePatientId = req.user?.role === 'patient'
+        ? req.user.sub
+        : requestedPatientId;
 
-    if (!patient_id) {
+    if (!effectivePatientId) {
         return res.status(400).json({ error: 'patient_id is required.' });
     }
 
@@ -111,7 +114,7 @@ const listExercises = async (req, res) => {
             WHERE patient_id = $1
             ORDER BY start_date DESC NULLS LAST, exercise_id ASC
             `,
-            [patient_id]
+            [effectivePatientId]
         );
 
         return res.status(200).json({ exercises: result.rows });

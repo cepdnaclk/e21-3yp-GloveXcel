@@ -4,19 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GloveXcel Access Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-start: #f4efe7;
-            --bg-end: #c8e0ea;
-            --panel: #ffffff;
-            --ink: #1b2a34;
-            --brand: #0b7285;
-            --brand-dark: #085766;
-            --accent: #ff8f3f;
-            --muted: #60717c;
-            --danger: #b3261e;
-            --ok: #1d6f42;
-            --ring: rgba(11, 114, 133, 0.2);
+            --page-bg: #090d1a;
+            --brand: #2563eb;
+            --brand-dark: #1d4ed8;
+            --brand-soft: #eaf1ff;
+            --ink: #111827;
+            --muted: #6b7280;
+            --line: #e5e7eb;
+            --field: #f8fafc;
+            --danger: #dc2626;
+            --ok: #16a34a;
+            --radius-card: 34px;
+            --radius-panel: 28px;
+            --shadow: 0 30px 90px rgba(3, 7, 18, 0.38);
+            --trans: 0.18s ease;
         }
 
         * {
@@ -26,88 +32,202 @@
         body {
             margin: 0;
             min-height: 100vh;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-family: "Inter", "Segoe UI", Tahoma, sans-serif;
             color: var(--ink);
             background:
-                radial-gradient(circle at 15% 10%, rgba(255, 143, 63, 0.22), transparent 45%),
-                radial-gradient(circle at 80% 80%, rgba(11, 114, 133, 0.18), transparent 40%),
-                linear-gradient(145deg, var(--bg-start), var(--bg-end));
+                radial-gradient(circle at 18% 16%, rgba(102, 126, 234, 0.38), transparent 32%),
+                radial-gradient(circle at 78% 20%, rgba(67, 56, 202, 0.24), transparent 28%),
+                radial-gradient(circle at 48% 86%, rgba(14, 165, 233, 0.16), transparent 36%),
+                linear-gradient(135deg, #050816 0%, #0b1020 48%, #111827 100%);
             display: grid;
             place-items: center;
-            padding: 20px;
+            padding: 28px;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.08), transparent 24%),
+                linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+            background-size: auto, 54px 54px, 54px 54px;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), transparent 82%);
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
         }
 
         .auth-shell {
-            width: min(860px, 100%);
+            position: relative;
+            z-index: 1;
+            width: min(1120px, 100%);
+            height: min(720px, calc(100vh - 56px));
+            min-height: 640px;
             display: grid;
-            grid-template-columns: 1.1fr 1fr;
-            gap: 18px;
-        }
-
-        .auth-info,
-        .auth-panel {
-            background: rgba(255, 255, 255, 0.94);
-            border-radius: 20px;
-            box-shadow: 0 18px 36px rgba(17, 38, 53, 0.16);
+            grid-template-columns: minmax(420px, 1.02fr) minmax(390px, 0.98fr);
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.68);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow);
         }
 
         .auth-info {
-            padding: 28px;
+            position: relative;
+            min-height: 0;
+            padding: 34px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: space-between;
+            overflow: hidden;
+            isolation: isolate;
+            color: #fff;
+            background:
+                linear-gradient(180deg, rgba(4, 16, 39, 0.08) 0%, rgba(7, 18, 41, 0.76) 78%),
+                url("../Assets/Glovexllogin.png") center / cover no-repeat;
+            border-top-left-radius: var(--radius-card);
+            border-bottom-left-radius: var(--radius-card);
+            border-bottom-right-radius: 86px;
         }
 
-        .auth-info h1 {
+        .auth-info::after {
+            content: "";
+            position: absolute;
+            inset: auto 0 0 0;
+            height: 48%;
+            z-index: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(5, 13, 31, 0.88) 100%);
+        }
+
+        .visual-brand,
+        .visual-copy {
+            position: relative;
+            z-index: 1;
+        }
+
+        .visual-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            width: max-content;
+            padding: 9px 12px;
+            color: #0f2f57;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            border-radius: 999px;
+            box-shadow: 0 16px 35px rgba(15, 23, 42, 0.12);
+            backdrop-filter: blur(10px);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .visual-brand-mark {
+            width: 22px;
+            height: 22px;
+            border-radius: 7px;
+            background: linear-gradient(135deg, #023e70, #08a7b9);
+            box-shadow: 0 8px 18px rgba(8, 167, 185, 0.32);
+        }
+
+        .visual-copy {
+            max-width: 390px;
+        }
+
+        .visual-copy h1 {
             margin: 0;
-            font-size: 2rem;
-            line-height: 1.15;
+            color: #fff;
+            font-size: clamp(2rem, 4.2vw, 3.45rem);
+            line-height: 1.02;
+            letter-spacing: -0.055em;
         }
 
-        .auth-info p {
-            margin-top: 12px;
-            color: var(--muted);
-            line-height: 1.5;
-        }
-
-        .auth-note {
-            margin-top: 16px;
-            background: #f3fafc;
-            border-left: 4px solid var(--brand);
-            border-radius: 8px;
-            padding: 10px 12px;
-            font-size: 0.95rem;
+        .visual-copy p {
+            margin: 16px 0 0;
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 14px;
+            line-height: 1.65;
         }
 
         .auth-panel {
-            padding: 24px;
+            min-height: 0;
+            height: 100%;
+            padding: 56px clamp(34px, 5vw, 64px);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            background: #fff;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+        }
+
+        .auth-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .auth-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .auth-panel::-webkit-scrollbar-thumb {
+            background: #dbe3ef;
+            border-radius: 999px;
         }
 
         .switch-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
-            margin-bottom: 14px;
+            margin-bottom: 30px;
+            padding: 5px;
+            background: #f3f4f6;
+            border: 1px solid #edf0f4;
+            border-radius: 999px;
         }
 
         .switch-btn {
-            border: 1px solid #d7e5eb;
-            background: #f7fbfd;
-            color: var(--ink);
-            padding: 10px;
-            border-radius: 10px;
-            font-weight: 600;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #6b7280;
+            padding: 11px 13px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
+            transition: var(--trans);
+        }
+
+        .switch-btn:hover {
+            color: var(--ink);
+            background: #fff;
         }
 
         .switch-btn.active {
-            border-color: var(--brand);
-            background: #d9f1f5;
+            border-color: rgba(37, 99, 235, 0.18);
+            background: var(--brand);
+            color: #fff;
+            box-shadow: 0 12px 28px rgba(37, 99, 235, 0.26);
         }
 
         .form-title {
-            margin: 6px 0 12px;
-            font-size: 1.3rem;
+            margin: 0;
+            color: var(--ink);
+            font-size: clamp(1.8rem, 3vw, 2.55rem);
+            line-height: 1.06;
+            letter-spacing: -0.055em;
+        }
+
+        .form-subtitle {
+            margin: 10px 0 28px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.55;
         }
 
         .auth-form {
@@ -116,64 +236,115 @@
         }
 
         label {
-            font-size: 0.9rem;
-            font-weight: 600;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 700;
         }
 
         input,
         select {
             width: 100%;
-            border: 1px solid #c9dbe3;
-            border-radius: 10px;
-            padding: 10px;
-            font-size: 1rem;
-            background: #fff;
+            border: 1px solid #dfe5ee;
+            border-radius: 14px;
+            padding: 13px 14px;
+            color: var(--ink);
+            background: var(--field);
+            outline: none;
+            transition: var(--trans);
+        }
+
+        input::placeholder {
+            color: #a3aab7;
         }
 
         input:focus,
         select:focus {
             border-color: var(--brand);
-            outline: none;
-            box-shadow: 0 0 0 4px var(--ring);
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.11);
+        }
+
+        select {
+            color-scheme: light;
         }
 
         .submit-btn {
-            margin-top: 4px;
+            margin-top: 12px;
             border: none;
-            border-radius: 12px;
-            padding: 11px;
-            font-size: 1rem;
+            border-radius: 16px;
+            padding: 14px 16px;
             font-weight: 700;
             background: linear-gradient(135deg, var(--brand), var(--brand-dark));
             color: #fff;
             cursor: pointer;
-            transition: transform 0.15s ease;
+            transition: var(--trans);
+            box-shadow: 0 18px 34px rgba(37, 99, 235, 0.24);
         }
 
         .submit-btn:hover {
             transform: translateY(-1px);
+            box-shadow: 0 22px 42px rgba(37, 99, 235, 0.3);
+        }
+
+        .auth-divider {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 14px;
+            margin: 22px 0 16px;
+            color: #9ca3af;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: lowercase;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: "";
+            height: 1px;
+            background: var(--line);
+        }
+
+        .secondary-auth-btn {
+            width: 100%;
+            border: 1px solid #dfe5ee;
+            border-radius: 16px;
+            padding: 13px 16px;
+            color: #1f2937;
+            background: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--trans);
+        }
+
+        .secondary-auth-btn:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
         }
 
         .toggle-mode {
-            margin-top: 12px;
+            margin-top: 22px;
             text-align: center;
             color: var(--muted);
-            font-size: 0.95rem;
+            font-size: 14px;
         }
 
         .toggle-mode button {
             border: none;
             background: transparent;
-            color: var(--brand-dark);
+            color: var(--brand);
             font-weight: 700;
             cursor: pointer;
+            padding: 4px 2px;
         }
 
         .message {
-            min-height: 20px;
-            margin-top: 10px;
-            font-size: 0.92rem;
+            min-height: 22px;
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 13px;
             font-weight: 600;
+            text-align: center;
         }
 
         .message.error { color: var(--danger); }
@@ -183,13 +354,59 @@
             display: none;
         }
 
-        @media (max-width: 860px) {
-            .auth-shell {
-                grid-template-columns: 1fr;
+        @media (max-width: 940px) {
+            body {
+                padding: 18px;
+                place-items: start center;
             }
 
-            .auth-info h1 {
-                font-size: 1.6rem;
+            .auth-shell {
+                grid-template-columns: 1fr;
+                height: auto;
+                min-height: auto;
+                border-radius: 28px;
+            }
+
+            .auth-info {
+                min-height: 420px;
+                border-radius: 28px 28px 70px 28px;
+                background-position: center;
+            }
+
+            .auth-panel {
+                height: auto;
+                min-height: 620px;
+                overflow: visible;
+                padding: 36px 28px 34px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            body {
+                padding: 12px;
+            }
+
+            .auth-shell {
+                border-radius: 22px;
+            }
+
+            .auth-info {
+                min-height: 350px;
+                padding: 22px;
+                border-radius: 22px 22px 54px 22px;
+            }
+
+            .switch-row {
+                grid-template-columns: 1fr;
+                border-radius: 20px;
+            }
+
+            .auth-panel {
+                padding: 30px 20px 28px;
+            }
+
+            .visual-copy h1 {
+                font-size: 2rem;
             }
         }
     </style>
@@ -197,15 +414,14 @@
 <body>
     <div class="auth-shell">
         <section class="auth-info">
-            <h1>Rehab Glove Account Access</h1>
-            <p>
-                Sign in with your email and password as Admin, Doctor, or Patient.
-                If you are new, create your account with role-specific details.
-            </p>
-            <div class="auth-note">
-                Admin can login only (account is created from database/backend). <br>
-                Doctor signup needs: email, password, hospital id, name. <br>
-                Patient signup needs: name, age, email, primary hospital id, password.
+            <div class="visual-brand">
+                <span class="visual-brand-mark" aria-hidden="true"></span>
+                GloveXcel
+            </div>
+
+            <div class="visual-copy">
+                <h1>Hospital Connected Rehabilitation</h1>
+                <p>Secure access for admins, doctors, and patients in one connected workflow.</p>
             </div>
         </section>
 
@@ -217,6 +433,7 @@
             </div>
 
             <h2 class="form-title" id="formTitle">Doctor Login</h2>
+            <p class="form-subtitle" id="formSubtitle">Access your rehabilitation workspace with your registered credentials.</p>
 
             <form id="loginForm" class="auth-form">
                 <label for="loginEmail">Email</label>
@@ -267,6 +484,9 @@
                 <button class="submit-btn" type="submit">Create Patient Account</button>
             </form>
 
+            <div class="auth-divider">or</div>
+            <button class="secondary-auth-btn" type="button">Continue with Google</button>
+
             <div class="toggle-mode">
                 <span id="togglePrompt">Need an account?</span>
                 <button id="toggleModeBtn" type="button">Sign up</button>
@@ -283,6 +503,7 @@
         const doctorRoleBtn = document.getElementById('doctorRoleBtn');
         const patientRoleBtn = document.getElementById('patientRoleBtn');
         const formTitle = document.getElementById('formTitle');
+        const formSubtitle = document.getElementById('formSubtitle');
         const loginForm = document.getElementById('loginForm');
         const doctorSignupForm = document.getElementById('doctorSignupForm');
         const patientSignupForm = document.getElementById('patientSignupForm');
@@ -354,6 +575,9 @@
             const isLogin = mode === 'login';
             const roleName = activeRole.charAt(0).toUpperCase() + activeRole.slice(1);
             formTitle.textContent = `${roleName} ${isLogin ? 'Login' : 'Signup'}`;
+            formSubtitle.textContent = isLogin
+                ? `Access your ${roleName.toLowerCase()} workspace with your registered credentials.`
+                : `Create a secure ${roleName.toLowerCase()} account connected to your hospital workflow.`;
 
             loginForm.classList.toggle('hidden', !isLogin);
             doctorSignupForm.classList.toggle('hidden', isLogin || activeRole !== 'doctor');
@@ -494,10 +718,10 @@
                     return;
                 }
 
-                setMessage(`Doctor account created. Doctor ID: ${data.doctor.doctor_id}`, 'success');
                 mode = 'login';
                 updateView();
                 document.getElementById('loginEmail').value = body.email;
+                setMessage(`Doctor account created. Doctor ID: ${data.doctor.doctor_id}`, 'success');
             } catch (error) {
                 setMessage('Unable to connect to server.', 'error');
             }
@@ -528,11 +752,11 @@
                     return;
                 }
 
-                setMessage(`Patient account created. Patient ID: ${data.patient.patient_id}`, 'success');
                 mode = 'login';
                 activeRole = 'patient';
                 updateView();
                 document.getElementById('loginEmail').value = body.email;
+                setMessage(`Patient account created. Patient ID: ${data.patient.patient_id}`, 'success');
             } catch (error) {
                 setMessage('Unable to connect to server.', 'error');
             }

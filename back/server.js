@@ -20,6 +20,7 @@ const exerciseRoutes = require('./routes/exerciseRoutes');
 const exerciseMaxRoutes = require('./routes/exerciseMaxRoutes');
 const liveExerciseRoutes = require('./routes/liveExerciseRoutes');
 const therapySessionRoutes = require('./routes/therapySessionRoutes');
+const channelRequestRoutes = require('./routes/channelRequestRoutes');
 
 const app = express();
 app.use(cors());
@@ -60,6 +61,7 @@ app.use('/api/exercises', exerciseRoutes);
 app.use('/api/exercise-max', exerciseMaxRoutes);
 app.use('/api/live-exercises', liveExerciseRoutes);
 app.use('/api/therapy-sessions', therapySessionRoutes);
+app.use('/api/channel-requests', channelRequestRoutes);
 
 // Start Server
 const PORT = process.env.PORT || 3000;

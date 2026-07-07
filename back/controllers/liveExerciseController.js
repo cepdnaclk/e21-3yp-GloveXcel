@@ -32,7 +32,7 @@ function normalizeFingerPayload(fingers = {}) {
 
 const createLiveExercise = async (req, res) => {
     try {
-        const { exercise_id, doctor_id, patient_id, fingers, capturedAt } = req.body;
+        const { exercise_id, exercise_name, description, doctor_id, patient_id, fingers, capturedAt } = req.body;
         const forceLevel = req.body.force_level === undefined || req.body.force_level === null || req.body.force_level === ''
             ? 1
             : Number(req.body.force_level);
@@ -50,16 +50,40 @@ const createLiveExercise = async (req, res) => {
             return res.status(400).json({ error: 'fingers with min, max, and angle for all 5 fingers is required.' });
         }
 
+        if (req.user && !['doctor', 'admin'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Only doctors or admins can create live exercises.' });
+        }
+
+        const effectiveDoctorId = req.user?.role === 'doctor'
+            ? req.user.sub
+            : doctor_id;
+
+        if (!patient_id || !effectiveDoctorId) {
+            return res.status(400).json({ error: 'patient_id and doctor_id are required.' });
+        }
+
+        const requestedSavedAt = capturedAt ? new Date(capturedAt) : new Date();
+        const savedAt = Number.isNaN(requestedSavedAt.getTime()) ? new Date() : requestedSavedAt;
+        const fallbackName = `Live Exercise - ${savedAt.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        })}`;
+        const displayName = exercise_name || description || fallbackName;
+
         const doc = await LiveExercise.findOneAndUpdate(
             { exercise_id },
             {
                 $set: {
                     exercise_id,
-                    doctor_id: doctor_id || null,
-                    patient_id: patient_id || null,
                     force_level: forceLevel,
+                    exercise_name: displayName,
+                    description: description || exercise_name || displayName,
+                    doctor_id: effectiveDoctorId,
+                    patient_id,
                     ...normalized,
-                    capturedAt: capturedAt ? new Date(capturedAt) : new Date(),
+                    capturedAt: savedAt,
                     updatedAt: Date.now()
                 },
                 $setOnInsert: { createdAt: Date.now() }
@@ -80,6 +104,10 @@ const listLiveExercises = async (req, res) => {
         if (req.query.exercise_id) query.exercise_id = req.query.exercise_id;
         if (req.query.doctor_id) query.doctor_id = req.query.doctor_id;
         if (req.query.patient_id) query.patient_id = req.query.patient_id;
+        const effectivePatientId = req.user?.role === 'patient'
+            ? req.user.sub
+            : req.query.patient_id;
+        if (effectivePatientId) query.patient_id = effectivePatientId;
 
         const exercises = await LiveExercise.find(query).sort({ createdAt: -1 }).limit(50).lean();
         return res.status(200).json({ exercises });

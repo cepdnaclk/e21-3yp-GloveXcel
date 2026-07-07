@@ -1,0 +1,139 @@
+<!-- views/doctors.html
+     Patient-facing doctors list.
+     Logic is in js/viewControllers/doctorsController.js
+-->
+<div class="view-namespace-doctors">
+  <div class="view-header">
+    <h2 class="view-title">Doctors</h2>
+    <p class="view-subtitle">Doctors available in the system and their hospitals.</p>
+  </div>
+
+  <section class="card">
+    <h3 class="card-title">Doctor Directory</h3>
+    <div class="doctor-search-row">
+      <input
+        id="doctorSearchInput"
+        class="doctor-search-input"
+        type="search"
+        placeholder="Search by doctor or hospital"
+        aria-label="Search doctors"
+      />
+    </div>
+    <div id="doctorsList" class="doctors-list">
+      Loading doctors...
+    </div>
+  </section>
+
+  <section id="doctorProfileSection" class="card doctor-profile-section" hidden>
+    <button id="backToDoctorsBtn" class="btn-secondary doctor-back-btn" type="button">Back to Doctors</button>
+    <div id="doctorProfileContent"></div>
+  </section>
+
+  <style>
+    .view-namespace-doctors .doctor-search-row {
+      margin-bottom: 14px;
+    }
+    .view-namespace-doctors .doctor-search-input {
+      width: min(420px, 100%);
+      padding: 10px 12px;
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font: inherit;
+    }
+    .view-namespace-doctors .doctor-search-input:focus {
+      outline: none;
+      border-color: var(--c-brand);
+    }
+    .view-namespace-doctors .doctor-search-input::placeholder {
+      color: var(--c-ink-muted);
+    }
+    .view-namespace-doctors .doctors-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .view-namespace-doctors .doctor-card {
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.16s ease, background-color 0.16s ease;
+    }
+    .view-namespace-doctors .doctor-card:hover,
+    .view-namespace-doctors .doctor-card:focus {
+      border-color: var(--c-brand);
+      background: rgba(78, 142, 247, 0.08);
+      outline: none;
+    }
+    .view-namespace-doctors .doctor-name {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .view-namespace-doctors .doctor-hospital {
+      color: var(--c-ink-muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .view-namespace-doctors .doctor-empty,
+    .view-namespace-doctors .doctor-error {
+      color: var(--c-ink-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .view-namespace-doctors .doctor-error {
+      color: #fca5a5;
+    }
+    .view-namespace-doctors .doctor-profile-section {
+      margin-top: 16px;
+    }
+    .view-namespace-doctors .doctor-back-btn {
+      margin-bottom: 16px;
+    }
+    .view-namespace-doctors .doctor-profile-name {
+      color: #fff;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .view-namespace-doctors .doctor-profile-subtitle {
+      color: var(--c-ink-muted);
+      font-size: 14px;
+      margin-bottom: 18px;
+    }
+    .view-namespace-doctors .doctor-profile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .view-namespace-doctors .doctor-profile-field {
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+    }
+    .view-namespace-doctors .doctor-profile-label {
+      color: var(--c-ink-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+    .view-namespace-doctors .doctor-profile-value {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+    .view-namespace-doctors .doctor-request-btn {
+      min-width: 240px;
+    }
+  </style>
+</div>

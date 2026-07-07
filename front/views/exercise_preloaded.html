@@ -21,12 +21,11 @@
   <section class="card" id="preloadedDataSourceSection">
     <h3 class="card-title">Glove &amp; Data Source</h3>
     <div class="actions">
-      <button id="connectGloveBtn" type="button">Connect Patient Glove</button>
       <button id="loadPatientCalibBtn" class="btn-secondary" type="button">Load Patient Calibration</button>
     </div>
     <p id="gloveStatus" class="note">Patient glove status: Not connected.</p>
     <p id="patientCalibStatus" class="note">Patient calibration status: Not loaded.</p>
-    <p class="note">Exercises and max angles are loaded from the database. Data source matches patient ID in your profile.</p>
+    <p class="note">Bluetooth connects from the Real-Time Session page. Exercises and max angles are loaded from the database for the patient ID in your profile.</p>
   </section>
 
   <!-- ── Assigned Exercise ────────────────────────────────────────────── -->
@@ -50,47 +49,8 @@
 
   <!-- ── Patient Movement Match ───────────────────────────────────────── -->
   <section class="card match-hero">
-    <div class="match-legend">
-      Bar track = 120% of target. Blue line = prescribed max (100%).
-      <span class="legend approaching">&#9632;</span> Approaching
-      <span class="legend safe">&#9632;</span> Safe Zone (95-105%)
-      <span class="legend over">&#9632;</span> Over-flexion (&gt;105%)
-    </div>
     <span id="overallMatchBadge" class="pill pill-ok">Overall Match: --</span>
     <div id="matchGrid" class="match-grid"></div>
-  </section>
-
-  <!-- ── Doctor Values ────────────────────────────────────────────────── -->
-  <section class="card" id="doctorValuesSection">
-    <h3 class="card-title">Doctor Values (From Database)</h3>
-    <div class="actions">
-      <label for="levelSelect">Doctor Level</label>
-      <select id="levelSelect" aria-label="Doctor difficulty level">
-        <option value="1">Level 1</option>
-        <option value="2">Level 2</option>
-        <option value="3">Level 3</option>
-        <option value="4">Level 4</option>
-        <option value="5">Level 5</option>
-        <option value="6">Level 6</option>
-      </select>
-
-      <label for="cycleMsInput">Loop Cycle (ms)</label>
-      <input id="cycleMsInput" type="number" min="1000" max="10000" step="100" value="3200"
-             aria-label="Loop cycle duration in milliseconds" />
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Finger</th>
-          <th>Doctor Calib Min</th>
-          <th>Doctor Calib Max</th>
-          <th>Exercise Max Angle</th>
-        </tr>
-      </thead>
-      <tbody id="doctorDataBody"></tbody>
-    </table>
-    <p id="levelInfo" class="note">Selected doctor level target angle: 0deg.</p>
   </section>
 
   <!-- ── Loop Control ─────────────────────────────────────────────────── -->

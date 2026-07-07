@@ -1,0 +1,61 @@
+<div class="view-namespace-doctor-patients">
+  <div class="view-header">
+    <h2 class="view-title">Patients</h2>
+    <p class="view-subtitle">Review channeling requests and manage approved patients.</p>
+  </div>
+
+  <section class="panel">
+    <div class="panel-title">Channeling Requests</div>
+    <div id="channelRequestsList" class="doctor-patient-list">Loading requests...</div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title">My Patients</div>
+    <div id="doctorPatientsList" class="doctor-patient-list">Loading patients...</div>
+  </section>
+
+  <style>
+    .view-namespace-doctor-patients .doctor-patient-list {
+      display: grid;
+      gap: 12px;
+    }
+    .view-namespace-doctor-patients .patient-card {
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+    }
+    .view-namespace-doctor-patients .patient-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .view-namespace-doctor-patients .patient-name {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .view-namespace-doctor-patients .patient-meta {
+      color: var(--c-text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .view-namespace-doctor-patients .request-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .view-namespace-doctor-patients .empty-state,
+    .view-namespace-doctor-patients .error-state {
+      color: var(--c-text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .view-namespace-doctor-patients .error-state {
+      color: #fca5a5;
+    }
+  </style>
+</div>

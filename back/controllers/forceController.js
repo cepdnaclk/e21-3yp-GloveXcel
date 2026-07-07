@@ -1,15 +1,16 @@
 const Force = require('../models/Force');
 
-// Default patient context for force control.
-const DEFAULT_PATIENT_ID = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
-
 const setForceLevel = async (req, res) => {
     try {
         const { level, patient_id, exercise_id } = req.body;
-        const targetPatientId = patient_id || DEFAULT_PATIENT_ID;
+        const targetPatientId = patient_id;
 
         if (!Number.isInteger(level) || level < 1 || level > 10) {
             return res.status(400).json({ error: 'Level must be an integer between 1 and 10.' });
+        }
+
+        if (!targetPatientId) {
+            return res.status(400).json({ error: 'patient_id is required.' });
         }
 
         const doc = await Force.findOneAndUpdate(
@@ -27,7 +28,11 @@ const setForceLevel = async (req, res) => {
 
 const getForceLevel = async (req, res) => {
     try {
-        const patientId = req.query.patient_id || req.body.patient_id || DEFAULT_PATIENT_ID;
+        const patientId = req.query.patient_id || req.body.patient_id;
+        if (!patientId) {
+            return res.status(400).json({ error: 'patient_id is required.' });
+        }
+
         const doc = await Force.findOne({ patient_id: patientId });
 
         if (!doc) {

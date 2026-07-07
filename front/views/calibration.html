@@ -11,12 +11,12 @@
   </div>
 
   <div id="calibStatus" class="status-bar">
-    Connect glove, select level preview, then capture min/max (non-thumb and thumb).
+    Connect glove, select level preview, then capture min/max.
   </div>
 
-  <!-- Connection -->
+  <!-- Calibration actions -->
   <section class="card">
-    <h3 class="card-title">Connection</h3>
+    <h3 class="card-title">Calibration Actions</h3>
     <div class="actions">
       <button id="connectBtn" type="button">Connect to Glove</button>
       <button id="clearBtn" class="btn-secondary" type="button">Clear Calibration</button>
@@ -43,33 +43,45 @@
   </section>
 
   <!-- Pass 1: Non-Thumb -->
-  <section class="card">
+  <section class="calibration-pass-block">
     <h3 class="card-title">Pass 1 — Non-Thumb Calibration</h3>
-    <div class="actions">
-      <button id="captureNonThumbMinBtn" class="btn-secondary" type="button" disabled>
-        Capture Non-Thumb Min (0deg)
-      </button>
-      <button id="captureNonThumbMaxBtn" class="btn-secondary" type="button" disabled>
-        Capture Non-Thumb Max (Level)
-      </button>
-      <button id="previewNonThumbMinBtn" type="button">Preview Non-Thumb Min</button>
-      <button id="previewNonThumbMaxBtn" type="button">Preview Non-Thumb Max</button>
+    <div class="calibration-steps">
+      <div class="calibration-step">
+        <span class="step-number">1</span>
+        <button id="previewNonThumbMinBtn" class="btn-secondary step-preview-btn" type="button">Preview Non-Thumb Min</button>
+        <button id="captureNonThumbMinBtn" class="btn-secondary step-capture-btn" type="button" disabled>
+          Capture Non-Thumb Min (0deg)
+        </button>
+      </div>
+      <div class="calibration-step">
+        <span class="step-number">2</span>
+        <button id="previewNonThumbMaxBtn" class="btn-secondary step-preview-btn" type="button">Preview Non-Thumb Max</button>
+        <button id="captureNonThumbMaxBtn" class="btn-secondary step-capture-btn" type="button" disabled>
+          Capture Non-Thumb Max (Level)
+        </button>
+      </div>
     </div>
     <p class="note">Extend all fingers flat for Min, then curl index–pinky to the selected level for Max.</p>
   </section>
 
   <!-- Pass 2: Thumb -->
-  <section class="card">
+  <section class="calibration-pass-block">
     <h3 class="card-title">Pass 2 — Thumb Calibration</h3>
-    <div class="actions">
-      <button id="captureThumbMinBtn" class="btn-secondary" type="button" disabled>
-        Capture Thumb Min (0deg)
-      </button>
-      <button id="captureThumbMaxBtn" class="btn-secondary" type="button" disabled>
-        Capture Thumb Max (Level)
-      </button>
-      <button id="previewThumbMinBtn" type="button">Preview Thumb Min</button>
-      <button id="previewThumbMaxBtn" type="button">Preview Thumb Max</button>
+    <div class="calibration-steps">
+      <div class="calibration-step">
+        <span class="step-number">3</span>
+        <button id="previewThumbMinBtn" class="btn-secondary step-preview-btn" type="button">Preview Thumb Min</button>
+        <button id="captureThumbMinBtn" class="btn-secondary step-capture-btn" type="button" disabled>
+          Capture Thumb Min (0deg)
+        </button>
+      </div>
+      <div class="calibration-step">
+        <span class="step-number">4</span>
+        <button id="previewThumbMaxBtn" class="btn-secondary step-preview-btn" type="button">Preview Thumb Max</button>
+        <button id="captureThumbMaxBtn" class="btn-secondary step-capture-btn" type="button" disabled>
+          Capture Thumb Max (Level)
+        </button>
+      </div>
     </div>
     <p class="note">Keep non-thumb fingers at level position, then capture thumb open and closed.</p>
   </section>
@@ -87,5 +99,55 @@
     <div id="snapshotGrid" class="mini-grid"></div>
     <p id="capturedAt" class="note">Captured at: --</p>
   </section>
+
+  <style>
+    .view-namespace-calibration .calibration-pass-block {
+      margin-bottom: 24px;
+    }
+    .view-namespace-calibration .calibration-pass-block .card-title {
+      color: var(--c-brand);
+      margin-bottom: 14px;
+    }
+    .view-namespace-calibration .calibration-steps {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .view-namespace-calibration .calibration-step {
+      display: grid;
+      grid-template-columns: 32px minmax(220px, 270px) minmax(260px, 340px);
+      align-items: center;
+      gap: 12px;
+    }
+    .view-namespace-calibration .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      color: var(--c-brand);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .view-namespace-calibration .step-preview-btn,
+    .view-namespace-calibration .step-capture-btn {
+      width: 100%;
+      justify-content: center;
+    }
+    .view-namespace-calibration .step-preview-btn {
+      color: #fff;
+      border-color: var(--c-brand);
+    }
+    @media (max-width: 760px) {
+      .view-namespace-calibration .calibration-step {
+        grid-template-columns: 32px 1fr;
+      }
+      .view-namespace-calibration .step-capture-btn {
+        grid-column: 2;
+      }
+    }
+  </style>
 
 </div>

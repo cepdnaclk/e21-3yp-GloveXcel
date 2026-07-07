@@ -33,7 +33,6 @@ const patientIdBadgeEl = document.getElementById("patientIdBadge");
 const CALIBRATION_STORAGE_KEY_V1 = "patientCalibrationV1";
 const PATIENT_ID_STORAGE_KEY = "patientId";
 const AUTH_TOKEN_STORAGE_KEY = "auth_token";
-const FIXED_PATIENT_ID = "PAT-a7a19957fb68446f8314d672bfccfa8b";
 const LEGACY_PATIENT_ID = "patient_003";
 const API_BASE = (localStorage.getItem("apiBaseUrl") || "http://localhost:3000").replace(/\/$/, "");
 const DATA_API_BASE = `${API_BASE}/api/data`;
@@ -90,14 +89,14 @@ function getStoredPatientId() {
   const storedPatientId = localStorage.getItem(PATIENT_ID_STORAGE_KEY);
   const rawProfile = localStorage.getItem("auth_profile");
   if (!rawProfile) {
-    return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : FIXED_PATIENT_ID;
+    return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : "";
   }
 
   try {
     const profile = JSON.parse(rawProfile);
-    return profile?.patient_id || (storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : FIXED_PATIENT_ID);
+    return profile?.patient_id || (storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : "");
   } catch {
-    return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : FIXED_PATIENT_ID;
+    return storedPatientId && storedPatientId !== LEGACY_PATIENT_ID ? storedPatientId : "";
   }
 }
 
@@ -112,10 +111,49 @@ function renderPatientIdBadge() {
 
 function getAuthHeaders() {
   const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-  if (!token) {
+  if (!token || !isAuthTokenForCurrentSession(token)) {
     return {};
   }
   return { Authorization: `Bearer ${token}` };
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function isAuthTokenForCurrentSession(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return false;
+
+  if (payload.exp && payload.exp * 1000 <= Date.now()) {
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    return false;
+  }
+
+  let profile = {};
+  try {
+    profile = JSON.parse(localStorage.getItem("auth_profile") || "{}");
+  } catch {
+    profile = {};
+  }
+
+  const role = String(localStorage.getItem("auth_role") || "").trim().toLowerCase();
+  const tokenRole = String(payload.role || "").trim().toLowerCase();
+  if (role && tokenRole && role !== tokenRole) return false;
+
+  if (role === "patient") return payload.sub === profile.patient_id;
+  if (role === "doctor") return payload.sub === profile.doctor_id;
+  if (role === "admin") return payload.sub === profile.admin_id;
+
+  return true;
 }
 
 function levelToAngle(level) {

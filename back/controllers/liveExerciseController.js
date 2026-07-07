@@ -32,10 +32,17 @@ function normalizeFingerPayload(fingers = {}) {
 
 const createLiveExercise = async (req, res) => {
     try {
-        const { exercise_id, doctor_id, fingers, capturedAt } = req.body;
+        const { exercise_id, doctor_id, patient_id, fingers, capturedAt } = req.body;
+        const forceLevel = req.body.force_level === undefined || req.body.force_level === null || req.body.force_level === ''
+            ? 1
+            : Number(req.body.force_level);
 
         if (!exercise_id) {
             return res.status(400).json({ error: 'exercise_id is required.' });
+        }
+
+        if (!Number.isInteger(forceLevel) || forceLevel < 1 || forceLevel > 10) {
+            return res.status(400).json({ error: 'force_level must be an integer between 1 and 10.' });
         }
 
         const normalized = normalizeFingerPayload(fingers);
@@ -49,6 +56,8 @@ const createLiveExercise = async (req, res) => {
                 $set: {
                     exercise_id,
                     doctor_id: doctor_id || null,
+                    patient_id: patient_id || null,
+                    force_level: forceLevel,
                     ...normalized,
                     capturedAt: capturedAt ? new Date(capturedAt) : new Date(),
                     updatedAt: Date.now()
@@ -68,7 +77,9 @@ const createLiveExercise = async (req, res) => {
 const listLiveExercises = async (req, res) => {
     try {
         const query = {};
+        if (req.query.exercise_id) query.exercise_id = req.query.exercise_id;
         if (req.query.doctor_id) query.doctor_id = req.query.doctor_id;
+        if (req.query.patient_id) query.patient_id = req.query.patient_id;
 
         const exercises = await LiveExercise.find(query).sort({ createdAt: -1 }).limit(50).lean();
         return res.status(200).json({ exercises });

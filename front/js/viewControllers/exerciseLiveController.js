@@ -22,7 +22,6 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 const FINGER_LABELS     = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const FINGER_KEYS       = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const PATIENT_CALIB_KEY = 'patientCalibrationV1';
-const LIVE_EXERCISE_DOCTOR_ID = 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
 
 // ─── Module-level mutable state ───────────────────────────────────────────────
 let _state     = null;
@@ -56,7 +55,15 @@ let _mqttConnected = false;
 const MQTT_BROKER_URL = 'wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt';
 const MQTT_USERNAME = 'Glovexl';
 const MQTT_PASSWORD = '200209Ost';
-const MQTT_TOPIC = 'project/glove01/status';
+const MQTT_TOPIC_PREFIX = 'glovexcel/patients';
+
+function sanitizeMqttTopicPart(value) {
+  return String(value || '').trim().replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function getPatientTelemetryTopic(patientId) {
+  return `${MQTT_TOPIC_PREFIX}/${sanitizeMqttTopicPart(patientId)}/telemetry`;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MATH HELPERS
@@ -226,7 +233,73 @@ async function fetchAndApplyForce() {
   try {
     const apiBase = _state.apiBase;
     const headers = _state.getAuthHeaders();
-    const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
+    const patientId = _state.patientId;
+
+    if (!_selectedLiveExercise && _liveExercises.length > 0) {
+      if (liveForceStatusEl) {
+        liveForceStatusEl.textContent = 'Select a live exercise before fetching force.';
+      }
+      alert('Please select a live exercise before fetching force.');
+      return;
+    }
+
+    if (_selectedLiveExercise) {
+      const selectedExerciseId = _selectedLiveExercise.exercise_id;
+      const liveExerciseResp = await fetch(
+        `${apiBase}/api/live-exercises?patient_id=${encodeURIComponent(patientId)}&exercise_id=${encodeURIComponent(selectedExerciseId)}`,
+        { headers }
+      );
+      if (!liveExerciseResp.ok) throw new Error(`Live exercise lookup returned ${liveExerciseResp.status}`);
+
+      const liveExerciseData = await liveExerciseResp.json();
+      const liveExercise = Array.isArray(liveExerciseData.exercises)
+        ? liveExerciseData.exercises[0]
+        : null;
+
+      if (!liveExercise) {
+        if (liveForceStatusEl) {
+          liveForceStatusEl.textContent = 'Selected live exercise was not found in database.';
+        }
+        alert('Selected live exercise was not found in database.');
+        return;
+      }
+
+      _selectedLiveExercise = liveExercise;
+      _liveExercises = [
+        liveExercise,
+        ..._liveExercises.filter(exercise => exercise.exercise_id !== liveExercise.exercise_id)
+      ];
+      renderPatientLiveExercises(_liveExercises);
+      renderSelectedLiveExerciseSliders();
+
+      const level = Number(liveExercise.force_level ?? 1);
+      if (!Number.isInteger(level) || level < 1 || level > 10) {
+        if (liveForceStatusEl) {
+          liveForceStatusEl.textContent = 'Selected live exercise has an invalid force level.';
+        }
+        alert('Selected live exercise has an invalid force level.');
+        return;
+      }
+
+      if (!_state.isConnected || !_state.bleClient) {
+        if (liveForceStatusEl) {
+          liveForceStatusEl.textContent = `Live exercise force level: ${level} (glove disconnected).`;
+        }
+        alert(`Fetched force level ${level} from the selected live exercise, but patient glove is not connected. Please connect the glove first.`);
+        return;
+      }
+
+      console.log(`[LiveCtrl] Applying selected live exercise force level ${level} to patient glove`);
+      await _state.bleClient.sendMotorLevel(level);
+
+      if (liveForceStatusEl) {
+        liveForceStatusEl.textContent = `Live exercise force level: ${level} (applied to motor).`;
+      }
+      setStatus(`Force level ${level} from ${liveExercise.exercise_id} fetched and applied to motor.`);
+      alert(`Successfully fetched and applied force level ${level} from the selected live exercise.`);
+      return;
+    }
+
     const resp = await fetch(`${apiBase}/api/forces?patient_id=${patientId}`, { headers });
     
     if (resp.status === 404) {
@@ -326,7 +399,7 @@ function renderPatientLiveExercises(exercises) {
     exercises.forEach((exercise) => {
       const option = document.createElement('option');
       option.value = exercise.exercise_id;
-      option.textContent = exercise.exercise_id || 'Live Exercise';
+      option.textContent = `${exercise.exercise_id || 'Live Exercise'} - Force ${exercise.force_level || 1}`;
       patientLiveExerciseSelectEl.appendChild(option);
     });
   }
@@ -364,6 +437,8 @@ function renderPatientLiveExercises(exercises) {
     card.innerHTML = `
       <strong>${exercise.exercise_id || 'Live Exercise'}</strong>
       <div>Doctor: ${exercise.doctor_id || '--'}</div>
+      <div>Patient: ${exercise.patient_id || '--'}</div>
+      <div>Force level: ${exercise.force_level || 1}</div>
       <div>Captured: ${captured}</div>
       <div class="live-exercise-values">${values}</div>
     `;
@@ -437,15 +512,15 @@ async function loadPatientLiveExercises() {
 
   try {
     const resp = await fetch(
-      `${_state.apiBase}/api/live-exercises?doctor_id=${encodeURIComponent(LIVE_EXERCISE_DOCTOR_ID)}`,
+      `${_state.apiBase}/api/live-exercises?patient_id=${encodeURIComponent(_state.patientId)}`,
       { headers: _state.getAuthHeaders() }
     );
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
     const data = await resp.json();
     _liveExercises = Array.isArray(data.exercises) ? data.exercises : [];
-    if (!_selectedLiveExercise && _liveExercises.length > 0) {
-      _selectedLiveExercise = _liveExercises[0];
+    if (!_liveExercises.some(exercise => exercise.exercise_id === _selectedLiveExercise?.exercise_id)) {
+      _selectedLiveExercise = null;
     }
     renderPatientLiveExercises(_liveExercises);
     renderSelectedLiveExerciseSliders();
@@ -659,7 +734,7 @@ export function mount(container, gloveState, threeEngine) {
           const v = Number(packet[i]) || 0;
           view.setUint16(i * 2, v & 0xffff, true);
         }
-        _mqttClient.publish(MQTT_TOPIC, new Uint8Array(buffer), { qos: 0, retain: false });
+        _mqttClient.publish(getPatientTelemetryTopic(_state.patientId), new Uint8Array(buffer), { qos: 0, retain: false });
       } catch (err) {
         console.warn('[MQTT] publish failed', err);
       }
@@ -747,7 +822,7 @@ export function mount(container, gloveState, threeEngine) {
         _mqttClient = globalThis.mqtt.connect(MQTT_BROKER_URL, {
           username: MQTT_USERNAME,
           password: MQTT_PASSWORD,
-          clientId: 'patient_' + Math.random().toString(16).substring(2,8),
+          clientId: `patient_${sanitizeMqttTopicPart(_state.patientId)}_${Math.random().toString(16).substring(2,8)}`,
           reconnectPeriod: 2000,
         });
 
@@ -755,7 +830,7 @@ export function mount(container, gloveState, threeEngine) {
           _mqttConnected = true;
           mqttToggleBtn.textContent = 'MQTT: Connected';
           mqttToggleBtn.classList.remove('btn-secondary');
-          setStatus('Connected to MQTT broker — streaming enabled.');
+          setStatus(`Connected to MQTT broker. Streaming on ${getPatientTelemetryTopic(_state.patientId)}.`);
         });
 
         _mqttClient.on('error', (err) => {

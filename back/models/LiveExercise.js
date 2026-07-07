@@ -9,6 +9,8 @@ const fingerCaptureSchema = new mongoose.Schema({
 const liveExerciseSchema = new mongoose.Schema({
     exercise_id: { type: String, required: true, unique: true },
     doctor_id: { type: String, default: null },
+    patient_id: { type: String, default: null },
+    force_level: { type: Number, required: true, min: 1, max: 10, default: 1 },
     fingers: {
         thumb: { type: fingerCaptureSchema, required: true },
         index: { type: fingerCaptureSchema, required: true },

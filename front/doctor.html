@@ -620,7 +620,7 @@
                 
                 <div style="background:#fafafa; border:1px solid #dce2ed; border-radius:10px; padding:16px; margin-bottom:12px;">
                     <input id="mqttHostInput" type="hidden" value="wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt">
-                    <input id="mqttTopicInput" type="hidden" value="project/glove01/status">
+                    <input id="mqttTopicInput" type="hidden" value="">
                     <input id="mqttUsernameInput" type="hidden" value="Glovexl">
                     <input id="mqttPasswordInput" type="hidden" value="200209Ost">
                     
@@ -1022,6 +1022,52 @@
         let motorLevelApproved = false;
         let mockPatientStreamId = null; // real-time session: mock patient stream interval handle
 
+        const ACTIVE_PATIENT_STORAGE_KEY = 'doctorActivePatientV1';
+        const MQTT_TOPIC_PREFIX = 'glovexcel/patients';
+
+        function sanitizeMqttTopicPart(value) {
+            return String(value || '').trim().replace(/[^A-Za-z0-9_-]/g, '_');
+        }
+
+        function getPatientTelemetryTopic(patientId) {
+            return `${MQTT_TOPIC_PREFIX}/${sanitizeMqttTopicPart(patientId)}/telemetry`;
+        }
+
+        function getActivePatientSelection() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(ACTIVE_PATIENT_STORAGE_KEY) || '{}');
+                return {
+                    patient_id: parsed.patient_id || '',
+                    name: parsed.name || ''
+                };
+            } catch {
+                return { patient_id: '', name: '' };
+            }
+        }
+
+        function getDoctorId() {
+            try {
+                const profile = JSON.parse(localStorage.getItem('auth_profile') || '{}');
+                if (profile?.doctor_id) return profile.doctor_id;
+            } catch { /* fall through */ }
+
+            return localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
+        }
+
+        function persistActivePatientSelection() {
+            const selectedOption = exercisePatientIdEl?.selectedOptions?.[0];
+            const patientId = exercisePatientIdEl?.value || '';
+            const name = selectedOption?.dataset?.patientName || '';
+            if (!patientId) {
+                localStorage.removeItem(ACTIVE_PATIENT_STORAGE_KEY);
+                return;
+            }
+            localStorage.setItem(ACTIVE_PATIENT_STORAGE_KEY, JSON.stringify({
+                patient_id: patientId,
+                name
+            }));
+        }
+
         window.doctorShared = window.doctorShared || {
             latestPacket: [...DEFAULT_RELAXED_PACKET],
             angles: [null, null, null, null, null],
@@ -1277,10 +1323,14 @@
                     const id = patient?.patient_id || '';
                     const name = patient?.name || 'Unnamed';
                     const label = `${id} - ${name}`.trim();
-                    options.push(`<option value="${id}">${label}</option>`);
+                    options.push(`<option value="${id}" data-patient-name="${name}">${label}</option>`);
                 });
 
                 exercisePatientIdEl.innerHTML = options.join('');
+                const activePatient = getActivePatientSelection();
+                if (activePatient.patient_id && patients.some(patient => patient.patient_id === activePatient.patient_id)) {
+                    exercisePatientIdEl.value = activePatient.patient_id;
+                }
             } catch (error) {
                 console.error('Failed to load patients:', error);
                 exercisePatientIdEl.innerHTML = '<option value="">-- Failed to load patients --</option>';
@@ -1615,6 +1665,7 @@
         }
 
         async function saveExercise() {
+            persistActivePatientSelection();
             const patientId = exercisePatientIdEl?.value?.trim();
             const description = exerciseDescriptionEl?.value?.trim();
             const motorLevel = Number(exerciseMotorLevelEl?.value);
@@ -1736,6 +1787,7 @@
         });
         captureAllExerciseBtn.addEventListener('click', captureAllExerciseAngles);
         resetExerciseCaptureBtn.addEventListener('click', resetExerciseCapture);
+        exercisePatientIdEl?.addEventListener('change', persistActivePatientSelection);
         saveExerciseBtn.addEventListener('click', saveExercise);
         exportExerciseBtn.addEventListener('click', exportExercises);
 
@@ -2162,7 +2214,10 @@
 
         async function fetchFallbackPatientCalibration() {
             try {
-                const resp = await fetch(`${API_BASE_URL}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`, {
+                const activePatient = getActivePatientSelection();
+                const patientId = activePatient.patient_id;
+                if (!patientId) return;
+                const resp = await fetch(`${API_BASE_URL}/api/patient-cal/${encodeURIComponent(patientId)}`, {
                     headers: getAuthHeaders()
                 });
                 if (resp.ok) {
@@ -2198,16 +2253,27 @@
                 mqttClient.end();
             }
 
+            persistActivePatientSelection();
+            const activePatient = getActivePatientSelection();
+            const patientId = activePatient.patient_id;
+            if (!patientId) {
+                mqttStatusLabel.textContent = 'Select a patient first';
+                mqttStatusLabel.style.color = '#dc2626';
+                alert('Please select a patient in Exercise Builder before connecting MQTT.');
+                return;
+            }
+
             const brokerUrl = mqttHostInput.value.trim();
-            const topic = mqttTopicInput.value.trim();
+            const topic = getPatientTelemetryTopic(patientId);
             const username = mqttUsernameInput.value.trim();
             const password = mqttPasswordInput.value.trim();
+            mqttTopicInput.value = topic;
 
             mqttStatusLabel.textContent = 'Connecting...';
             mqttStatusLabel.style.color = '#f59e0b';
             mqttConnectBtn.disabled = true;
 
-            const clientId = 'sim_receiver_' + Math.random().toString(16).substring(2, 8);
+            const clientId = `doctor_${sanitizeMqttTopicPart(getDoctorId())}_${sanitizeMqttTopicPart(patientId)}_${Math.random().toString(16).substring(2, 8)}`;
             
             try {
                 mqttClient = mqtt.connect(brokerUrl, {
@@ -2219,7 +2285,7 @@
                 });
 
                 mqttClient.on('connect', () => {
-                    mqttStatusLabel.textContent = 'Connected & Listening';
+                    mqttStatusLabel.textContent = `Listening to ${patientId}`;
                     mqttStatusLabel.style.color = '#22c55e';
                     mqttConnectBtn.disabled = true;
                     mqttDisconnectBtn.disabled = false;

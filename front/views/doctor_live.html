@@ -9,12 +9,22 @@
   </div>
 
   <div class="panel">
+    <h3 class="panel-title">Active Patient</h3>
+    <div style="display:grid; grid-template-columns:minmax(220px, 360px); gap:12px; align-items:end; margin-bottom:12px;">
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label for="activePatientSelect" style="font-size:12px; font-weight:600; color:var(--c-text-muted);">Patient</label>
+        <select id="activePatientSelect" class="form-control" disabled>
+          <option value="">-- Loading patients --</option>
+        </select>
+      </div>
+    </div>
+
     <h3 class="panel-title">
       Patient MQTT Connection
       <span style="font-size:10px; font-weight:700; background:#4e8ef7; color:#fff; padding:2px 8px; border-radius:20px; margin-left:8px; text-transform:uppercase;">MQTT</span>
     </h3>
     <input id="mqttHostInput" type="hidden" value="wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt">
-    <input id="mqttTopicInput" type="hidden" value="project/glove01/status">
+    <input id="mqttTopicInput" type="hidden" value="glovexcel/patients/PAT-a7a19957fb68446f8314d672bfccfa8b/telemetry">
     <input id="mqttUsernameInput" type="hidden" value="Glovexl">
     <input id="mqttPasswordInput" type="hidden" value="200209Ost">
 
@@ -73,7 +83,7 @@
     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="liveForceLevelInput" style="font-size:12px; font-weight:600; color:var(--c-text-muted);">Force Level (1-10)</label>
-        <input id="liveForceLevelInput" type="number" min="1" max="10" class="form-control" placeholder="1-10" style="width:100px; padding:8px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; text-align:center;">
+        <input id="liveForceLevelInput" type="number" min="1" max="10" value="1" class="form-control" placeholder="1-10" style="width:100px; padding:8px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; text-align:center;">
       </div>
       <div style="display:flex; align-items:flex-end; height:100%; margin-top:20px;">
         <button id="applyForceBtn" class="btn-primary" type="button" style="padding:10px 20px;">Apply Force</button>

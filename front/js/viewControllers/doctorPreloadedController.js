@@ -9,6 +9,7 @@ const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const EXERCISE_STORAGE_KEY = 'doctorExercisesV1';
 const BLE_MOTOR_CMD_UUID = '11111111-2222-3333-4444-555555555555';
+const ACTIVE_PATIENT_STORAGE_KEY = 'doctorActivePatientV1';
 
 let _state = null;
 let _engine = null;
@@ -70,6 +71,33 @@ function getDoctorId() {
   return localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
 }
 
+function getActivePatientSelection() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ACTIVE_PATIENT_STORAGE_KEY) || '{}');
+    return {
+      patient_id: parsed.patient_id || '',
+      name: parsed.name || ''
+    };
+  } catch {
+    return { patient_id: '', name: '' };
+  }
+}
+
+function persistActivePatientSelection() {
+  if (!exercisePatientId) return;
+  const selectedOption = exercisePatientId.selectedOptions?.[0];
+  const patientId = exercisePatientId.value || '';
+  const name = selectedOption?.dataset?.patientName || '';
+  if (!patientId) {
+    localStorage.removeItem(ACTIVE_PATIENT_STORAGE_KEY);
+    return;
+  }
+  localStorage.setItem(ACTIVE_PATIENT_STORAGE_KEY, JSON.stringify({
+    patient_id: patientId,
+    name
+  }));
+}
+
 // ── API Calls ──
 async function loadPatients() {
   if (!exercisePatientId) return;
@@ -82,10 +110,15 @@ async function loadPatients() {
     
     let html = '<option value="">-- Select patient --</option>';
     patients.forEach(p => {
-      html += `<option value="${p.patient_id}">${p.patient_id} - ${p.name || 'Unnamed'}</option>`;
+      html += `<option value="${p.patient_id}" data-patient-name="${p.name || ''}">${p.patient_id} - ${p.name || 'Unnamed'}</option>`;
     });
     exercisePatientId.innerHTML = html;
     exercisePatientId.disabled = false;
+
+    const activePatient = getActivePatientSelection();
+    if (activePatient.patient_id && patients.some(p => p.patient_id === activePatient.patient_id)) {
+      exercisePatientId.value = activePatient.patient_id;
+    }
   } catch (err) {
     console.error('[DoctorPreloaded] Failed to load patients:', err);
     exercisePatientId.innerHTML = '<option value="">-- Failed to load patients --</option>';
@@ -192,6 +225,8 @@ export function mount(container, gloveState, threeEngine) {
   updateCaptureUI();
   
   // Event Listeners
+  exercisePatientId.addEventListener('change', persistActivePatientSelection);
+
   capturePoseBtn.addEventListener('click', () => {
     const angles = getCurrentAngles();
     if (angles.some(a => a === null)) {
@@ -251,6 +286,7 @@ export function mount(container, gloveState, threeEngine) {
   });
   
   saveExerciseBtn.addEventListener('click', async () => {
+    persistActivePatientSelection();
     const patientId = exercisePatientId.value;
     const desc = exerciseDescription.value.trim();
     const sets = Number(exerciseTargetSets.value);

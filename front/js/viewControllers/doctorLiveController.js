@@ -9,6 +9,9 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 
 const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+const DEFAULT_PATIENT_ID = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
+const ACTIVE_PATIENT_STORAGE_KEY = 'doctorActivePatientV1';
+const MQTT_TOPIC_PREFIX = 'glovexcel/patients';
 
 let _state = null;
 let _engine = null;
@@ -21,6 +24,7 @@ let defaultTargetInput, setDoctorTargetBtn, resetLiveTargetBtn, setTargetToast;
 let targetSourceLabel, repSetStatus, resetRepsBtn;
 let matchGrid, peakGrid;
 let createLiveExerciseBtn, saveLiveExerciseBtn, liveExerciseDraftEl, liveExerciseListEl;
+let activePatientSelect, activePatientStatus, activePatientTopicLabel;
 let mqttHostInput, mqttTopicInput, mqttUsernameInput, mqttPasswordInput;
 let mqttConnectBtn, mqttDisconnectBtn, mqttStatusLabel, mqttRateLabel;
 let mqttRawMinInput, mqttRawMaxInput, mqttDriveModelCheckbox;
@@ -54,17 +58,173 @@ const RELEASE_THRESHOLD = 0.40;
 // ── Math Helpers ──
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
+function sanitizeMqttTopicPart(value) {
+  return String(value || '').trim().replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function getPatientTelemetryTopic(patientId) {
+  return `${MQTT_TOPIC_PREFIX}/${sanitizeMqttTopicPart(patientId)}/telemetry`;
+}
+
+function getActivePatientSelection() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ACTIVE_PATIENT_STORAGE_KEY) || '{}');
+    return {
+      patient_id: parsed.patient_id || '',
+      name: parsed.name || ''
+    };
+  } catch {
+    return { patient_id: '', name: '' };
+  }
+}
+
+function setActivePatientSelection(patientId, name = '') {
+  if (!patientId) {
+    localStorage.removeItem(ACTIVE_PATIENT_STORAGE_KEY);
+    return;
+  }
+  localStorage.setItem(ACTIVE_PATIENT_STORAGE_KEY, JSON.stringify({
+    patient_id: patientId,
+    name
+  }));
+}
+
+function getSelectedPatientId() {
+  return getActivePatientSelection().patient_id || DEFAULT_PATIENT_ID;
+}
+
+function getSelectedForceLevel() {
+  const level = parseInt(liveForceLevelInput?.value || '1', 10);
+  return Number.isInteger(level) && level >= 1 && level <= 10 ? level : 1;
+}
+
+function updateActivePatientUi() {
+  const active = getActivePatientSelection();
+  const topic = active.patient_id ? getPatientTelemetryTopic(active.patient_id) : '';
+
+  if (activePatientSelect && active.patient_id) activePatientSelect.value = active.patient_id;
+  if (activePatientStatus) {
+    activePatientStatus.textContent = active.patient_id
+      ? `Active patient: ${active.name ? `${active.name} - ` : ''}${active.patient_id}`
+      : 'Active patient: none selected';
+  }
+  if (activePatientTopicLabel) activePatientTopicLabel.textContent = topic || '--';
+  if (mqttTopicInput) mqttTopicInput.value = topic;
+}
+
 function rawToAngle(rawValue, minValue, maxValue) {
   if (minValue === null || maxValue === null || minValue === maxValue) return null;
   const t = (rawValue - minValue) / (maxValue - minValue);
   return clamp(t * 90, 0, 90);
 }
 
+function normalizeMqttPayloadToRawValues(message) {
+  const bytes = message instanceof Uint8Array
+    ? message
+    : message instanceof ArrayBuffer
+      ? new Uint8Array(message)
+      : null;
+
+  if (bytes?.length === 10) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    return [0, 1, 2, 3, 4].map(index => view.getUint16(index * 2, true));
+  }
+
+  if (bytes?.length === 5) {
+    return Array.from(bytes, value => Number(value));
+  }
+
+  const text = bytes
+    ? new TextDecoder().decode(bytes).trim()
+    : String(message || '').trim();
+
+  if (!text) return null;
+
+  try {
+    const parsed = JSON.parse(text);
+    const source = Array.isArray(parsed)
+      ? parsed
+      : parsed.rawValues || parsed.raw_values || parsed.values || parsed.packet || parsed.data;
+    if (Array.isArray(source)) {
+      const values = source.slice(0, 5).map(value => Number(value));
+      return values.every(Number.isFinite) ? values : null;
+    }
+  } catch {
+    // Fall through to comma/space separated values.
+  }
+
+  const values = text
+    .split(/[,\s]+/)
+    .filter(Boolean)
+    .slice(0, 5)
+    .map(value => Number(value));
+
+  return values.length === 5 && values.every(Number.isFinite) ? values : null;
+}
+
+function applyMqttRawValues(rawValues) {
+  currentRawValues = rawValues;
+
+  let minLimit = parseInt(mqttRawMinInput?.value || '1000', 10);
+  let maxLimit = parseInt(mqttRawMaxInput?.value || '3500', 10);
+
+  const observedMax = Math.max(...rawValues);
+  if (observedMax <= 255 && observedMax < minLimit) {
+    minLimit = 0;
+    maxLimit = 255;
+  }
+
+  const span = maxLimit - minLimit;
+  const patientAngles = rawValues.map((rawVal, i) => {
+    const rawEl = _container?.querySelector('#mqttRawVal' + i);
+    const angEl = _container?.querySelector('#mqttAngVal' + i);
+    let angle = 0;
+    if (span > 0) {
+      const t = (rawVal - minLimit) / span;
+      angle = Math.max(0, Math.min(90, t * 90));
+    } else {
+      const t = rawVal / 255;
+      angle = Math.max(0, Math.min(90, t * 90));
+    }
+
+    if (rawEl) rawEl.textContent = rawVal;
+    if (angEl) angEl.textContent = angle.toFixed(1) + '°';
+    return angle;
+  });
+
+  processLiveStream(patientAngles);
+
+  if (mqttDriveModelCheckbox?.checked && _engine.isModelLoaded) {
+    const isCalib12Bit = fallbackPatientCalib?.min?.some(v => v > 255) || fallbackPatientCalib?.max?.some(v => v > 255);
+    const isTelemetry8Bit = observedMax <= 255;
+    const isCalib8Bit = fallbackPatientCalib?.min?.every(v => v <= 255) && fallbackPatientCalib?.max?.every(v => v <= 255);
+    const isTelemetry12Bit = observedMax > 255;
+
+    const modelAngles = rawValues.map((rawVal, i) => {
+      const minV = fallbackPatientCalib?.min?.[i];
+      const maxV = fallbackPatientCalib?.max?.[i];
+      if (Number.isFinite(minV) && Number.isFinite(maxV) && minV !== maxV) {
+        let scaledRaw = rawVal;
+        if (isTelemetry8Bit && isCalib12Bit) {
+          scaledRaw = rawVal * 16;
+        } else if (isTelemetry12Bit && isCalib8Bit) {
+          scaledRaw = rawVal / 16;
+        }
+        const t = (scaledRaw - minV) / (maxV - minV);
+        return Math.max(0, Math.min(90, t * 90));
+      }
+      return patientAngles[i];
+    });
+    _engine.setPose(buildPoseFromAngles(modelAngles));
+  }
+}
+
 async function fetchFallbackPatientCalibration() {
   try {
     const apiBase = _state.apiBase;
     const headers = _state.getAuthHeaders();
-    const resp = await fetch(`${apiBase}/api/patient-cal/PAT-a7a19957fb68446f8314d672bfccfa8b`, { headers });
+    const patientId = getSelectedPatientId();
+    const resp = await fetch(`${apiBase}/api/patient-cal/${encodeURIComponent(patientId)}`, { headers });
     if (resp.ok) {
       const doc = await resp.json();
       const min = doc?.min || {};
@@ -85,7 +245,7 @@ async function fetchCurrentForceLevel() {
   try {
     const apiBase = _state.apiBase;
     const headers = _state.getAuthHeaders();
-    const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
+    const patientId = getSelectedPatientId();
     const resp = await fetch(`${apiBase}/api/forces?patient_id=${patientId}`, { headers });
     if (resp.ok) {
       const data = await resp.json();
@@ -100,6 +260,47 @@ async function fetchCurrentForceLevel() {
     }
   } catch (err) {
     console.error('[DoctorLive] Failed to fetch current force level:', err);
+  }
+}
+
+async function loadActivePatientOptions() {
+  if (!activePatientSelect) {
+    updateActivePatientUi();
+    return;
+  }
+
+  activePatientSelect.innerHTML = '<option value="">-- Loading patients --</option>';
+  activePatientSelect.disabled = true;
+
+  try {
+    const resp = await fetch(`${_state.apiBase}/api/auth/patients?all=true`, {
+      headers: _state.getAuthHeaders()
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const data = await resp.json();
+    const patients = Array.isArray(data.patients) ? data.patients : [];
+    const active = getActivePatientSelection();
+
+    activePatientSelect.innerHTML = '<option value="">-- Select patient --</option>';
+    patients.forEach((patient) => {
+      const option = document.createElement('option');
+      option.value = patient.patient_id;
+      option.dataset.patientName = patient.name || '';
+      option.textContent = `${patient.name || 'Unnamed'} - ${patient.patient_id}`;
+      activePatientSelect.appendChild(option);
+    });
+
+    if (active.patient_id && patients.some(patient => patient.patient_id === active.patient_id)) {
+      activePatientSelect.value = active.patient_id;
+    }
+
+    activePatientSelect.disabled = false;
+    updateActivePatientUi();
+  } catch (err) {
+    console.error('[DoctorLive] Failed to load patient options:', err);
+    activePatientSelect.innerHTML = '<option value="">-- Failed to load patients --</option>';
+    updateActivePatientUi();
   }
 }
 
@@ -171,6 +372,8 @@ function buildLiveExerciseDraft() {
   return {
     exercise_id: generateLiveExerciseId(),
     doctor_id: getDoctorId(),
+    patient_id: getSelectedPatientId(),
+    force_level: getSelectedForceLevel(),
     fingers,
     capturedAt: new Date().toISOString()
   };
@@ -218,7 +421,7 @@ function renderLiveExerciseDraft() {
     return `${FINGER_LABELS[index]} raw ${finger.raw}, min ${formatAngle(finger.min)}, max ${formatAngle(finger.max)}, angle ${formatAngle(finger.angle)}`;
   }).join(' | ');
 
-  liveExerciseDraftEl.textContent = `Ready to save ${liveExerciseDraft.exercise_id}: ${summary}`;
+  liveExerciseDraftEl.textContent = `Ready to save ${liveExerciseDraft.exercise_id} for ${liveExerciseDraft.patient_id || '--'} with force level ${liveExerciseDraft.force_level || 1}: ${summary}`;
   saveLiveExerciseBtn.disabled = false;
 }
 
@@ -246,6 +449,7 @@ function renderLiveExerciseList() {
         <button class="live-exercise-delete-btn" type="button" data-exercise-id="${exercise.exercise_id}">Delete</button>
       </div>
       <div>Saved: ${created}</div>
+      <div>Patient: ${exercise.patient_id || '--'} | Force level: ${exercise.force_level || 1}</div>
       <div>${maxSummary}</div>
     `;
     liveExerciseListEl.appendChild(li);
@@ -454,6 +658,9 @@ export function mount(container, gloveState, threeEngine) {
   saveLiveExerciseBtn   = container.querySelector('#saveLiveExerciseBtn');
   liveExerciseDraftEl   = container.querySelector('#liveExerciseDraft');
   liveExerciseListEl    = container.querySelector('#liveExerciseList');
+  activePatientSelect   = container.querySelector('#activePatientSelect');
+  activePatientStatus   = container.querySelector('#activePatientStatus');
+  activePatientTopicLabel = container.querySelector('#activePatientTopicLabel');
 
   mqttHostInput          = container.querySelector('#mqttHostInput');
   mqttTopicInput         = container.querySelector('#mqttTopicInput');
@@ -470,12 +677,15 @@ export function mount(container, gloveState, threeEngine) {
   liveForceLevelInput    = container.querySelector('#liveForceLevelInput');
   applyForceBtn          = container.querySelector('#applyForceBtn');
   liveForceStatus        = container.querySelector('#liveForceStatus');
+  if (liveForceLevelInput && !liveForceLevelInput.value) liveForceLevelInput.value = '1';
 
   initGrids();
   renderCalibrationBanner();
   activeDoctorTargets = Array(5).fill(getDefaultTarget());
   updateTargetSourceLabel();
   updateRepSetStatus(false);
+  updateActivePatientUi();
+  loadActivePatientOptions();
 
   // Initial render with latest packet
   const initialAngles = getCurrentAngles(_state.latestPacket);
@@ -486,6 +696,20 @@ export function mount(container, gloveState, threeEngine) {
   }
 
   // Event Listeners
+  activePatientSelect?.addEventListener('change', () => {
+    const selectedOption = activePatientSelect.selectedOptions?.[0];
+    setActivePatientSelection(activePatientSelect.value, selectedOption?.dataset?.patientName || '');
+    updateActivePatientUi();
+    fallbackPatientCalib = null;
+    fetchFallbackPatientCalibration();
+    fetchCurrentForceLevel();
+    if (liveExerciseDraft) {
+      liveExerciseDraft.patient_id = getSelectedPatientId();
+      renderLiveExerciseDraft();
+    }
+    if (mqttClient) disconnectMqttPatient();
+  });
+
   setDoctorTargetBtn.addEventListener('click', () => {
     const liveAngles = getCurrentAngles(_state.latestPacket);
     if (!liveAngles || liveAngles.some(a => a === null)) {
@@ -514,12 +738,20 @@ export function mount(container, gloveState, threeEngine) {
   });
 
   createLiveExerciseBtn?.addEventListener('click', () => {
+    if (!getActivePatientSelection().patient_id) {
+      window.alert('Please select an active patient before creating a live exercise.');
+      return;
+    }
     liveExerciseDraft = buildLiveExerciseDraft();
     renderLiveExerciseDraft();
   });
 
   saveLiveExerciseBtn?.addEventListener('click', async () => {
     if (!liveExerciseDraft) return;
+    if (!getActivePatientSelection().patient_id) {
+      window.alert('Please select an active patient before saving this live exercise.');
+      return;
+    }
 
     saveLiveExerciseBtn.disabled = true;
     try {
@@ -559,9 +791,21 @@ export function mount(container, gloveState, threeEngine) {
     }
 
     const brokerUrl = mqttHostInput?.value?.trim() || '';
-    const topic = mqttTopicInput?.value?.trim() || '';
+    const activePatient = getActivePatientSelection();
+    const patientId = activePatient.patient_id;
+    if (!patientId) {
+      if (mqttStatusLabel) {
+        mqttStatusLabel.textContent = 'Select a patient first';
+        mqttStatusLabel.style.color = 'var(--c-danger)';
+      }
+      if (mqttConnectBtn) mqttConnectBtn.disabled = false;
+      window.alert('Please select an active patient before connecting MQTT.');
+      return;
+    }
+    const topic = getPatientTelemetryTopic(patientId);
     const username = mqttUsernameInput?.value?.trim() || '';
     const password = mqttPasswordInput?.value?.trim() || '';
+    if (mqttTopicInput) mqttTopicInput.value = topic;
 
     if (mqttStatusLabel) {
       mqttStatusLabel.textContent = 'Connecting...';
@@ -569,7 +813,7 @@ export function mount(container, gloveState, threeEngine) {
     }
     if (mqttConnectBtn) mqttConnectBtn.disabled = true;
 
-    const clientId = 'sim_receiver_' + Math.random().toString(16).substring(2, 8);
+    const clientId = `doctor_${sanitizeMqttTopicPart(getDoctorId())}_${sanitizeMqttTopicPart(patientId)}_${Math.random().toString(16).substring(2, 8)}`;
 
     try {
       mqttClient = mqtt.connect(brokerUrl, {
@@ -582,12 +826,22 @@ export function mount(container, gloveState, threeEngine) {
 
       mqttClient.on('connect', () => {
         if (mqttStatusLabel) {
-          mqttStatusLabel.textContent = 'Connected & Listening';
+          mqttStatusLabel.textContent = `Listening to ${patientId}`;
           mqttStatusLabel.style.color = 'var(--c-ok)';
         }
         if (mqttConnectBtn) mqttConnectBtn.disabled = true;
         if (mqttDisconnectBtn) mqttDisconnectBtn.disabled = false;
-        mqttClient.subscribe(topic);
+        mqttClient.subscribe(topic, { qos: 0 }, (err) => {
+          if (mqttStatusLabel) {
+            if (err) {
+              mqttStatusLabel.textContent = `Subscribe failed: ${err.message || err}`;
+              mqttStatusLabel.style.color = 'var(--c-danger)';
+            } else {
+              mqttStatusLabel.textContent = `Listening to ${patientId}`;
+              mqttStatusLabel.style.color = 'var(--c-ok)';
+            }
+          }
+        });
 
         mqttMsgCounter = 0;
         if (mqttHzInterval) clearInterval(mqttHzInterval);
@@ -599,6 +853,12 @@ export function mount(container, gloveState, threeEngine) {
 
       mqttClient.on('message', (receivedTopic, message) => {
         if (receivedTopic !== topic) return;
+        const parsedRawValues = normalizeMqttPayloadToRawValues(message);
+        if (parsedRawValues) {
+          mqttMsgCounter++;
+          applyMqttRawValues(parsedRawValues);
+          return;
+        }
         mqttMsgCounter++;
 
         if (message.length === 10) {
@@ -764,60 +1024,75 @@ export function mount(container, gloveState, threeEngine) {
     } else {
       e.target.value = '';
     }
+    if (liveExerciseDraft) {
+      liveExerciseDraft.force_level = getSelectedForceLevel();
+      renderLiveExerciseDraft();
+    }
   });
 
   applyForceBtn?.addEventListener('click', async () => {
-    const levelVal = liveForceLevelInput?.value;
-    const level = parseInt(levelVal, 10);
-    if (isNaN(level) || level < 1 || level > 10) {
-      alert('Please enter a valid motor force level (1-10).');
-      return;
-    }
+    const level = getSelectedForceLevel();
+    if (liveForceLevelInput) liveForceLevelInput.value = String(level);
 
     if (liveForceStatus) {
       liveForceStatus.textContent = 'Sending force command...';
       liveForceStatus.style.color = 'var(--c-warn)';
     }
 
-    const patientId = 'PAT-a7a19957fb68446f8314d672bfccfa8b';
-    const doctorId = localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
-    const exerciseId = `ex_live_force_${Date.now()}`;
+    const activePatient = getActivePatientSelection();
+    const patientId = activePatient.patient_id;
+    if (!patientId) {
+      alert('Please select an active patient before applying force.');
+      if (liveForceStatus) {
+        liveForceStatus.textContent = 'Select a patient before applying force.';
+        liveForceStatus.style.color = 'var(--c-danger)';
+      }
+      return;
+    }
+    if (liveExerciseDraft) {
+      liveExerciseDraft.patient_id = patientId;
+      liveExerciseDraft.force_level = level;
+      renderLiveExerciseDraft();
+    }
+    const exerciseId = liveExerciseDraft?.exercise_id || generateLiveExerciseId();
 
-    // 1. Create realtime exercise in the database
-    const exercisePayload = {
+    const liveExercisePayload = {
+      ...buildLiveExerciseDraft(),
       exercise_id: exerciseId,
-      description: 'Live Force Assessment',
-      level: level,
-      target_reps: 10,
-      target_sets: 3,
-      start_date: new Date().toISOString().split('T')[0],
-      end_date: new Date().toISOString().split('T')[0],
       patient_id: patientId,
-      doctor_id: doctorId,
-      max_angles: { thumb: 90, index: 90, middle: 90, ring: 90, pinky: 90 }
+      force_level: level
     };
 
     try {
-      // Create exercise
-      const exResp = await fetch(`${_state.apiBase}/api/exercises`, {
+      const liveExerciseResp = await fetch(`${_state.apiBase}/api/live-exercises`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
-        body: JSON.stringify(exercisePayload)
+        body: JSON.stringify(liveExercisePayload)
       });
-      if (!exResp.ok) throw new Error(`Exercise API returned ${exResp.status}`);
+      if (!liveExerciseResp.ok) throw new Error(`Live exercise API returned ${liveExerciseResp.status}`);
 
-      // 2. Set force level in MongoDB
-      const forcePayload = {
-        level: level,
-        patient_id: patientId,
-        exercise_id: exerciseId
-      };
-      const forceResp = await fetch(`${_state.apiBase}/api/forces`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
-        body: JSON.stringify(forcePayload)
-      });
-      if (!forceResp.ok) throw new Error(`Force API returned ${forceResp.status}`);
+      const data = await liveExerciseResp.json();
+      liveExerciseDraft = data.exercise;
+      liveExercises = [
+        data.exercise,
+        ...liveExercises.filter(ex => ex.exercise_id !== data.exercise.exercise_id)
+      ];
+      renderLiveExerciseDraft();
+      renderLiveExerciseList();
+
+      try {
+        await fetch(`${_state.apiBase}/api/forces`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
+          body: JSON.stringify({
+            level,
+            patient_id: patientId,
+            exercise_id: exerciseId
+          })
+        });
+      } catch (forceErr) {
+        console.warn('[DoctorLive] Live exercise saved, but legacy force save failed:', forceErr);
+      }
 
       if (liveForceStatus) {
         liveForceStatus.textContent = `✓ Force level ${level} applied (Exercise ID: ${exerciseId})`;
@@ -859,6 +1134,7 @@ export function unmount() {
   targetSourceLabel = repSetStatus = resetRepsBtn = null;
   matchGrid = peakGrid = null;
   createLiveExerciseBtn = saveLiveExerciseBtn = liveExerciseDraftEl = liveExerciseListEl = null;
+  activePatientSelect = activePatientStatus = activePatientTopicLabel = null;
   mqttHostInput = mqttTopicInput = mqttUsernameInput = mqttPasswordInput = null;
   mqttConnectBtn = mqttDisconnectBtn = mqttStatusLabel = mqttRateLabel = null;
   mqttRawMinInput = mqttRawMaxInput = mqttDriveModelCheckbox = null;

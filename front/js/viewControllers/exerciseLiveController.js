@@ -56,7 +56,18 @@ let _mqttConnected = false;
 const MQTT_BROKER_URL = 'wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt';
 const MQTT_USERNAME = 'Glovexl';
 const MQTT_PASSWORD = '200209Ost';
-const MQTT_TOPIC = 'project/glove01/status';
+const MQTT_TOPIC_BASE = 'project/glove01/patients';
+
+function mqttSafeSegment(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function getPatientMqttTopic() {
+  const patientId = mqttSafeSegment(_state?.patientId);
+  return patientId ? `${MQTT_TOPIC_BASE}/${patientId}/status` : '';
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MATH HELPERS
@@ -683,13 +694,15 @@ export function mount(container, gloveState, threeEngine) {
     // Publish to MQTT when enabled/connected
     if (_mqttClient && _mqttConnected) {
       try {
+        const topic = getPatientMqttTopic();
+        if (!topic) return;
         const buffer = new ArrayBuffer(10);
         const view = new DataView(buffer);
         for (let i = 0; i < 5; i += 1) {
           const v = Number(packet[i]) || 0;
           view.setUint16(i * 2, v & 0xffff, true);
         }
-        _mqttClient.publish(MQTT_TOPIC, new Uint8Array(buffer), { qos: 0, retain: false });
+        _mqttClient.publish(topic, new Uint8Array(buffer), { qos: 0, retain: false });
       } catch (err) {
         console.warn('[MQTT] publish failed', err);
       }
@@ -772,12 +785,17 @@ export function mount(container, gloveState, threeEngine) {
         setStatus('Live data sharing is not available on this page.');
         return;
       }
+      const topic = getPatientMqttTopic();
+      if (!topic) {
+        setStatus('Cannot share live data because the patient ID is missing.');
+        return;
+      }
       setStatus('Starting live data sharing...');
       try {
         _mqttClient = globalThis.mqtt.connect(MQTT_BROKER_URL, {
           username: MQTT_USERNAME,
           password: MQTT_PASSWORD,
-          clientId: 'patient_' + Math.random().toString(16).substring(2,8),
+          clientId: `patient_${mqttSafeSegment(_state.patientId)}_${Math.random().toString(16).substring(2,8)}`,
           reconnectPeriod: 2000,
         });
 
@@ -785,7 +803,7 @@ export function mount(container, gloveState, threeEngine) {
           _mqttConnected = true;
           mqttToggleBtn.textContent = 'Sharing Live Data';
           mqttToggleBtn.classList.remove('btn-secondary');
-          setStatus('Live data sharing is on.');
+          setStatus(`Live data sharing is on for patient ${_state.patientId}.`);
         });
 
         _mqttClient.on('error', (err) => {

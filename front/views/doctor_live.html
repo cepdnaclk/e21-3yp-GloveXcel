@@ -14,7 +14,7 @@
       <span style="font-size:10px; font-weight:700; background:#4e8ef7; color:#fff; padding:2px 8px; border-radius:20px; margin-left:8px; text-transform:uppercase;">Live Data</span>
     </h3>
     <input id="mqttHostInput" type="hidden" value="wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.cloud:8884/mqtt">
-    <input id="mqttTopicInput" type="hidden" value="project/glove01/status">
+    <input id="mqttTopicInput" type="hidden" value="">
     <input id="mqttUsernameInput" type="hidden" value="Glovexl">
     <input id="mqttPasswordInput" type="hidden" value="200209Ost">
 
@@ -27,6 +27,9 @@
         Status: <span id="mqttStatusLabel" style="color:var(--c-danger);">Disconnected</span> | 
         Rate: <span id="mqttRateLabel" style="color:var(--c-text-muted);">0 Hz</span>
       </div>
+    </div>
+    <div style="font-size:12px; color:var(--c-text-muted); margin:-6px 0 16px;">
+      Topic: <span id="mqttTopicLabel">Select a patient first</span>
     </div>
 
     <!-- Patient sensor calibration limits -->

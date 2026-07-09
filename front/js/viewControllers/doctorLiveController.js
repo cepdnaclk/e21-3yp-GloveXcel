@@ -10,6 +10,7 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 const FINGER_LABELS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const SELECTED_PATIENT_KEY = 'doctorSelectedPatient';
+const MQTT_TOPIC_BASE = 'project/glove01/patients';
 
 let _state = null;
 let _engine = null;
@@ -26,6 +27,7 @@ let matchGrid, peakGrid;
 let createLiveExerciseBtn, saveLiveExerciseBtn, liveExerciseDraftEl, liveExerciseListEl;
 let mqttHostInput, mqttTopicInput, mqttUsernameInput, mqttPasswordInput;
 let mqttConnectBtn, mqttDisconnectBtn, mqttStatusLabel, mqttRateLabel;
+let mqttTopicLabel;
 let mqttRawMinInput, mqttRawMaxInput, mqttDriveModelCheckbox;
 let liveForceLevelInput, applyForceBtn, liveForceStatus;
 
@@ -76,6 +78,17 @@ function getSelectedPatientId() {
   return _selectedPatient?.patient_id || '';
 }
 
+function mqttSafeSegment(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function getSelectedPatientMqttTopic() {
+  const patientId = mqttSafeSegment(getSelectedPatientId());
+  return patientId ? `${MQTT_TOPIC_BASE}/${patientId}/status` : '';
+}
+
 function selectedPatientLabel() {
   if (!_selectedPatient) return '';
   return _selectedPatient.name || _selectedPatient.patient_id;
@@ -95,11 +108,17 @@ function updateSelectedPatientHeader() {
     const label = selectedPatientLabel();
     liveAssessmentTitle.textContent = `Live Assessment (Patient - ${label})`;
     liveAssessmentSubtitle.textContent = `Monitoring live exercise data for ${label} (${_selectedPatient.patient_id}).`;
+    if (mqttTopicLabel) {
+      mqttTopicLabel.textContent = getSelectedPatientMqttTopic() || '--';
+    }
     return;
   }
 
   liveAssessmentTitle.textContent = 'Live Assessment';
   liveAssessmentSubtitle.textContent = 'Patient compliance monitor and peak detection. Driven by doctor\'s physical glove stream.';
+  if (mqttTopicLabel) {
+    mqttTopicLabel.textContent = 'Select a patient first';
+  }
 }
 
 async function fetchFallbackPatientCalibration() {
@@ -545,6 +564,7 @@ export function mount(container, gloveState, threeEngine) {
   mqttDisconnectBtn      = container.querySelector('#mqttDisconnectBtn');
   mqttStatusLabel        = container.querySelector('#mqttStatusLabel');
   mqttRateLabel          = container.querySelector('#mqttRateLabel');
+  mqttTopicLabel         = container.querySelector('#mqttTopicLabel');
   mqttRawMinInput        = container.querySelector('#mqttRawMinInput');
   mqttRawMaxInput        = container.querySelector('#mqttRawMaxInput');
   mqttDriveModelCheckbox = container.querySelector('#mqttDriveModelCheckbox');
@@ -650,17 +670,26 @@ export function mount(container, gloveState, threeEngine) {
     }
 
     const brokerUrl = mqttHostInput?.value?.trim() || '';
-    const topic = mqttTopicInput?.value?.trim() || '';
+    const topic = getSelectedPatientMqttTopic() || mqttTopicInput?.value?.trim() || '';
     const username = mqttUsernameInput?.value?.trim() || '';
     const password = mqttPasswordInput?.value?.trim() || '';
+
+    if (!getSelectedPatientId() || !topic) {
+      if (mqttStatusLabel) {
+        mqttStatusLabel.textContent = 'Select a patient first';
+        mqttStatusLabel.style.color = 'var(--c-danger)';
+      }
+      return;
+    }
 
     if (mqttStatusLabel) {
       mqttStatusLabel.textContent = 'Connecting...';
       mqttStatusLabel.style.color = 'var(--c-warn)';
     }
+    if (mqttTopicLabel) mqttTopicLabel.textContent = topic;
     if (mqttConnectBtn) mqttConnectBtn.disabled = true;
 
-    const clientId = 'sim_receiver_' + Math.random().toString(16).substring(2, 8);
+    const clientId = `doctor_receiver_${mqttSafeSegment(getSelectedPatientId())}_${Math.random().toString(16).substring(2, 8)}`;
 
     try {
       mqttClient = mqtt.connect(brokerUrl, {
@@ -673,7 +702,7 @@ export function mount(container, gloveState, threeEngine) {
 
       mqttClient.on('connect', () => {
         if (mqttStatusLabel) {
-          mqttStatusLabel.textContent = 'Patient glove connected';
+          mqttStatusLabel.textContent = `Listening to ${selectedPatientLabel() || getSelectedPatientId()}`;
           mqttStatusLabel.style.color = 'var(--c-ok)';
         }
         if (mqttConnectBtn) mqttConnectBtn.disabled = true;
@@ -957,6 +986,7 @@ export function unmount() {
   createLiveExerciseBtn = saveLiveExerciseBtn = liveExerciseDraftEl = liveExerciseListEl = null;
   mqttHostInput = mqttTopicInput = mqttUsernameInput = mqttPasswordInput = null;
   mqttConnectBtn = mqttDisconnectBtn = mqttStatusLabel = mqttRateLabel = null;
+  mqttTopicLabel = null;
   mqttRawMinInput = mqttRawMaxInput = mqttDriveModelCheckbox = null;
   liveForceLevelInput = applyForceBtn = liveForceStatus = null;
   fallbackPatientCalib = null;

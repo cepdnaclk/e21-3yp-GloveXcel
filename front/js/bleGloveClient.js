@@ -206,6 +206,24 @@ export class BleGloveClient {
     }
   }
 
+  _stopSensorNotifications() {
+    const characteristic = this.sensorCharacteristic;
+    if (!characteristic || typeof characteristic.stopNotifications !== "function") {
+      return;
+    }
+
+    try {
+      const stopResult = characteristic.stopNotifications();
+      if (stopResult && typeof stopResult.catch === "function") {
+        stopResult.catch(() => {
+          // Best effort explicit notification stop before GATT disconnect.
+        });
+      }
+    } catch {
+      // Best effort explicit notification stop before GATT disconnect.
+    }
+  }
+
   _stopKeepAlive() {
     if (this.keepAliveInterval) {
       clearInterval(this.keepAliveInterval);
@@ -218,6 +236,7 @@ export class BleGloveClient {
 
     this._stopKeepAlive();
     this._stopSensorPolling();
+    this._stopSensorNotifications();
 
     if (this.sensorCharacteristic && this.sensorListener) {
       this.sensorCharacteristic.removeEventListener("characteristicvaluechanged", this.sensorListener);

@@ -30,7 +30,7 @@ let _activePreviewMode = 'none';
 let _calibration       = null;
 
 // ─── DOM references (resolved after template injection) ───────────────────────
-let connectBtn, clearBtn, levelSelect, previewLevelBtn, previewResetBtn;
+let connectBtn, disconnectBtn, clearBtn, levelSelect, previewLevelBtn, previewResetBtn;
 let captureNonThumbMinBtn, captureNonThumbMaxBtn;
 let captureThumbMinBtn, captureThumbMaxBtn;
 let previewNonThumbMinBtn, previewNonThumbMaxBtn;
@@ -308,6 +308,9 @@ function _renderConnectionState() {
     connectBtn.disabled    = connected;
     connectBtn.textContent = connected ? 'Connected' : 'Connect to Glove';
   }
+  if (disconnectBtn) {
+    disconnectBtn.disabled = !connected;
+  }
   if (captureNonThumbMinBtn) captureNonThumbMinBtn.disabled = !connected;
   if (captureNonThumbMaxBtn) captureNonThumbMaxBtn.disabled = !connected;
   if (captureThumbMinBtn)    captureThumbMinBtn.disabled    = !connected;
@@ -375,6 +378,7 @@ export function mount(container, gloveState, threeEngine) {
 
   // Bind DOM refs
   connectBtn             = container.querySelector('#connectBtn');
+  disconnectBtn          = container.querySelector('#disconnectBtn');
   clearBtn               = container.querySelector('#clearBtn');
   levelSelect            = container.querySelector('#levelSelect');
   previewLevelBtn        = container.querySelector('#previewLevelBtn');
@@ -429,6 +433,12 @@ export function mount(container, gloveState, threeEngine) {
 
   // Event listeners
   connectBtn?.addEventListener('click', _handleConnect);
+  disconnectBtn?.addEventListener('click', () => {
+    disconnectBtn.disabled = true;
+    _state.disconnect();
+    _renderConnectionState();
+    _setStatus('Glove disconnected.');
+  });
 
   clearBtn?.addEventListener('click', () => {
     _calibration.nonThumbMin = _emptyArray();

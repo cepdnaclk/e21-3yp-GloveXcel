@@ -19,7 +19,7 @@ let _previewAngles = [90, 90, 90, 90, 90];
 let _targetAngles = [90, 90, 90, 90, 90];
 
 // DOM refs
-let doctorSetupGloveStatusIndicator, doctorSetupGloveStatus, doctorSetupConnectBtn;
+let doctorSetupGloveStatusIndicator, doctorSetupGloveStatus, doctorSetupConnectBtn, doctorSetupDisconnectBtn;
 let doctorCalibGrid, doctorLiveGrid, openCalibrationBtn;
 let captureNonThumbMinBtn, captureNonThumbMaxBtn, captureThumbMinBtn, captureThumbMaxBtn;
 let previewNonThumbMinBtn, previewNonThumbMaxBtn, previewThumbMinBtn, previewThumbMaxBtn, livePreviewBtn;
@@ -42,6 +42,26 @@ function getDoctorId() {
   } catch { /* fall through */ }
 
   return localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
+}
+
+function setDoctorSetupConnectionUi(connected, statusText) {
+  if (doctorSetupConnectBtn) {
+    doctorSetupConnectBtn.disabled = connected;
+    doctorSetupConnectBtn.textContent = connected ? 'Glove Connected' : 'Connect to Glove';
+  }
+  if (doctorSetupDisconnectBtn) {
+    doctorSetupDisconnectBtn.disabled = !connected;
+  }
+  if (doctorSetupGloveStatusIndicator) {
+    doctorSetupGloveStatusIndicator.classList.toggle('online', connected);
+  }
+  if (doctorSetupGloveStatus && statusText) {
+    doctorSetupGloveStatus.textContent = statusText;
+  }
+  if (captureNonThumbMinBtn) captureNonThumbMinBtn.disabled = !connected;
+  if (captureNonThumbMaxBtn) captureNonThumbMaxBtn.disabled = !connected;
+  if (captureThumbMinBtn) captureThumbMinBtn.disabled = !connected;
+  if (captureThumbMaxBtn) captureThumbMaxBtn.disabled = !connected;
 }
 
 // ── Doctor Calibration Logic ──
@@ -232,6 +252,7 @@ export function mount(container, gloveState, threeEngine) {
   doctorSetupGloveStatusIndicator = _container.querySelector('#doctorSetupGloveStatusIndicator');
   doctorSetupGloveStatus          = _container.querySelector('#doctorSetupGloveStatus');
   doctorSetupConnectBtn           = _container.querySelector('#doctorSetupConnectBtn');
+  doctorSetupDisconnectBtn        = _container.querySelector('#doctorSetupDisconnectBtn');
   doctorCalibGrid                 = _container.querySelector('#doctorCalibGrid');
   doctorLiveGrid                  = _container.querySelector('#doctorLiveGrid');
   openCalibrationBtn              = _container.querySelector('#openCalibrationBtn');
@@ -250,37 +271,27 @@ export function mount(container, gloveState, threeEngine) {
   renderLiveGrid(_state.latestPacket);
   
   // Connection State Reflection
-  if (_state.isConnected) {
-    doctorSetupConnectBtn.textContent = 'Glove Connected';
-    doctorSetupConnectBtn.disabled = true;
-    doctorSetupGloveStatusIndicator.classList.add('online');
-    doctorSetupGloveStatus.textContent = 'Doctor glove status: Connected.';
-    if (captureNonThumbMinBtn) captureNonThumbMinBtn.disabled = false;
-    if (captureNonThumbMaxBtn) captureNonThumbMaxBtn.disabled = false;
-    if (captureThumbMinBtn) captureThumbMinBtn.disabled = false;
-    if (captureThumbMaxBtn) captureThumbMaxBtn.disabled = false;
-  }
+  setDoctorSetupConnectionUi(_state.isConnected, _state.isConnected ? 'Doctor glove status: Connected.' : null);
   
   // Event Listeners
   doctorSetupConnectBtn.addEventListener('click', async () => {
     doctorSetupConnectBtn.disabled = true;
+    if (doctorSetupDisconnectBtn) doctorSetupDisconnectBtn.disabled = true;
     doctorSetupConnectBtn.textContent = 'Connecting...';
     try {
       await _state.connect();
       _state.isConnected = true;
-      doctorSetupConnectBtn.textContent = 'Glove Connected';
-      doctorSetupGloveStatusIndicator.classList.add('online');
-      doctorSetupGloveStatus.textContent = 'Doctor glove status: Connected.';
-      if (captureNonThumbMinBtn) captureNonThumbMinBtn.disabled = false;
-      if (captureNonThumbMaxBtn) captureNonThumbMaxBtn.disabled = false;
-      if (captureThumbMinBtn) captureThumbMinBtn.disabled = false;
-      if (captureThumbMaxBtn) captureThumbMaxBtn.disabled = false;
+      setDoctorSetupConnectionUi(true, 'Doctor glove status: Connected.');
     } catch (err) {
       console.error('[DoctorSetup] Connection failed:', err);
-      doctorSetupConnectBtn.textContent = 'Connect to Glove';
-      doctorSetupConnectBtn.disabled = false;
-      doctorSetupGloveStatus.textContent = `Connection failed: ${err.message}`;
+      setDoctorSetupConnectionUi(false, `Connection failed: ${err.message}`);
     }
+  });
+
+  doctorSetupDisconnectBtn?.addEventListener('click', () => {
+    doctorSetupDisconnectBtn.disabled = true;
+    _state.disconnect();
+    setDoctorSetupConnectionUi(false, 'Doctor glove status: Disconnected.');
   });
   
   openCalibrationBtn.addEventListener('click', () => {
@@ -324,13 +335,8 @@ export function mount(container, gloveState, threeEngine) {
   
   _state.onStatus = (msg) => {
     if (msg === 'Disconnected') {
-      doctorSetupConnectBtn.disabled = false;
-      doctorSetupConnectBtn.textContent = 'Connect to Glove';
-      doctorSetupGloveStatusIndicator.classList.remove('online');
-      if (captureNonThumbMinBtn) captureNonThumbMinBtn.disabled = true;
-      if (captureNonThumbMaxBtn) captureNonThumbMaxBtn.disabled = true;
-      if (captureThumbMinBtn) captureThumbMinBtn.disabled = true;
-      if (captureThumbMaxBtn) captureThumbMaxBtn.disabled = true;
+      setDoctorSetupConnectionUi(false, 'Doctor glove status: Disconnected.');
+      return;
     }
     doctorSetupGloveStatus.textContent = `Doctor glove status: ${msg}`;
   };
@@ -350,7 +356,7 @@ export function unmount() {
     _engine.clearPose();
   }
   
-  doctorSetupGloveStatusIndicator = doctorSetupGloveStatus = doctorSetupConnectBtn = null;
+  doctorSetupGloveStatusIndicator = doctorSetupGloveStatus = doctorSetupConnectBtn = doctorSetupDisconnectBtn = null;
   doctorCalibGrid = doctorLiveGrid = openCalibrationBtn = null;
   captureNonThumbMinBtn = captureNonThumbMaxBtn = captureThumbMinBtn = captureThumbMaxBtn = null;
   previewNonThumbMinBtn = previewNonThumbMaxBtn = previewThumbMinBtn = previewThumbMaxBtn = livePreviewBtn = null;

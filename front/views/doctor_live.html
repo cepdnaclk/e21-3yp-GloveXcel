@@ -89,10 +89,10 @@
     <div class="snapshot-force-control">
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="liveForceLevelInput" style="font-size:12px; font-weight:600; color:var(--c-text-muted);">Force Level (1-10)</label>
-        <input id="liveForceLevelInput" type="number" min="1" max="10" class="form-control" placeholder="1-10" style="width:100px; padding:8px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; text-align:center;">
+        <input id="liveForceLevelInput" type="number" min="1" max="10" class="form-control" value="1" placeholder="1-10" disabled style="width:100px; padding:8px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; text-align:center;">
       </div>
       <div style="display:flex; align-items:flex-end; height:100%; margin-top:20px;">
-        <button id="applyForceBtn" class="btn-primary" type="button" style="padding:10px 20px;">Apply Force</button>
+        <button id="applyForceBtn" class="btn-primary" type="button" disabled style="padding:10px 20px;">Apply Force</button>
       </div>
       <div id="liveForceStatus" style="font-size:12px; color:var(--c-text-muted); width:100%;">No force level set yet.</div>
     </div>

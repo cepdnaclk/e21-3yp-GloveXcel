@@ -44,11 +44,14 @@ let liveRawGridEl, liveMatchGridEl, liveOverallBadgeEl;
 let liveConnectGloveBtn, liveLoadCalibBtn, fetchForceBtn;
 let liveRefAngleInput, applyLiveRefBtn, clearLiveRefBtn;
 let patientLiveExercisesListEl, patientLiveExerciseSelectEl, patientLiveExerciseSliderGridEl;
+let patientForceOverrideSelectEl, applyPatientForceBtn, patientForceOverrideStatusEl;
 let mqttToggleBtn;
 let _liveExercises = [];
 let _selectedLiveExercise = null;
 let _latestPatientPacket = [0, 0, 0, 0, 0];
 let _doctorNameById = new Map();
+let _doctorAssignedForceLevel = null;
+let _patientSelectedForceLevel = null;
 
 // MQTT publisher state (initialized when user clicks MQTT button)
 let _mqttClient = null;
@@ -218,6 +221,15 @@ async function hydratePatientCalibrationFromDatabase() {
 
 async function fetchAndApplyForce() {
   if (!_state) return;
+
+  const selectedExerciseId = _selectedLiveExercise?.exercise_id || patientLiveExerciseSelectEl?.value || '';
+  if (!selectedExerciseId) {
+    if (liveForceStatusEl) {
+      liveForceStatusEl.textContent = 'Select a live exercise before fetching force.';
+    }
+    alert('Please select the live exercise first.');
+    return;
+  }
   
   if (liveForceStatusEl) {
     liveForceStatusEl.textContent = 'Fetching force level...';
@@ -227,20 +239,33 @@ async function fetchAndApplyForce() {
     const apiBase = _state.apiBase;
     const headers = _state.getAuthHeaders();
     const patientId = _state.patientId;
-    const resp = await fetch(`${apiBase}/api/forces?patient_id=${encodeURIComponent(patientId)}`, { headers });
+    const resp = await fetch(
+      `${apiBase}/api/live-exercises/${encodeURIComponent(selectedExerciseId)}?patient_id=${encodeURIComponent(patientId)}`,
+      { headers }
+    );
     
     if (resp.status === 404) {
       if (liveForceStatusEl) {
-        liveForceStatusEl.textContent = 'Resistive force level: Not set yet in database.';
+        liveForceStatusEl.textContent = 'Resistive force level: Live exercise not found.';
       }
-      alert('No force level has been set by the doctor yet.');
+      alert('Selected live exercise was not found in the database.');
       return;
     }
 
     if (resp.ok) {
       const data = await resp.json();
-      const level = data?.level;
-      if (Number.isFinite(level) && level >= 1 && level <= 10) {
+      const exercise = data?.exercise || {};
+      const level = resolveLiveExerciseForceLevel(exercise);
+      if (level !== null) {
+        _doctorAssignedForceLevel = level;
+        _patientSelectedForceLevel = level;
+        _selectedLiveExercise = {
+          ...(_selectedLiveExercise || {}),
+          ...exercise,
+          force_level: level
+        };
+        updatePatientForceOverrideControls();
+
         if (!_state.isConnected || !_state.bleClient) {
           if (liveForceStatusEl) {
             liveForceStatusEl.textContent = `Resistive force level: ${level} (glove disconnected).`;
@@ -258,10 +283,13 @@ async function fetchAndApplyForce() {
         setStatus(`Force level ${level} fetched and applied to motor.`);
         alert(`Successfully fetched and applied force level ${level} to the glove motor.`);
       } else {
+        _doctorAssignedForceLevel = null;
+        _patientSelectedForceLevel = null;
+        updatePatientForceOverrideControls();
         if (liveForceStatusEl) {
           liveForceStatusEl.textContent = 'Resistive force level: Invalid or not set.';
         }
-        alert('Active force level in database is not set or invalid.');
+        alert('The selected live exercise has an invalid force level.');
       }
     } else {
       throw new Error(`Server returned ${resp.status}`);
@@ -278,6 +306,77 @@ async function fetchAndApplyForce() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // RENDER HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
+
+function updatePatientForceOverrideControls() {
+  if (patientForceOverrideSelectEl) {
+    patientForceOverrideSelectEl.disabled = false;
+    patientForceOverrideSelectEl.value = _patientSelectedForceLevel
+      ? String(_patientSelectedForceLevel)
+      : '';
+  }
+
+  if (patientForceOverrideStatusEl) {
+    const hasDoctorForce = Number.isInteger(_doctorAssignedForceLevel);
+    if (_patientSelectedForceLevel && hasDoctorForce) {
+      patientForceOverrideStatusEl.textContent = `Doctor assigned force ${_doctorAssignedForceLevel}. Manual force ${_patientSelectedForceLevel} is ready for the glove only.`;
+    } else if (_patientSelectedForceLevel) {
+      patientForceOverrideStatusEl.textContent = `Manual force ${_patientSelectedForceLevel} is ready for the glove.`;
+    } else if (hasDoctorForce) {
+      patientForceOverrideStatusEl.textContent = `Doctor assigned force ${_doctorAssignedForceLevel}. You can choose a manual force for the glove.`;
+    } else {
+      patientForceOverrideStatusEl.textContent = 'Select a manual force level to apply it to the patient glove.';
+    }
+  }
+}
+
+async function applyPatientSelectedForce() {
+  if (!_state) return;
+
+  const selectedLevel = Number(patientForceOverrideSelectEl?.value);
+  if (!Number.isInteger(selectedLevel) || selectedLevel < 1 || selectedLevel > 10) {
+    alert('Please select a valid manual force level (1-10).');
+    return;
+  }
+
+  _patientSelectedForceLevel = selectedLevel;
+  updatePatientForceOverrideControls();
+
+  if (!_state.isConnected || !_state.bleClient) {
+    if (patientForceOverrideStatusEl) {
+      patientForceOverrideStatusEl.textContent = `Manual force ${selectedLevel} selected, but the glove is disconnected.`;
+    }
+    alert('Please connect the patient glove before applying the selected force.');
+    return;
+  }
+
+  try {
+    if (patientForceOverrideStatusEl) {
+      patientForceOverrideStatusEl.textContent = `Applying manual force ${selectedLevel} to glove...`;
+    }
+
+    await _state.bleClient.sendMotorLevel(selectedLevel);
+
+    if (liveForceStatusEl) {
+      liveForceStatusEl.textContent = `Resistive force level: ${selectedLevel} (manual force applied to motor).`;
+    }
+    if (patientForceOverrideStatusEl) {
+      patientForceOverrideStatusEl.textContent = Number.isInteger(_doctorAssignedForceLevel)
+        ? `Doctor assigned force ${_doctorAssignedForceLevel}. Manual force ${selectedLevel} applied to glove only.`
+        : `Manual force ${selectedLevel} applied to glove.`;
+    }
+    setStatus(
+      Number.isInteger(_doctorAssignedForceLevel)
+        ? `Manual force ${selectedLevel} applied to motor. Doctor database force remains ${_doctorAssignedForceLevel}.`
+        : `Manual force ${selectedLevel} applied to motor.`
+    );
+  } catch (error) {
+    console.error('[LiveCtrl] Failed to apply patient selected force:', error);
+    if (patientForceOverrideStatusEl) {
+      patientForceOverrideStatusEl.textContent = 'Failed to apply manual force to glove.';
+    }
+    alert(`Failed to apply selected force: ${error.message}`);
+  }
+}
 
 function setStatus(text) {
   if (liveStatusEl) liveStatusEl.textContent = text;
@@ -347,15 +446,26 @@ function getLiveExerciseTargets(exercise) {
   });
 }
 
+function resolveLiveExerciseForceLevel(exercise) {
+  const rawLevel = exercise?.force_level;
+  if (rawLevel === undefined || rawLevel === null || rawLevel === '') return 1;
+
+  const level = Number(rawLevel);
+  return Number.isInteger(level) && level >= 1 && level <= 10 ? level : null;
+}
+
 function renderPatientLiveExercises(exercises) {
   if (!patientLiveExercisesListEl) return;
 
   if (!Array.isArray(exercises) || exercises.length === 0) {
+    _doctorAssignedForceLevel = null;
+    _patientSelectedForceLevel = null;
     patientLiveExercisesListEl.textContent = 'No live exercises found for this patient.';
     if (patientLiveExerciseSelectEl) {
       patientLiveExerciseSelectEl.innerHTML = '<option value="">-- No live exercises found --</option>';
       patientLiveExerciseSelectEl.disabled = true;
     }
+    updatePatientForceOverrideControls();
     renderSelectedLiveExerciseSliders();
     return;
   }
@@ -386,6 +496,7 @@ function renderPatientLiveExercises(exercises) {
     card.innerHTML = `
       <strong>${escapeHtml(exerciseName)}</strong>
       <div>Doctor: ${escapeHtml(doctorDisplayName(exercise.doctor_id))}</div>
+      <div>Force level: ${resolveLiveExerciseForceLevel(exercise) ?? 'Invalid'}</div>
     `;
     card.addEventListener('click', () => selectLiveExercise(exercise.exercise_id));
     card.addEventListener('keydown', (event) => {
@@ -400,6 +511,8 @@ function renderPatientLiveExercises(exercises) {
 
 function selectLiveExercise(exerciseId) {
   _selectedLiveExercise = _liveExercises.find((exercise) => exercise.exercise_id === exerciseId) || null;
+  _doctorAssignedForceLevel = null;
+  _patientSelectedForceLevel = null;
 
   if (patientLiveExerciseSelectEl) {
     patientLiveExerciseSelectEl.value = _selectedLiveExercise?.exercise_id || '';
@@ -407,9 +520,10 @@ function selectLiveExercise(exerciseId) {
 
   renderPatientLiveExercises(_liveExercises);
   renderSelectedLiveExerciseSliders();
+  updatePatientForceOverrideControls();
   setStatus(
     _selectedLiveExercise
-      ? `Live exercise ${exerciseId} selected. Database live angles are now the max targets.`
+      ? `Live exercise ${exerciseId} selected. Force level ${resolveLiveExerciseForceLevel(_selectedLiveExercise) ?? 'invalid'} is ready to fetch.`
       : 'Live exercise target cleared.'
   );
 }
@@ -492,6 +606,9 @@ async function loadPatientLiveExercises() {
     renderSelectedLiveExerciseSliders();
   } catch (error) {
     console.error('[LiveCtrl] Failed to load live exercises:', error);
+    _doctorAssignedForceLevel = null;
+    _patientSelectedForceLevel = null;
+    updatePatientForceOverrideControls();
     patientLiveExercisesListEl.textContent = 'Failed to load live exercises from database.';
   }
 }
@@ -649,6 +766,8 @@ export function mount(container, gloveState, threeEngine) {
   _state          = gloveState;
   _engine         = threeEngine;
   _manualRefAngle = null;
+  _doctorAssignedForceLevel = null;
+  _patientSelectedForceLevel = null;
 
   // Priority: use GloveState's in-memory calibration (set by calibration view),
   // falling back to localStorage if the user hasn't calibrated this session.
@@ -672,6 +791,9 @@ export function mount(container, gloveState, threeEngine) {
   patientLiveExercisesListEl = container.querySelector('#patientLiveExercisesList');
   patientLiveExerciseSelectEl = container.querySelector('#patientLiveExerciseSelect');
   patientLiveExerciseSliderGridEl = container.querySelector('#patientLiveExerciseSliderGrid');
+  patientForceOverrideSelectEl = container.querySelector('#patientForceOverrideSelect');
+  applyPatientForceBtn = container.querySelector('#applyPatientForceBtn');
+  patientForceOverrideStatusEl = container.querySelector('#patientForceOverrideStatus');
 
   // ── Reflect existing BLE connection state ─────────────────────────────
   if (_state.isConnected && liveConnectGloveBtn) {
@@ -679,7 +801,6 @@ export function mount(container, gloveState, threeEngine) {
     liveConnectGloveBtn.disabled    = true;
     if (liveGloveStatusEl) liveGloveStatusEl.textContent = 'Patient glove status: Connected.';
   }
-
   // ── Wire GloveState callbacks ─────────────────────────────────────────
 
   _state.onPacket = (packet) => {
@@ -756,6 +877,15 @@ export function mount(container, gloveState, threeEngine) {
   });
 
   fetchForceBtn?.addEventListener('click', fetchAndApplyForce);
+  patientForceOverrideSelectEl?.addEventListener('change', () => {
+    const selectedLevel = Number(patientForceOverrideSelectEl.value);
+    _patientSelectedForceLevel = Number.isInteger(selectedLevel) && selectedLevel >= 1 && selectedLevel <= 10
+      ? selectedLevel
+      : null;
+    updatePatientForceOverrideControls();
+    applyPatientSelectedForce();
+  });
+  applyPatientForceBtn?.addEventListener('click', applyPatientSelectedForce);
 
   applyLiveRefBtn?.addEventListener('click', () => {
     const v = Number(liveRefAngleInput?.value);
@@ -839,6 +969,7 @@ export function mount(container, gloveState, threeEngine) {
   renderRawGrid(initialPacket);
   renderLiveMatchGrid(initialPacket);
   renderSelectedLiveExerciseSliders();
+  updatePatientForceOverrideControls();
   if (_engine.isModelLoaded && _patientCalibration.ready) {
     _engine.setPose(buildPoseFromPacket(initialPacket));
   }
@@ -877,9 +1008,12 @@ export function unmount() {
   mqttToggleBtn = null;
   liveRefAngleInput = applyLiveRefBtn = clearLiveRefBtn = null;
   patientLiveExercisesListEl = patientLiveExerciseSelectEl = patientLiveExerciseSliderGridEl = null;
+  patientForceOverrideSelectEl = applyPatientForceBtn = patientForceOverrideStatusEl = null;
   _liveExercises = [];
   _selectedLiveExercise = null;
   _doctorNameById = new Map();
+  _doctorAssignedForceLevel = null;
+  _patientSelectedForceLevel = null;
   _latestPatientPacket = [0, 0, 0, 0, 0];
   _container = null;
 }

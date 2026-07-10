@@ -776,7 +776,6 @@ export function mount(container, gloveState, threeEngine) {
     if (gloveStatusEl) gloveStatusEl.textContent = 'Patient glove status: Connected.';
     updateMotorControlState();
   }
-
   // ── Wire GloveState callbacks ─────────────────────────────────────────
 
   _state.onPacket = (packet) => {

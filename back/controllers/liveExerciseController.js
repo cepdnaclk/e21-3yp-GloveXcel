@@ -30,12 +30,26 @@ function normalizeFingerPayload(fingers = {}) {
     return { fingers: normalized, min_angles, max_angles, live_angles, raw_values };
 }
 
+function normalizeForceLevel(value) {
+    if (value === undefined || value === null || value === '') {
+        return 1;
+    }
+
+    const level = Number(value);
+    return Number.isInteger(level) && level >= 1 && level <= 10 ? level : null;
+}
+
 const createLiveExercise = async (req, res) => {
     try {
-        const { exercise_id, exercise_name, description, doctor_id, patient_id, fingers, capturedAt } = req.body;
+        const { exercise_id, exercise_name, description, doctor_id, patient_id, fingers, capturedAt, force_level } = req.body;
 
         if (!exercise_id) {
             return res.status(400).json({ error: 'exercise_id is required.' });
+        }
+
+        const normalizedForceLevel = normalizeForceLevel(force_level);
+        if (normalizedForceLevel === null) {
+            return res.status(400).json({ error: 'force_level must be an integer between 1 and 10.' });
         }
 
         const normalized = normalizeFingerPayload(fingers);
@@ -74,6 +88,7 @@ const createLiveExercise = async (req, res) => {
                     description: description || exercise_name || displayName,
                     doctor_id: effectiveDoctorId,
                     patient_id,
+                    force_level: normalizedForceLevel,
                     ...normalized,
                     capturedAt: savedAt,
                     updatedAt: Date.now()
@@ -107,6 +122,33 @@ const listLiveExercises = async (req, res) => {
     }
 };
 
+const getLiveExercise = async (req, res) => {
+    try {
+        const { exercise_id } = req.params;
+
+        if (!exercise_id) {
+            return res.status(400).json({ error: 'exercise_id is required.' });
+        }
+
+        const query = { exercise_id };
+        if (req.user?.role === 'patient') {
+            query.patient_id = req.user.sub;
+        } else if (req.query.patient_id) {
+            query.patient_id = req.query.patient_id;
+        }
+
+        const exercise = await LiveExercise.findOne(query).lean();
+        if (!exercise) {
+            return res.status(404).json({ error: 'Live exercise not found.' });
+        }
+
+        return res.status(200).json({ exercise });
+    } catch (error) {
+        console.error('Error fetching live exercise:', error);
+        return res.status(500).json({ error: 'Failed to fetch live exercise', details: error.message });
+    }
+};
+
 const deleteLiveExercise = async (req, res) => {
     try {
         const { exercise_id } = req.params;
@@ -127,4 +169,4 @@ const deleteLiveExercise = async (req, res) => {
     }
 };
 
-module.exports = { createLiveExercise, listLiveExercises, deleteLiveExercise };
+module.exports = { createLiveExercise, listLiveExercises, getLiveExercise, deleteLiveExercise };

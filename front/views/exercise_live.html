@@ -71,6 +71,24 @@
       </select>
       <button id="fetchForceBtn" class="btn-secondary" type="button">Fetch Force</button>
     </div>
+    <div class="actions manual-force-actions">
+      <label for="patientForceOverrideSelect">Manual Force Change</label>
+      <select id="patientForceOverrideSelect" aria-label="Select manual motor force level">
+        <option value="">-- Select force level --</option>
+        <option value="1">Level 1</option>
+        <option value="2">Level 2</option>
+        <option value="3">Level 3</option>
+        <option value="4">Level 4</option>
+        <option value="5">Level 5</option>
+        <option value="6">Level 6</option>
+        <option value="7">Level 7</option>
+        <option value="8">Level 8</option>
+        <option value="9">Level 9</option>
+        <option value="10">Level 10</option>
+      </select>
+      <button id="applyPatientForceBtn" type="button">Apply Patient Force</button>
+    </div>
+    <p id="patientForceOverrideStatus" class="note">Select a manual force level to apply it to the patient glove.</p>
     <div id="patientLiveExercisesList" class="live-exercises-list">
       Loading live exercises...
     </div>
@@ -90,10 +108,18 @@
       color: #fff;
       min-width: 260px;
     }
+    .view-namespace-live #patientForceOverrideSelect {
+      min-width: 148px;
+    }
+    .view-namespace-live .manual-force-actions {
+      align-items: center;
+      flex-wrap: nowrap;
+    }
     .view-namespace-live .live-exercises-list {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 12px;
+      margin-top: 12px;
     }
     .view-namespace-live .live-exercise-card {
       background: var(--c-surface-2);
@@ -161,6 +187,11 @@
       color: #93c5fd;
       font-weight: 700;
       text-align: right;
+    }
+    @media (max-width: 640px) {
+      .view-namespace-live .manual-force-actions {
+        flex-wrap: wrap;
+      }
     }
   </style>
 

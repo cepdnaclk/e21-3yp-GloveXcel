@@ -155,7 +155,6 @@ async function fetchCurrentForceLevel() {
       const data = await resp.json();
       const level = data?.level;
       if (Number.isFinite(level) && level >= 1 && level <= 10) {
-        if (liveForceLevelInput) liveForceLevelInput.value = level;
         if (liveForceStatus) {
           liveForceStatus.textContent = `✓ Current active force level: ${level}`;
           liveForceStatus.style.color = 'var(--c-ok)';
@@ -170,6 +169,11 @@ async function fetchCurrentForceLevel() {
 function getDefaultTarget() {
   const v = parseInt(defaultTargetInput?.value ?? '90', 10);
   return Number.isFinite(v) && v >= 0 && v <= 90 ? v : 90;
+}
+
+function getSelectedForceLevel(defaultLevel = 1) {
+  const level = parseInt(liveForceLevelInput?.value ?? '', 10);
+  return Number.isInteger(level) && level >= 1 && level <= 10 ? level : defaultLevel;
 }
 
 function getCurrentAngles(packet) {
@@ -262,6 +266,7 @@ function buildLiveExerciseDraft() {
     description: exerciseName,
     doctor_id: getDoctorId(),
     patient_id: getSelectedPatientId(),
+    force_level: getSelectedForceLevel(1),
     fingers,
     capturedAt
   };
@@ -301,15 +306,27 @@ function renderLiveExerciseDraft() {
   if (!liveExerciseDraft) {
     liveExerciseDraftEl.textContent = 'No live exercise snapshot created yet.';
     saveLiveExerciseBtn.disabled = true;
+    if (applyForceBtn) applyForceBtn.disabled = true;
+    if (liveForceLevelInput) liveForceLevelInput.disabled = true;
+    if (liveForceStatus) {
+      liveForceStatus.textContent = 'Create a live exercise snapshot before applying force.';
+      liveForceStatus.style.color = 'var(--c-text-muted)';
+    }
     return;
   }
+
+  if (liveForceLevelInput) {
+    liveForceLevelInput.disabled = false;
+    if (!liveForceLevelInput.value) liveForceLevelInput.value = '1';
+  }
+  if (applyForceBtn) applyForceBtn.disabled = false;
 
   const summary = FINGER_KEYS.map((key, index) => {
     const finger = liveExerciseDraft.fingers[key];
     return `${FINGER_LABELS[index]} raw ${finger.raw}, min ${formatAngle(finger.min)}, max ${formatAngle(finger.max)}, angle ${formatAngle(finger.angle)}`;
   }).join(' | ');
 
-  liveExerciseDraftEl.textContent = `Ready to save live exercise snapshot for ${patientDisplayName(liveExerciseDraft.patient_id)}: ${summary}`;
+  liveExerciseDraftEl.textContent = `Ready to save live exercise snapshot for ${patientDisplayName(liveExerciseDraft.patient_id)} with force level ${liveExerciseDraft.force_level || 1}: ${summary}`;
   saveLiveExerciseBtn.disabled = false;
 }
 
@@ -337,6 +354,7 @@ function renderLiveExerciseList() {
         <button class="live-exercise-delete-btn" type="button" data-exercise-id="${exercise.exercise_id}">Delete</button>
       </div>
       <div>Patient: ${patientDisplayName(exercise.patient_id)}</div>
+      <div>Force level: ${Number.isFinite(Number(exercise.force_level)) ? Number(exercise.force_level) : 1}</div>
       <div>Saved: ${created}</div>
       <div>${maxSummary}</div>
     `;
@@ -621,6 +639,7 @@ export function mount(container, gloveState, threeEngine) {
       alert('Please select a patient from My Patients before creating a live exercise.');
       return;
     }
+    if (liveForceLevelInput) liveForceLevelInput.value = '1';
     liveExerciseDraft = buildLiveExerciseDraft();
     renderLiveExerciseDraft();
   });
@@ -887,11 +906,23 @@ export function mount(container, gloveState, threeEngine) {
   });
 
   applyForceBtn?.addEventListener('click', async () => {
+    if (!liveExerciseDraft) {
+      alert('Please create a live exercise snapshot before applying force.');
+      return;
+    }
+
     const levelVal = liveForceLevelInput?.value;
-    const level = parseInt(levelVal, 10);
+    const level = levelVal === '' || levelVal === undefined ? 1 : parseInt(levelVal, 10);
     if (isNaN(level) || level < 1 || level > 10) {
       alert('Please enter a valid motor force level (1-10).');
       return;
+    }
+    if (liveForceLevelInput && !liveForceLevelInput.value) {
+      liveForceLevelInput.value = String(level);
+    }
+    if (liveExerciseDraft) {
+      liveExerciseDraft.force_level = level;
+      renderLiveExerciseDraft();
     }
 
     if (liveForceStatus) {

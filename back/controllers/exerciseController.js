@@ -1,5 +1,6 @@
 const { getPool, ensureDoctorAndPatientExist } = require('../config/supabaseDb');
 const ExerciseMax = require('../models/ExerciseMax');
+const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
 const createExercise = async (req, res) => {
     const {
@@ -20,7 +21,7 @@ const createExercise = async (req, res) => {
             return res.status(400).json({ error: 'exercise_id is required.' });
         }
 
-        if (!max_angles || Object.values(max_angles).some((value) => !Number.isFinite(Number(value)))) {
+        if (!max_angles || FINGER_KEYS.some((finger) => !Number.isFinite(Number(max_angles[finger])))) {
             return res.status(400).json({ error: 'max_angles with all 5 finger values is required.' });
         }
 

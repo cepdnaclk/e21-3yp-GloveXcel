@@ -89,16 +89,26 @@
     .view-namespace-doctor-preloaded label {
       font-size: 13px;
       font-weight: 600;
-      color: #fff;
+      color: var(--c-navy);
     }
     .view-namespace-doctor-preloaded .form-control {
       padding: 10px;
-      background: var(--c-surface-2);
+      background: #f8fcfb;
       border: 1px solid var(--c-border);
       border-radius: var(--radius-sm);
-      color: #fff;
+      color: var(--c-navy);
       font-family: inherit;
       font-size: 14px;
+    }
+    .view-namespace-doctor-preloaded .form-control::placeholder {
+      color: #6b7c89;
+      opacity: 1;
+    }
+    .view-namespace-doctor-preloaded .form-control:disabled {
+      color: var(--c-text-muted);
+      background: #eafbfa;
+      opacity: 1;
+      -webkit-text-fill-color: var(--c-text-muted);
     }
     .view-namespace-doctor-preloaded .form-control:focus {
       outline: none;
@@ -110,7 +120,7 @@
       gap: 12px;
     }
     .view-namespace-doctor-preloaded .mini-card {
-      background: var(--c-surface-2);
+      background: #f8fcfb;
       border: 1px solid var(--c-border);
       border-radius: var(--radius-sm);
       padding: 12px;
@@ -119,7 +129,7 @@
     }
     .view-namespace-doctor-preloaded .mini-card strong {
       display: block;
-      color: var(--c-text-muted);
+      color: var(--c-text-main);
       margin-bottom: 8px;
     }
     .view-namespace-doctor-preloaded .actions-row {
@@ -135,11 +145,12 @@
     }
     .view-namespace-doctor-preloaded .saved-list li {
       padding: 12px;
-      background: var(--c-surface-2);
+      background: #eafbfa;
       border: 1px solid var(--c-border);
       border-radius: var(--radius-sm);
       margin-bottom: 8px;
       font-size: 13px;
+      color: var(--c-navy);
     }
   </style>
 </div>

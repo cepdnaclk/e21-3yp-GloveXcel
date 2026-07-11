@@ -15,22 +15,24 @@
     ═══════════════════════════════════════════════════════════════════════ */
     :root {
       /* Colour palette */
-      --c-bg:          #0d1117;
-      --c-surface:     #161b22;
-      --c-surface-2:   #1c2230;
-      --c-border:      #2d3748;
-      --c-brand:       #4e8ef7;
-      --c-brand-hover: #2563eb;
-      --c-ok:          #28a745;
+      --c-bg:          #f4fafa;
+      --c-surface:     #ffffff;
+      --c-surface-2:   #eafbfa;
+      --c-border:      #dceae8;
+      --c-brand:       #2563eb;
+      --c-brand-hover: #1d4ed8;
+      --c-brand-rgb:   37, 99, 235;
+      --c-navy:        #073b5c;
+      --c-ok:          #16a56a;
       --c-warn:        #d18a00;
-      --c-danger:      #dc2626;
-      --c-text-main:   #c9d1d9;
-      --c-text-muted:  #8b949e;
+      --c-danger:      #d94a4a;
+      --c-text-main:   #073b5c;
+      --c-text-muted:  #6b7c89;
 
       /* Spacing & layout */
-      --radius:        12px;
+      --radius:        18px;
       --radius-sm:     8px;
-      --shadow:        0 8px 24px rgba(0, 0, 0, 0.4);
+      --shadow:        0 18px 48px rgba(7, 59, 92, 0.12);
       --transition:    0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
@@ -43,7 +45,9 @@
       margin: 0;
       padding: 0;
       font-family: 'Inter', sans-serif;
-      background-color: var(--c-bg);
+      background:
+        radial-gradient(circle at 82% 18%, rgba(8, 203, 181, 0.13), transparent 28%),
+        linear-gradient(135deg, #eafbfa 0%, #f9fdfd 48%, #eff9f7 100%);
       color: var(--c-text-main);
       height: 100vh;
       overflow: hidden;
@@ -58,30 +62,42 @@
       transition: all var(--transition);
     }
 
+    button:focus-visible,
+    a:focus-visible {
+      outline: 3px solid rgba(8, 203, 181, 0.35);
+      outline-offset: 3px;
+    }
+
     /* ═══════════════════════════════════════════════════════════════════════
        SPA SHELL LAYOUT
     ═══════════════════════════════════════════════════════════════════════ */
     .app-shell {
       display: grid;
       /* Sidebar | Main View | 3D Canvas */
-      grid-template-columns: 260px minmax(400px, 1.2fr) minmax(320px, 0.8fr);
+      grid-template-columns: 250px minmax(0, 1fr) minmax(300px, 25vw);
       height: 100vh;
+      gap: 18px;
+      padding: 18px;
     }
 
     /* ── 1. Sidebar Navigation ─────────────────────────────────────────── */
     .sidebar {
-      background-color: var(--c-surface);
+      background: rgba(255, 255, 255, 0.92);
       border-right: 1px solid var(--c-border);
+      border: 1px solid var(--c-border);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
       display: flex;
       flex-direction: column;
       padding: 24px 16px;
+      min-width: 0;
     }
 
     .brand {
       font-size: 20px;
       font-weight: 700;
-      color: #fff;
-      margin-bottom: 40px;
+      color: var(--c-navy);
+      margin-bottom: 34px;
       padding-left: 8px;
       display: flex;
       align-items: center;
@@ -91,9 +107,9 @@
     .brand-icon {
       width: 24px;
       height: 24px;
-      background: var(--c-brand);
-      border-radius: 6px;
-      box-shadow: 0 0 12px rgba(78, 142, 247, 0.4);
+      background: linear-gradient(135deg, var(--c-brand), var(--c-brand-hover));
+      border-radius: 8px;
+      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
     }
 
     .doctor-profile-chip {
@@ -103,9 +119,9 @@
       min-width: 0;
       margin: -22px 0 28px;
       padding: 10px;
-      border-radius: var(--radius-sm);
+      border-radius: 16px;
       border: 1px solid var(--c-border);
-      background: rgba(28, 34, 48, 0.78);
+      background: #f7fcfb;
     }
 
     .doctor-profile-avatar {
@@ -119,8 +135,8 @@
       font-size: 13px;
       font-weight: 800;
       color: #ffffff;
-      background: linear-gradient(135deg, var(--c-brand), #8b5cf6);
-      box-shadow: 0 0 0 2px rgba(78, 142, 247, 0.18);
+      background: linear-gradient(135deg, var(--c-brand), var(--c-navy));
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
     }
 
     .doctor-profile-meta {
@@ -145,7 +161,7 @@
       white-space: nowrap;
       font-size: 14px;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--c-navy);
     }
 
     .nav-menu {
@@ -159,21 +175,22 @@
       padding: 12px 16px;
       background: transparent;
       color: var(--c-text-muted);
-      border-radius: var(--radius-sm);
+      border-radius: 14px;
       font-size: 14px;
       font-weight: 500;
       border: 1px solid transparent;
     }
 
     .nav-btn:hover {
-      background: rgba(255, 255, 255, 0.03);
-      color: #fff;
+      background: #eefbf9;
+      color: var(--c-navy);
     }
 
     .nav-btn.active {
-      background: rgba(78, 142, 247, 0.1);
-      color: var(--c-brand);
-      border-color: rgba(78, 142, 247, 0.2);
+      background: var(--c-brand);
+      color: #ffffff;
+      border-color: transparent;
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.26);
     }
 
     .sidebar-footer {
@@ -186,49 +203,83 @@
     /* ── 2. Dynamic View Container ─────────────────────────────────────── */
     .view-wrapper {
       position: relative;
-      background: var(--c-bg);
+      background: transparent;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
 
     #view-container {
       flex: 1;
-      padding: 32px 40px;
-      max-width: 900px;
+      padding: 0;
+      max-width: 1180px;
       margin: 0 auto;
       width: 100%;
     }
 
     /* ── 3. Persistent 3D Canvas ───────────────────────────────────────── */
     .canvas-wrapper {
-      background-color: var(--c-surface-2);
-      border-left: 1px solid var(--c-border);
+      background:
+        radial-gradient(circle at 50% 18%, rgba(37, 99, 235, 0.14), transparent 36%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(239, 251, 248, 0.9));
+      border: 1px solid rgba(220, 234, 232, 0.95);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
       position: relative;
       display: flex;
       flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+    }
+
+    .canvas-panel-bar {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--c-border);
+      background: rgba(255, 255, 255, 0.62);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+    }
+
+    .canvas-panel-bar .panel-label {
+      color: var(--c-navy);
+      font-size: 13px;
+      font-weight: 900;
     }
 
     #doctorRendererContainer {
       flex: 1;
       width: 100%;
+      min-height: 320px;
+      position: relative;
+      z-index: 0;
+    }
+
+    #doctorRendererContainer canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      border-radius: 0 0 28px 28px;
     }
 
     .canvas-overlay-status {
-      position: absolute;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(13, 17, 23, 0.8);
-      backdrop-filter: blur(8px);
-      padding: 8px 16px;
-      border-radius: 20px;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 400;
       color: var(--c-text-muted);
-      border: 1px solid var(--c-border);
       white-space: nowrap;
       pointer-events: none;
+      position: static;
+      transform: none;
+      background: transparent;
+      border: 0;
+      padding: 0;
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -241,7 +292,7 @@
     .view-title {
       font-size: 28px;
       font-weight: 700;
-      color: #fff;
+      color: var(--c-navy);
       margin-bottom: 8px;
     }
 
@@ -259,6 +310,7 @@
       display: flex;
       align-items: center;
       gap: 16px;
+      box-shadow: var(--shadow);
     }
 
     .status-indicator {
@@ -276,14 +328,19 @@
     }
 
     .btn-primary {
-      background: var(--c-brand);
+      background: linear-gradient(135deg, var(--c-brand), var(--c-brand-hover));
       color: #fff;
       padding: 10px 20px;
-      border-radius: var(--radius-sm);
+      border-radius: 999px;
       font-size: 14px;
       font-weight: 600;
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.26);
     }
-    .btn-primary:hover:not(:disabled) { background: var(--c-brand-hover); }
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--c-brand-hover), #1e40af);
+      box-shadow: 0 18px 34px rgba(37, 99, 235, 0.3);
+      transform: translateY(-1px);
+    }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .btn-secondary {
@@ -291,22 +348,26 @@
       color: var(--c-text-main);
       border: 1px solid var(--c-border);
       padding: 10px 20px;
-      border-radius: var(--radius-sm);
+      border-radius: 999px;
       font-size: 14px;
       font-weight: 500;
     }
-    .btn-secondary:hover:not(:disabled) { background: var(--c-surface-2); color: #fff; }
+    .btn-secondary:hover:not(:disabled) { background: var(--c-surface-2); color: var(--c-navy); }
     .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .btn-success {
-      background: var(--c-ok);
+      background: linear-gradient(135deg, var(--c-brand), var(--c-brand-hover));
       color: #fff;
       padding: 10px 20px;
-      border-radius: var(--radius-sm);
+      border-radius: 999px;
       font-size: 14px;
       font-weight: 600;
     }
-    .btn-success:hover:not(:disabled) { filter: brightness(1.1); }
+    .btn-success:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--c-brand-hover), #1e40af);
+      box-shadow: 0 18px 34px rgba(37, 99, 235, 0.3);
+      transform: translateY(-1px);
+    }
     .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .panel {
@@ -315,12 +376,13 @@
       border-radius: var(--radius);
       padding: 24px;
       margin-bottom: 24px;
+      box-shadow: var(--shadow);
     }
 
     .panel-title {
       font-size: 16px;
       font-weight: 600;
-      color: #fff;
+      color: var(--c-navy);
       margin-bottom: 16px;
       display: flex;
       align-items: center;
@@ -397,6 +459,99 @@
       color: #fca5a5;
     }
 
+    .mobile-shell-bar,
+    #sidebarToggle {
+      display: none;
+    }
+
+    @media (max-width: 1180px) {
+      .app-shell {
+        grid-template-columns: 230px minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) 330px;
+      }
+
+      .canvas-wrapper {
+        grid-column: 2;
+      }
+    }
+
+    @media (max-width: 860px) {
+      body {
+        height: auto;
+        min-height: 100vh;
+        overflow: auto;
+      }
+
+      .app-shell {
+        display: block;
+        min-height: 100vh;
+        padding: 76px 14px 14px;
+      }
+
+      .mobile-shell-bar {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 52px;
+        padding: 10px 12px;
+        border-radius: 18px;
+        border: 1px solid var(--c-border);
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: var(--shadow);
+      }
+
+      .mobile-menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        border: 1px solid var(--c-border);
+        color: var(--c-navy);
+        background: #ffffff;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .mobile-brand {
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--c-navy);
+      }
+
+      .sidebar {
+        position: fixed;
+        top: 76px;
+        bottom: 14px;
+        left: 14px;
+        z-index: 25;
+        width: min(82vw, 300px);
+        transform: translateX(calc(-100% - 28px));
+        transition: transform var(--transition);
+      }
+
+      #sidebarToggle:checked ~ .app-shell .sidebar {
+        transform: translateX(0);
+      }
+
+      .view-wrapper {
+        overflow: visible;
+      }
+
+      .canvas-wrapper {
+        height: 330px;
+        margin-top: 18px;
+      }
+    }
+
   </style>
 
   <!-- Import Map for Three.js (Must be present before module scripts) -->
@@ -411,6 +566,12 @@
   <script src="./js/mqtt.min.js"></script>
 </head>
 <body>
+
+  <input type="checkbox" id="sidebarToggle" aria-label="Toggle doctor navigation" />
+  <div class="mobile-shell-bar">
+    <label class="mobile-menu-btn" for="sidebarToggle" aria-label="Toggle doctor navigation">☰</label>
+    <span class="mobile-brand">GloveXcel Doctor Dashboard</span>
+  </div>
 
   <div class="app-shell">
     
@@ -430,8 +591,8 @@
       </div>
 
       <nav class="nav-menu" aria-label="Main navigation">
-        <button class="nav-btn" data-route="doctor-patients">Patients</button>
         <button class="nav-btn" data-route="doctor-setup">Setup & Calibration</button>
+        <button class="nav-btn" data-route="doctor-patients">Patients</button>
         <button class="nav-btn" data-route="doctor-preloaded">Exercise Builder</button>
         <button class="nav-btn" data-route="doctor-live">Live Assessment</button>
       </nav>
@@ -451,8 +612,11 @@
 
     <!-- ── 3. Persistent 3D Canvas ──────────────────────────────────────── -->
     <aside class="canvas-wrapper">
+      <div class="canvas-panel-bar">
+        <span class="panel-label">3D Digital Twin</span>
+        <span id="modelStatus" class="canvas-overlay-status">Model loading...</span>
+      </div>
       <div id="doctorRendererContainer"></div>
-      <div id="modelStatus" class="canvas-overlay-status">Model loading...</div>
     </aside>
 
   </div>
@@ -554,9 +718,7 @@
       ThreeEngine.onModelStatus = (msg) => {
         if (modelStatusEl) {
           modelStatusEl.textContent = msg;
-          if (msg === 'Model loaded.') {
-            setTimeout(() => { modelStatusEl.style.opacity = '0'; }, 2000);
-          }
+          modelStatusEl.style.opacity = '1';
         }
       };
 

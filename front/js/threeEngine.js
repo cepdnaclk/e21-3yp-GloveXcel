@@ -55,7 +55,7 @@ class PersistentThreeEngine {
 
     // Scene
     this._scene = new THREE.Scene();
-    this._scene.background = new THREE.Color('#0d1117');
+    this._scene.background = new THREE.Color('#f7fffd');
 
     // Camera
     const w = Math.max(container.clientWidth, 320);
@@ -85,7 +85,7 @@ class PersistentThreeEngine {
     // Ground plane
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(2, 64),
-      new THREE.MeshStandardMaterial({ color: '#1a2235', roughness: 0.9, metalness: 0.0 })
+      new THREE.MeshStandardMaterial({ color: '#e3f4f1', roughness: 0.88, metalness: 0.0 })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.2;

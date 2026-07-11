@@ -15,29 +15,31 @@
     ═══════════════════════════════════════════════════════════════════════ */
     :root {
       /* Colour palette */
-      --c-bg:          #0d1117;
-      --c-surface:     #161b22;
-      --c-surface-2:   #1c2230;
-      --c-border:      #2d3748;
-      --c-brand:       #4e8ef7;
-      --c-brand-hover: #2563eb;
-      --c-ok:          #28a745;
+      --c-bg:          #f0fbf9;
+      --c-surface:     #ffffff;
+      --c-surface-2:   #eafbfa;
+      --c-border:      #d8e9e7;
+      --c-brand:       #2563eb;
+      --c-brand-hover: #1d4ed8;
+      --c-brand-rgb:   37, 99, 235;
+      --c-navy:        #073b5c;
+      --c-ok:          #159a66;
       --c-warn:        #d18a00;
       --c-danger:      #d94e4e;
-      --c-ink:         #e6edf3;
-      --c-ink-2:       #b0bec5;
-      --c-ink-muted:   #8b9cb6;
+      --c-ink:         #073b5c;
+      --c-ink-2:       #102c43;
+      --c-ink-muted:   #6b7c89;
 
       /* Layout */
-      --sidebar-w:  220px;
-      --canvas-w:   460px;
-      --header-h:   54px;
+      --sidebar-w:  230px;
+      --canvas-w:   390px;
+      --header-h:   72px;
 
       /* Misc */
-      --radius-sm:  6px;
-      --radius-md:  10px;
-      --radius-lg:  14px;
-      --shadow-md:  0 4px 24px rgba(0,0,0,0.45);
+      --radius-sm:  12px;
+      --radius-md:  16px;
+      --radius-lg:  24px;
+      --shadow-md:  0 18px 48px rgba(7, 59, 92, 0.12);
       --trans:      0.16s ease;
     }
 
@@ -706,8 +708,8 @@
     */
 
     .view-namespace-preloaded .match-hero {
-      background: #111820;
-      border-color: transparent;
+      background: #ffffff;
+      border-color: var(--c-border);
       padding: 8px 14px 14px;
     }
 
@@ -747,7 +749,7 @@
     }
 
     .view-namespace-preloaded .match-label {
-      color: var(--c-ink);
+      color: var(--c-navy);
       font-size: 14px;
       font-weight: 700;
     }
@@ -756,8 +758,8 @@
       position: relative;
       height: 14px;
       overflow: hidden;
-      background: #1c2634;
-      border: 1px solid #2a3650;
+      background: #eaf1ff;
+      border: 1px solid rgba(37, 99, 235, 0.18);
       border-radius: 999px;
     }
 
@@ -779,7 +781,7 @@
     }
 
     .view-namespace-preloaded .match-value {
-      color: #22c55e;
+      color: var(--c-ok);
       font-size: 15px;
       font-weight: 800;
       text-align: right;
@@ -797,16 +799,334 @@
       }
     }
 
+    /* Light medical redesign overrides for the patient console shell */
+    body {
+      background:
+        radial-gradient(circle at 82% 18%, rgba(37, 99, 235, 0.12), transparent 28%),
+        linear-gradient(135deg, #eafbfa 0%, #fbfefe 48%, #f0fbf9 100%);
+      color: var(--c-ink);
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible,
+    .mobile-menu-btn:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, 0.25);
+      outline-offset: 3px;
+    }
+
+    #app-header {
+      margin: 16px 16px 0;
+      padding: 0 18px;
+      border: 1px solid var(--c-border);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: var(--shadow-md);
+    }
+
+    .header-logo {
+      background: none;
+      -webkit-text-fill-color: currentColor;
+      color: var(--c-navy);
+      font-size: 18px;
+    }
+
+    .header-subtitle,
+    .patient-profile-label {
+      color: var(--c-ink-muted);
+    }
+
+    .patient-profile-chip {
+      background: #f8fcfb;
+      color: var(--c-navy);
+      border-color: var(--c-border);
+    }
+
+    .patient-profile-avatar {
+      background: linear-gradient(135deg, var(--c-brand), var(--c-brand-hover));
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .patient-profile-name {
+      color: var(--c-navy);
+    }
+
+    #ble-pill {
+      color: var(--c-ink-muted);
+      background: #f8fcfb;
+      border-color: var(--c-border);
+    }
+
+    #ble-pill.connected {
+      color: var(--c-ok);
+      background: rgba(21, 154, 102, 0.1);
+      border-color: rgba(21, 154, 102, 0.28);
+    }
+
+    #app-body {
+      gap: 18px;
+      padding: 18px 16px 16px;
+      grid-template-columns: var(--sidebar-w) minmax(0, 1fr) minmax(320px, var(--canvas-w));
+    }
+
+    #sidebar {
+      border: 1px solid var(--c-border);
+      border-radius: 26px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow-md);
+      padding: 24px 16px;
+      gap: 8px;
+    }
+
+    .sidebar-section-label {
+      color: var(--c-ink-muted);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+      padding: 0 18px;
+      margin: 2px 0 12px;
+    }
+
+    .nav-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      color: var(--c-ink-muted);
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      background: transparent;
+      border: 1px solid transparent;
+      box-shadow: none;
+    }
+
+    .nav-btn:hover {
+      background: #eefbf9;
+      color: var(--c-navy);
+      border-color: transparent;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .nav-btn.active {
+      background: var(--c-brand);
+      color: #ffffff;
+      border-color: transparent;
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.26);
+      font-weight: 600;
+    }
+
+    .sidebar-footer {
+      border-top-color: var(--c-border);
+      color: var(--c-ink-muted);
+    }
+
+    #view-container {
+      padding: 0;
+      background: transparent;
+    }
+
+    .view-title,
+    .card-title {
+      color: var(--c-navy);
+    }
+
+    .status-bar,
+    .card {
+      background: #ffffff;
+      border-color: var(--c-border);
+      color: var(--c-ink-muted);
+      box-shadow: var(--shadow-md);
+    }
+
+    .status-bar {
+      border-left-color: var(--c-brand);
+    }
+
+    button {
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--c-brand), var(--c-brand-hover));
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
+    }
+
+    button:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--c-brand-hover), #1e40af);
+      transform: translateY(-1px);
+      box-shadow: 0 18px 34px rgba(37, 99, 235, 0.3);
+    }
+
+    button.btn-secondary {
+      background: #ffffff;
+      color: var(--c-navy);
+      border: 1px solid var(--c-border);
+      box-shadow: none;
+    }
+
+    button.btn-secondary:hover:not(:disabled) {
+      background: #eaf1ff;
+      color: var(--c-navy);
+    }
+
+    select,
+    input[type="number"] {
+      min-height: 42px;
+      border-radius: 14px;
+      background: #f8fcfb;
+      color: var(--c-navy);
+    }
+
+    .pill-ok {
+      color: var(--c-ok);
+      background: rgba(21, 154, 102, 0.1);
+      border-color: rgba(21, 154, 102, 0.28);
+    }
+
+    .pill-warn {
+      color: #9a6a00;
+      background: rgba(209, 138, 0, 0.12);
+      border-color: rgba(209, 138, 0, 0.3);
+    }
+
+    #canvas-panel {
+      border: 1px solid var(--c-border);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(37, 99, 235, 0.14), transparent 36%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(239, 251, 248, 0.9));
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      position: sticky;
+      top: 18px;
+      max-height: calc(100dvh - var(--header-h) - 52px);
+    }
+
+    #canvas-panel-bar {
+      min-height: 58px;
+      padding: 12px 18px;
+      border-bottom-color: var(--c-border);
+      background: rgba(255, 255, 255, 0.62);
+    }
+
+    #canvas-panel-bar .panel-label {
+      color: var(--c-navy);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    #model-status {
+      color: var(--c-ink-muted);
+      font-style: normal;
+    }
+
+    #canvas-wrapper canvas {
+      border-radius: 0 0 28px 28px;
+    }
+
+    .mini-card,
+    .match-card,
+    th {
+      background: #f8fcfb;
+      color: var(--c-ink-muted);
+    }
+
+    .mini-card strong,
+    .match-card strong,
+    th {
+      color: var(--c-navy);
+    }
+
+    option {
+      color: var(--c-navy);
+      background: #ffffff;
+    }
+
+    .mobile-menu-btn,
+    #patientSidebarToggle {
+      display: none;
+    }
+
+    @media (max-width: 1180px) {
+      :root { --canvas-w: 340px; --sidebar-w: 206px; }
+    }
+
+    @media (max-width: 860px) {
+      body {
+        height: auto;
+        min-height: 100dvh;
+        overflow: auto;
+      }
+
+      .mobile-menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--c-border);
+        border-radius: 12px;
+        background: #ffffff;
+        color: var(--c-navy);
+        font-size: 22px;
+        cursor: pointer;
+      }
+
+      #app-header {
+        position: sticky;
+        top: 10px;
+        z-index: 30;
+        margin: 10px 10px 0;
+      }
+
+      #app-body {
+        display: block;
+        padding: 14px 10px;
+        overflow: visible;
+      }
+
+      #sidebar {
+        position: fixed;
+        top: 92px;
+        bottom: 14px;
+        left: 12px;
+        z-index: 25;
+        width: min(82vw, 300px);
+        transform: translateX(calc(-100% - 26px));
+        transition: transform var(--trans);
+      }
+
+      #patientSidebarToggle:checked ~ #app-body #sidebar {
+        transform: translateX(0);
+      }
+
+      #view-container {
+        overflow: visible;
+      }
+
+      #canvas-panel {
+        position: relative;
+        top: auto;
+        height: 360px;
+        max-height: none;
+        margin-top: 18px;
+      }
+    }
+
   </style>
   <!-- MQTT client for publishing live glove telemetry from the patient app -->
   <script src="./js/mqtt.min.js"></script>
 </head>
 <body>
+  <input type="checkbox" id="patientSidebarToggle" aria-label="Toggle patient workflow navigation" />
 
   <!-- ════════════════════════════════════════════════════════════════════
        PERSISTENT HEADER
   ════════════════════════════════════════════════════════════════════ -->
   <header id="app-header">
+    <label class="mobile-menu-btn" for="patientSidebarToggle" aria-label="Toggle patient workflow navigation">☰</label>
     <span class="header-logo">GloveXcel</span>
     <span class="header-subtitle">Patient Console</span>
     <div class="header-spacer"></div>

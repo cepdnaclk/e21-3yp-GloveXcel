@@ -28,26 +28,22 @@
         Rate: <span id="mqttRateLabel" style="color:var(--c-text-muted);">0 Hz</span>
       </div>
     </div>
+    <span id="mqttTopicLabel" hidden>Select a patient first</span>
     <!-- Patient sensor calibration limits -->
     <div style="margin-bottom:16px;">
-      <h4 style="margin:0 0 10px; font-size:13px; font-weight:600; color:#fff;">Patient Sensor Calibration Range</h4>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:8px;">
         <div style="display:flex; flex-direction:column; gap:4px;">
-          <label style="font-size:11px; color:var(--c-text-muted);">Raw Min (Relaxed)</label>
-          <input id="mqttRawMinInput" type="number" class="form-control" value="1000" style="padding:6px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; text-align:center; font-size:12px;">
+          <input id="mqttRawMinInput" type="number" class="form-control" value="1000" aria-label="Raw minimum relaxed value" style="padding:6px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; text-align:center; font-size:12px;">
         </div>
         <div style="display:flex; flex-direction:column; gap:4px;">
-          <label style="font-size:11px; color:var(--c-text-muted);">Raw Max (Fully Flexed)</label>
-          <input id="mqttRawMaxInput" type="number" class="form-control" value="3500" style="padding:6px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; text-align:center; font-size:12px;">
+          <input id="mqttRawMaxInput" type="number" class="form-control" value="3500" aria-label="Raw maximum fully flexed value" style="padding:6px; border-radius:var(--radius-sm); border:1px solid var(--c-border); background:var(--c-surface-2); color:#fff; text-align:center; font-size:12px;">
         </div>
       </div>
-      <p style="margin:0; font-size:11px; color:var(--c-text-muted); font-style:italic;">Incoming raw values are scaled to 0°–90° using these limits.</p>
     </div>
 
     <!-- Option to drive 3D model with patient glove stream -->
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-      <input id="mqttDriveModelCheckbox" type="checkbox" checked style="width:16px; height:16px; cursor:pointer;">
-      <label for="mqttDriveModelCheckbox" style="font-size:13px; font-weight:500; color:#fff; cursor:pointer;">Drive 3D Hand Model with Patient Glove Data</label>
+      <input id="mqttDriveModelCheckbox" type="checkbox" checked aria-label="Drive 3D hand model with patient glove data" style="width:16px; height:16px; cursor:pointer;">
     </div>
 
     <!-- Raw and angle values grid -->
@@ -130,7 +126,7 @@
     .view-namespace-doctor-live .match-label {
       font-size: 13px;
       font-weight: 600;
-      color: #fff;
+      color: var(--c-navy);
     }
     .view-namespace-doctor-live .match-bar-track {
       height: 14px;
@@ -164,17 +160,24 @@
       gap: 12px;
     }
     .view-namespace-doctor-live .peak-card {
-      background: var(--c-surface-2);
+      background: #eafbfa;
       border: 1px solid var(--c-border);
       border-radius: var(--radius-sm);
       padding: 12px;
       text-align: center;
+      color: var(--c-navy);
+    }
+    .view-namespace-doctor-live .peak-card > div:first-child {
+      color: var(--c-navy) !important;
     }
     .view-namespace-doctor-live .peak-card-row {
       display: flex;
       justify-content: space-between;
       font-size: 13px;
       margin-bottom: 4px;
+    }
+    .view-namespace-doctor-live .peak-card-row span:first-child {
+      color: var(--c-text-main) !important;
     }
     .view-namespace-doctor-live .live-exercise-actions {
       display: flex;
@@ -222,7 +225,7 @@
       margin-bottom: 4px;
     }
     .view-namespace-doctor-live .live-exercise-list strong {
-      color: #fff;
+      color: var(--c-navy);
     }
     .view-namespace-doctor-live .live-exercise-delete-btn {
       background: rgba(220, 38, 38, 0.14);
@@ -235,7 +238,7 @@
     }
     .view-namespace-doctor-live .live-exercise-delete-btn:hover {
       background: rgba(220, 38, 38, 0.24);
-      color: #fff;
+      color: var(--c-navy);
     }
     @keyframes overFlexFlash {
       0%, 100% { color: var(--c-danger); }
@@ -247,13 +250,39 @@
     }
     .view-namespace-doctor-live .form-control {
       padding: 8px;
-      background: var(--c-surface-2);
+      background: #f8fcfb;
       border: 1px solid var(--c-border);
       border-radius: var(--radius-sm);
-      color: #fff;
+      color: var(--c-navy);
       font-family: inherit;
       font-size: 13px;
       width: 100%;
+    }
+    .view-namespace-doctor-live .form-control::placeholder {
+      color: #6b7c89;
+      opacity: 1;
+    }
+    .view-namespace-doctor-live label,
+    .view-namespace-doctor-live h4 {
+      color: var(--c-navy) !important;
+    }
+    .view-namespace-doctor-live input {
+      color: var(--c-navy) !important;
+      -webkit-text-fill-color: var(--c-navy);
+    }
+    .view-namespace-doctor-live [id^="mqttRawVal"] {
+      color: var(--c-navy) !important;
+    }
+    .view-namespace-doctor-live [id^="mqttAngVal"] {
+      color: var(--c-brand) !important;
+    }
+    .view-namespace-doctor-live [style*="background:var(--c-surface-2)"],
+    .view-namespace-doctor-live [style*="background: var(--c-surface-2)"] {
+      background: #eafbfa !important;
+    }
+    .view-namespace-doctor-live [style*="background:var(--c-surface)"],
+    .view-namespace-doctor-live [style*="background: var(--c-surface)"] {
+      background: #ffffff !important;
     }
     .view-namespace-doctor-live .form-control:focus {
       outline: none;

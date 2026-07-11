@@ -1,22 +1,28 @@
 <!-- views/calibration.html
-     Pure HTML fragment — no <html>, <head>, or <body> tags.
-     Injected into #view-container by the router.
-     Logic is in js/viewControllers/calibrationController.js
+     Pure HTML fragment. Logic is in js/viewControllers/calibrationController.js.
 -->
 <div class="view-namespace-calibration">
+  <section class="calibration-hero" aria-labelledby="patientCalibrationTitle">
+    <div class="calibration-hero-copy">
+      <span class="eyebrow">GloveXcel Rehabilitation System</span>
+      <h1 id="patientCalibrationTitle">Patient Calibration</h1>
+      <div class="calibration-hidden">
+        <span id="patientIdBadge">--</span>
+      </div>
+      <div id="calibStatus" class="status-bar calibration-hidden">
+        Connect glove, select level preview, then capture min/max.
+      </div>
+    </div>
+    <div class="calibration-hero-image">
+      <img src="./Assets/doctor-showing-prescription-teammate.jpg" alt="Doctor explaining a rehabilitation plan to a colleague" />
+    </div>
+  </section>
 
-  <div class="view-header">
-    <h2 class="view-title">Patient Calibration</h2>
-    <div class="view-subtitle">Patient ID: <strong id="patientIdBadge">--</strong></div>
-  </div>
-
-  <div id="calibStatus" class="status-bar">
-    Connect glove, select level preview, then capture min/max.
-  </div>
-
-  <!-- Calibration actions -->
-  <section class="card">
-    <h3 class="card-title">Calibration Actions</h3>
+  <section class="card actions-card">
+    <div class="card-heading">
+      <span class="eyebrow">Setup</span>
+      <h3 class="card-title">Calibration Actions</h3>
+    </div>
     <div class="actions">
       <button id="connectBtn" type="button">Connect to Glove</button>
       <button id="disconnectBtn" class="btn-secondary" type="button" disabled>Disconnect Glove</button>
@@ -25,10 +31,12 @@
     <p class="note">Two-pass min/max capture: first non-thumb fingers, then the thumb separately.</p>
   </section>
 
-  <!-- Level Preview -->
-  <section class="card">
-    <h3 class="card-title">Level Preview</h3>
-    <div class="actions">
+  <section class="card level-card">
+    <div class="card-heading">
+      <span class="eyebrow">Preview</span>
+      <h3 class="card-title">Level Preview</h3>
+    </div>
+    <div class="actions level-actions">
       <select id="levelSelect" aria-label="Calibration level">
         <option value="1">Level 1</option>
         <option value="2">Level 2</option>
@@ -40,115 +48,357 @@
       <button id="previewLevelBtn" type="button">Preview Selected Level</button>
       <button id="previewResetBtn" class="btn-secondary" type="button">Reset Preview</button>
     </div>
-    <p id="levelInfo" class="note">Selected level target angle: 0deg (range 0 to 90).</p>
+    <p id="levelInfo" class="level-info">Selected level target angle: 0deg (range 0 to 90).</p>
   </section>
 
-  <!-- Pass 1: Non-Thumb -->
-  <section class="calibration-pass-block">
-    <h3 class="card-title">Pass 1 — Non-Thumb Calibration</h3>
-    <div class="calibration-steps">
-      <div class="calibration-step">
-        <span class="step-number">1</span>
-        <button id="previewNonThumbMinBtn" class="btn-secondary step-preview-btn" type="button">Preview Non-Thumb Min</button>
-        <button id="captureNonThumbMinBtn" class="btn-secondary step-capture-btn" type="button" disabled>
-          Capture Non-Thumb Min (0deg)
-        </button>
-      </div>
-      <div class="calibration-step">
-        <span class="step-number">2</span>
-        <button id="previewNonThumbMaxBtn" class="btn-secondary step-preview-btn" type="button">Preview Non-Thumb Max</button>
-        <button id="captureNonThumbMaxBtn" class="btn-secondary step-capture-btn" type="button" disabled>
-          Capture Non-Thumb Max (Level)
-        </button>
-      </div>
+  <section class="card workflow-card">
+    <div class="card-heading">
+      <span class="eyebrow">Two-pass capture</span>
+      <h3 class="card-title">Calibration Workflow</h3>
     </div>
-    <p class="note">Extend all fingers flat for Min, then curl index–pinky to the selected level for Max.</p>
-  </section>
 
-  <!-- Pass 2: Thumb -->
-  <section class="calibration-pass-block">
-    <h3 class="card-title">Pass 2 — Thumb Calibration</h3>
-    <div class="calibration-steps">
-      <div class="calibration-step">
-        <span class="step-number">3</span>
-        <button id="previewThumbMinBtn" class="btn-secondary step-preview-btn" type="button">Preview Thumb Min</button>
-        <button id="captureThumbMinBtn" class="btn-secondary step-capture-btn" type="button" disabled>
-          Capture Thumb Min (0deg)
-        </button>
-      </div>
-      <div class="calibration-step">
-        <span class="step-number">4</span>
-        <button id="previewThumbMaxBtn" class="btn-secondary step-preview-btn" type="button">Preview Thumb Max</button>
-        <button id="captureThumbMaxBtn" class="btn-secondary step-capture-btn" type="button" disabled>
-          Capture Thumb Max (Level)
-        </button>
-      </div>
+    <div class="progress-strip" aria-hidden="true">
+      <span>Pass 1: Non-Thumb Calibration</span>
+      <span>Pass 2: Thumb Calibration</span>
     </div>
-    <p class="note">Keep non-thumb fingers at level position, then capture thumb open and closed.</p>
+
+    <div class="calibration-pass-block">
+      <h3 class="pass-title">Pass 1 - Non-Thumb Calibration</h3>
+      <div class="calibration-steps">
+        <div class="calibration-step">
+          <span class="step-number">1</span>
+          <button id="previewNonThumbMinBtn" class="btn-secondary step-preview-btn" type="button">Preview Non-Thumb Min</button>
+          <button id="captureNonThumbMinBtn" class="step-capture-btn" type="button" disabled>
+            Capture Non-Thumb Min (0deg)
+          </button>
+        </div>
+        <div class="calibration-step">
+          <span class="step-number">2</span>
+          <button id="previewNonThumbMaxBtn" class="btn-secondary step-preview-btn" type="button">Preview Non-Thumb Max</button>
+          <button id="captureNonThumbMaxBtn" class="step-capture-btn" type="button" disabled>
+            Capture Non-Thumb Max (Level)
+          </button>
+        </div>
+      </div>
+      <p class="note">Extend all fingers flat for Min, then curl index-pinky to the selected level for Max.</p>
+    </div>
+
+    <div class="calibration-pass-block">
+      <h3 class="pass-title">Pass 2 - Thumb Calibration</h3>
+      <div class="calibration-steps">
+        <div class="calibration-step">
+          <span class="step-number">3</span>
+          <button id="previewThumbMinBtn" class="btn-secondary step-preview-btn" type="button">Preview Thumb Min</button>
+          <button id="captureThumbMinBtn" class="step-capture-btn" type="button" disabled>
+            Capture Thumb Min (0deg)
+          </button>
+        </div>
+        <div class="calibration-step">
+          <span class="step-number">4</span>
+          <button id="previewThumbMaxBtn" class="btn-secondary step-preview-btn" type="button">Preview Thumb Max</button>
+          <button id="captureThumbMaxBtn" class="step-capture-btn" type="button" disabled>
+            Capture Thumb Max (Level)
+          </button>
+        </div>
+      </div>
+      <p class="note">Keep non-thumb fingers at level position, then capture thumb open and closed.</p>
+    </div>
   </section>
 
-  <!-- Live Raw & Calibrated -->
-  <section class="card">
-    <h3 class="card-title">Live Raw &amp; Calibrated Angles</h3>
+  <section class="card summary-card">
+    <div class="card-heading">
+      <span class="eyebrow">Live tracking</span>
+      <h3 class="card-title">Live Raw &amp; Calibrated Angles</h3>
+    </div>
     <div id="rawGrid" class="mini-grid"></div>
     <span id="readyBadge" class="pill pill-warn">Calibration incomplete</span>
   </section>
 
-  <!-- Calibration Snapshot -->
-  <section class="card">
-    <h3 class="card-title">Calibration Snapshot</h3>
+  <section class="card summary-card">
+    <div class="card-heading">
+      <span class="eyebrow">Saved snapshot</span>
+      <h3 class="card-title">Calibration Snapshot</h3>
+    </div>
     <div id="snapshotGrid" class="mini-grid"></div>
     <p id="capturedAt" class="note">Captured at: --</p>
   </section>
 
   <style>
-    .view-namespace-calibration .calibration-pass-block {
-      margin-bottom: 24px;
+    .view-namespace-calibration {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding-bottom: 28px;
     }
-    .view-namespace-calibration .calibration-pass-block .card-title {
+
+    .view-namespace-calibration .calibration-hidden {
+      display: none !important;
+    }
+
+    .view-namespace-calibration .calibration-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+      min-height: 360px;
+      overflow: hidden;
+      border: 1px solid var(--c-border);
+      border-radius: 34px;
+      background: linear-gradient(135deg, #ffffff 0%, #eefbf9 100%);
+      box-shadow: var(--shadow-md);
+    }
+
+    .view-namespace-calibration .calibration-hero-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(28px, 5vw, 56px);
+    }
+
+    .view-namespace-calibration .eyebrow {
+      display: block;
+      margin-bottom: 6px;
       color: var(--c-brand);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .view-namespace-calibration h1 {
+      margin: 0;
+      color: var(--c-navy);
+      font-size: clamp(40px, 6vw, 68px);
+      line-height: 0.98;
+      letter-spacing: 0;
+      font-weight: 900;
+    }
+
+    .view-namespace-calibration .patient-id-line {
+      margin-top: 18px;
+      color: var(--c-ink-muted);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .view-namespace-calibration .hero-support {
+      max-width: 560px;
+      margin-top: 14px;
+      color: var(--c-ink-muted);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .view-namespace-calibration .calibration-hero-image {
+      min-height: 320px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 52px 0 0 52px;
+    }
+
+    .view-namespace-calibration .calibration-hero-image img {
+      width: 100%;
+      height: 100%;
+      min-height: 360px;
+      object-fit: cover;
+      object-position: center;
+      filter: saturate(0.95);
+    }
+
+    .view-namespace-calibration .calibration-hero-image::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.16), rgba(37, 99, 235, 0.08));
+      pointer-events: none;
+    }
+
+    .view-namespace-calibration .status-bar {
+      margin-top: 22px;
+      margin-bottom: 0;
+      max-width: 620px;
+    }
+
+    .view-namespace-calibration .card-heading {
       margin-bottom: 14px;
     }
+
+    .view-namespace-calibration .card-title,
+    .view-namespace-calibration .pass-title {
+      color: var(--c-navy);
+      font-size: 22px;
+      font-weight: 900;
+      margin: 0;
+    }
+
+    .view-namespace-calibration .actions {
+      gap: 12px;
+    }
+
+    .view-namespace-calibration .level-actions {
+      display: grid;
+      grid-template-columns: minmax(150px, 0.6fr) minmax(190px, 1fr) minmax(150px, 0.7fr);
+      align-items: center;
+    }
+
+    .view-namespace-calibration .level-info {
+      display: inline-flex;
+      width: fit-content;
+      margin: 4px 0 0;
+      padding: 8px 12px;
+      border: 1px solid rgba(37, 99, 235, 0.16);
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.07);
+      color: var(--c-navy);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .view-namespace-calibration .progress-strip {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .view-namespace-calibration .progress-strip span {
+      padding: 11px 14px;
+      border-radius: 999px;
+      background: #eaf1ff;
+      color: var(--c-navy);
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .view-namespace-calibration .calibration-pass-block {
+      padding: 22px;
+      border: 1px solid var(--c-border);
+      border-radius: 24px;
+      background: #f9fdfc;
+    }
+
+    .view-namespace-calibration .calibration-pass-block + .calibration-pass-block {
+      margin-top: 16px;
+    }
+
+    .view-namespace-calibration .pass-title {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
     .view-namespace-calibration .calibration-steps {
       display: grid;
-      gap: 10px;
-      margin-bottom: 8px;
+      gap: 12px;
+      margin-bottom: 12px;
     }
+
     .view-namespace-calibration .calibration-step {
+      position: relative;
       display: grid;
-      grid-template-columns: 32px minmax(220px, 270px) minmax(260px, 340px);
+      grid-template-columns: 44px minmax(180px, 1fr) minmax(220px, 1fr);
       align-items: center;
       gap: 12px;
     }
+
+    .view-namespace-calibration .calibration-step + .calibration-step::before {
+      content: "";
+      position: absolute;
+      left: 21px;
+      top: -12px;
+      width: 2px;
+      height: 12px;
+      background: rgba(37, 99, 235, 0.35);
+    }
+
     .view-namespace-calibration .step-number {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
-      border: 1px solid var(--c-border);
-      border-radius: var(--radius-sm);
-      color: var(--c-brand);
-      font-size: 13px;
-      font-weight: 700;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      color: #ffffff;
+      background: var(--c-brand);
+      font-size: 14px;
+      font-weight: 900;
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24);
     }
+
     .view-namespace-calibration .step-preview-btn,
     .view-namespace-calibration .step-capture-btn {
       width: 100%;
+      min-height: 44px;
       justify-content: center;
     }
+
     .view-namespace-calibration .step-preview-btn {
-      color: #fff;
-      border-color: var(--c-brand);
+      background: #ffffff;
+      color: var(--c-navy);
+      border-color: rgba(7, 59, 92, 0.18);
     }
-    @media (max-width: 760px) {
-      .view-namespace-calibration .calibration-step {
-        grid-template-columns: 32px 1fr;
+
+    .view-namespace-calibration .mini-grid {
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: 12px;
+    }
+
+    .view-namespace-calibration .mini-card {
+      position: relative;
+      overflow: hidden;
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 12px 28px rgba(7, 59, 92, 0.07);
+      color: var(--c-ink-muted);
+    }
+
+    .view-namespace-calibration .mini-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: var(--c-brand);
+    }
+
+    .view-namespace-calibration .mini-card strong {
+      color: var(--c-navy);
+      font-weight: 900;
+    }
+
+    @media (max-width: 900px) {
+      .view-namespace-calibration .calibration-hero,
+      .view-namespace-calibration .level-actions {
+        grid-template-columns: 1fr;
       }
+
+      .view-namespace-calibration .calibration-hero-image,
+      .view-namespace-calibration .calibration-hero-image img {
+        min-height: 240px;
+        border-radius: 0 0 34px 34px;
+      }
+
+      .view-namespace-calibration .calibration-step {
+        grid-template-columns: 44px 1fr;
+      }
+
       .view-namespace-calibration .step-capture-btn {
         grid-column: 2;
       }
     }
-  </style>
 
+    @media (max-width: 560px) {
+      .view-namespace-calibration .progress-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .view-namespace-calibration .actions button,
+      .view-namespace-calibration .actions select {
+        width: 100%;
+      }
+
+      .view-namespace-calibration .calibration-hero-copy,
+      .view-namespace-calibration .calibration-pass-block {
+        padding: 22px;
+      }
+    }
+  </style>
 </div>

@@ -463,8 +463,29 @@
     import { ThreeEngine } from './js/threeEngine.js';
     import { createRouter } from './js/router.js';
 
+    function decodeJwtPayload(token) {
+      try {
+        const payload = token.split('.')[1];
+        if (!payload) return null;
+        const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+        return JSON.parse(atob(padded));
+      } catch {
+        return null;
+      }
+    }
+
     function getDoctorSession() {
       const role = String(localStorage.getItem('auth_role') || '').trim().toLowerCase();
+      const token = localStorage.getItem('auth_token') || '';
+      let tokenPayload = token ? decodeJwtPayload(token) : null;
+      if (tokenPayload?.exp && tokenPayload.exp * 1000 <= Date.now()) {
+        localStorage.removeItem('auth_token');
+        tokenPayload = null;
+      }
+      const tokenRole = String(tokenPayload?.role || '').trim().toLowerCase();
+      const tokenDoctorId = tokenRole === 'doctor' ? String(tokenPayload?.sub || '').trim() : '';
+      const storedDoctorId = String(localStorage.getItem('doctorId') || '').trim();
       let profile = null;
 
       try {
@@ -473,9 +494,24 @@
         profile = null;
       }
 
-      if (role !== 'doctor' || !profile?.doctor_id) {
+      const profileDoctorId = String(profile?.doctor_id || '').trim();
+      const doctorId = profileDoctorId || tokenDoctorId || storedDoctorId;
+      const hasDoctorSession = role === 'doctor' || tokenRole === 'doctor' || (!role && Boolean(doctorId));
+
+      if (!hasDoctorSession || !doctorId) {
         return null;
       }
+
+      profile = {
+        ...(profile || {}),
+        doctor_id: doctorId,
+        name: profile?.name || tokenPayload?.name || profile?.email || 'Doctor',
+        email: profile?.email || tokenPayload?.email || ''
+      };
+
+      localStorage.setItem('auth_role', 'doctor');
+      localStorage.setItem('auth_profile', JSON.stringify(profile));
+      localStorage.setItem('doctorId', doctorId);
 
       return profile;
     }
@@ -501,7 +537,7 @@
       localStorage.setItem('doctorId', profile.doctor_id);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function bootstrapDoctorApp() {
       const doctorProfile = getDoctorSession();
       if (!doctorProfile) {
         window.location.replace('./login.html');
@@ -540,7 +576,13 @@
         window.location.hash = '#doctor-patients';
       }
       router.initial();
-    });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bootstrapDoctorApp, { once: true });
+    } else {
+      bootstrapDoctorApp();
+    }
   </script>
 </body>
 </html>

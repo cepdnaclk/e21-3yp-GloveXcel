@@ -72,6 +72,20 @@ function getPatientMqttTopic() {
   return patientId ? `${MQTT_TOPIC_BASE}/${patientId}/status` : '';
 }
 
+function getPatientDisplayName() {
+  try {
+    const profile = JSON.parse(localStorage.getItem('auth_profile') || '{}');
+    const profilePatientId = String(profile?.patient_id || '').trim();
+    const patientName = String(profile?.name || '').trim();
+
+    if (patientName && (!profilePatientId || profilePatientId === _state?.patientId)) {
+      return patientName;
+    }
+  } catch { /* fall through */ }
+
+  return _state?.patientId || 'this patient';
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MATH HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -933,7 +947,7 @@ export function mount(container, gloveState, threeEngine) {
           _mqttConnected = true;
           mqttToggleBtn.textContent = 'Sharing Live Data';
           mqttToggleBtn.classList.remove('btn-secondary');
-          setStatus(`Live data sharing is on for patient ${_state.patientId}.`);
+          setStatus(`Live data sharing is on for patient ${getPatientDisplayName()}.`);
         });
 
         _mqttClient.on('error', (err) => {

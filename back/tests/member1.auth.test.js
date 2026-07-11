@@ -13,7 +13,7 @@ jest.mock('bcryptjs', () => ({
     hash: jest.fn(() => Promise.resolve('hashed_password_123'))
 }));
 
-const { patientSignup } = require('../controllers/authController');
+const { patientSignup, listPatients } = require('../controllers/authController');
 const db = require('../config/supabaseDb');
 
 const mockPool = db.getPool();
@@ -200,5 +200,35 @@ describe('Member 1 - authController.patientSignup Unit Tests', () => {
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             message: expect.stringContaining('Patient signup requires')
         }));
+    });
+});
+
+describe('authController.listPatients doctor scoping', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('doctors only receive approved patients booked with them, even when all=true is requested', async () => {
+        const req = {
+            user: { role: 'doctor', sub: 'DOC-123' },
+            query: { all: 'true' }
+        };
+        const res = mockResponse();
+
+        mockPool.query.mockResolvedValueOnce({
+            rows: [{ patient_id: 'PAT-123', name: 'John Doe' }]
+        });
+
+        await listPatients(req, res);
+
+        expect(mockPool.query).toHaveBeenCalledTimes(1);
+        expect(mockPool.query.mock.calls[0][0]).toContain('doctor_patient_channel_requests');
+        expect(mockPool.query.mock.calls[0][0]).toContain("r.status = 'approved'");
+        expect(mockPool.query.mock.calls[0][0]).not.toContain('public.exercises');
+        expect(mockPool.query.mock.calls[0][1]).toEqual(['DOC-123']);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            patients: [{ patient_id: 'PAT-123', name: 'John Doe' }]
+        });
     });
 });

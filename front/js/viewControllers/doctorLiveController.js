@@ -107,7 +107,7 @@ function updateSelectedPatientHeader() {
   if (_selectedPatient) {
     const label = selectedPatientLabel();
     liveAssessmentTitle.textContent = `Live Assessment (Patient - ${label})`;
-    liveAssessmentSubtitle.textContent = `Monitoring live exercise data for ${label} (${_selectedPatient.patient_id}).`;
+    liveAssessmentSubtitle.textContent = `Monitoring live exercise data for ${label}`;
     if (mqttTopicLabel) {
       mqttTopicLabel.textContent = getSelectedPatientMqttTopic() || '--';
     }

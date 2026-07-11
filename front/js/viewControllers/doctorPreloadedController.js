@@ -10,6 +10,7 @@ const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const EXERCISE_STORAGE_KEY = 'doctorExercisesV1';
 const SELECTED_PATIENT_KEY = 'doctorSelectedPatient';
 const BLE_MOTOR_CMD_UUID = '11111111-2222-3333-4444-555555555555';
+const DEFAULT_MOTOR_LEVEL = 1;
 
 let _state = null;
 let _engine = null;
@@ -19,6 +20,7 @@ let _exercises = [];
 let _exerciseDraft = { thumb: null, index: null, middle: null, ring: null, pinky: null };
 let _motorLevelApproved = false;
 let _selectedPatient = null;
+let _patientsById = new Map();
 
 // DOM refs
 let exerciseBuilderTitle, exerciseBuilderSubtitle;
@@ -87,13 +89,24 @@ function selectedPatientLabel() {
   return _selectedPatient.name || _selectedPatient.patient_id;
 }
 
+function patientOptionLabel(patient) {
+  return patient?.name || patient?.email || 'Unnamed patient';
+}
+
+function patientLabelForId(patientId) {
+  const patient = _patientsById.get(patientId);
+  if (patient) return patientOptionLabel(patient);
+  if (_selectedPatient?.patient_id === patientId) return selectedPatientLabel();
+  return patientId || 'Unknown patient';
+}
+
 function updateSelectedPatientHeader() {
   if (!exerciseBuilderTitle || !exerciseBuilderSubtitle) return;
 
   if (_selectedPatient) {
     const label = selectedPatientLabel();
     exerciseBuilderTitle.textContent = `Exercise Builder (Patient - ${label})`;
-    exerciseBuilderSubtitle.textContent = `Creating exercises for ${label} (${_selectedPatient.patient_id}).`;
+    exerciseBuilderSubtitle.textContent = `Creating exercises for ${label}`;
     return;
   }
 
@@ -105,33 +118,56 @@ function updateSelectedPatientHeader() {
 async function loadPatients() {
   if (!exercisePatientId) return;
   exercisePatientId.innerHTML = '<option value="">-- Loading patients... --</option>';
+  exercisePatientId.disabled = true;
+
   try {
     const resp = await fetch(`${_state.apiBase}/api/auth/patients`, { headers: _state.getAuthHeaders() });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     const patients = Array.isArray(data.patients) ? data.patients : [];
-    
-    let html = '<option value="">-- Select patient --</option>';
+
+    _patientsById = new Map(
+      patients
+        .filter(patient => patient?.patient_id)
+        .map(patient => [patient.patient_id, patient])
+    );
+
+    exercisePatientId.innerHTML = '';
+    exercisePatientId.appendChild(new Option('-- Select patient --', ''));
+
     patients.forEach(p => {
-      html += `<option value="${p.patient_id}">${p.patient_id} - ${p.name || 'Unnamed'}</option>`;
+      if (!p?.patient_id) return;
+      exercisePatientId.appendChild(new Option(patientOptionLabel(p), p.patient_id));
     });
-    exercisePatientId.innerHTML = html;
 
     if (_selectedPatient?.patient_id) {
-      const existingOption = Array.from(exercisePatientId.options).some(option => option.value === _selectedPatient.patient_id);
-      if (!existingOption) {
-        const option = document.createElement('option');
-        option.value = _selectedPatient.patient_id;
-        option.textContent = `${_selectedPatient.patient_id} - ${_selectedPatient.name || 'Selected patient'}`;
-        exercisePatientId.appendChild(option);
+      const approvedPatient = _patientsById.get(_selectedPatient.patient_id);
+      if (approvedPatient) {
+        _selectedPatient = approvedPatient;
+        localStorage.setItem(SELECTED_PATIENT_KEY, JSON.stringify(_selectedPatient));
+        exercisePatientId.value = _selectedPatient.patient_id;
+      } else {
+        _selectedPatient = null;
+        localStorage.removeItem(SELECTED_PATIENT_KEY);
+        exercisePatientId.value = '';
       }
-      exercisePatientId.value = _selectedPatient.patient_id;
     }
 
-    exercisePatientId.disabled = false;
+    exercisePatientId.disabled = patients.length === 0;
+    if (patients.length === 0) {
+      exercisePatientId.innerHTML = '<option value="">-- No booked patients --</option>';
+    }
+
+    updateSelectedPatientHeader();
+    renderExerciseList();
   } catch (err) {
     console.error('[DoctorPreloaded] Failed to load patients:', err);
+    _patientsById = new Map();
+    _selectedPatient = null;
+    localStorage.removeItem(SELECTED_PATIENT_KEY);
     exercisePatientId.innerHTML = '<option value="">-- Failed to load patients --</option>';
+    updateSelectedPatientHeader();
+    renderExerciseList();
   }
 }
 
@@ -171,7 +207,7 @@ function renderExerciseList() {
   
   visibleExercises.forEach(ex => {
     const li = document.createElement('li');
-    li.textContent = `${ex.exercise_id} | Pt: ${ex.patient_id} | ${ex.description} | Sets: ${ex.target_sets} | Reps: ${ex.target_reps}`;
+    li.textContent = `${ex.exercise_id} | Pt: ${patientLabelForId(ex.patient_id)} | ${ex.description} | Sets: ${ex.target_sets} | Reps: ${ex.target_reps}`;
     savedExercisesList.appendChild(li);
   });
 }
@@ -259,6 +295,20 @@ export function mount(container, gloveState, threeEngine) {
     FINGER_KEYS.forEach(k => { _exerciseDraft[k] = null; });
     updateCaptureUI();
   });
+
+  exercisePatientId.addEventListener('change', () => {
+    const patientId = exercisePatientId.value;
+    _selectedPatient = patientId ? _patientsById.get(patientId) || null : null;
+
+    if (_selectedPatient) {
+      localStorage.setItem(SELECTED_PATIENT_KEY, JSON.stringify(_selectedPatient));
+    } else {
+      localStorage.removeItem(SELECTED_PATIENT_KEY);
+    }
+
+    updateSelectedPatientHeader();
+    renderExerciseList();
+  });
   
   exerciseMotorLevel.addEventListener('keydown', (e) => {
     // Only allow numbers and control keys
@@ -298,13 +348,27 @@ export function mount(container, gloveState, threeEngine) {
     }
   });
   
-  resetMotorBtn.addEventListener('click', () => {
+  resetMotorBtn.addEventListener('click', async () => {
+    exerciseMotorLevel.value = String(DEFAULT_MOTOR_LEVEL);
     _motorLevelApproved = false;
-    motorStatus.textContent = 'Motor reset to 0.';
+    motorStatus.textContent = `Applying motor level ${DEFAULT_MOTOR_LEVEL}...`;
+
+    try {
+      if (!_state.isConnected) {
+        throw new Error('Glove is not connected.');
+      }
+      await _state.bleClient.sendMotorLevel(DEFAULT_MOTOR_LEVEL);
+      _motorLevelApproved = true;
+      motorStatus.textContent = `Motor level ${DEFAULT_MOTOR_LEVEL} applied.`;
+    } catch (err) {
+      console.error('[DoctorPreloaded] Motor reset command failed:', err);
+      motorStatus.textContent = `Motor level reset to ${DEFAULT_MOTOR_LEVEL}, but command failed.`;
+      alert(`Motor reset failed: ${err.message}`);
+    }
   });
   
   saveExerciseBtn.addEventListener('click', async () => {
-    const patientId = _selectedPatient?.patient_id || exercisePatientId.value;
+    const patientId = exercisePatientId.value;
     const desc = exerciseDescription.value.trim();
     const sets = Number(exerciseTargetSets.value);
     const reps = Number(exerciseTargetReps.value);
@@ -352,7 +416,6 @@ export function mount(container, gloveState, threeEngine) {
       exerciseDescription.value = '';
       exerciseTargetSets.value = '';
       exerciseTargetReps.value = '';
-      if (_selectedPatient?.patient_id) exercisePatientId.value = _selectedPatient.patient_id;
       FINGER_KEYS.forEach(k => { _exerciseDraft[k] = null; });
       updateCaptureUI();
       alert('Exercise saved to database successfully.');
@@ -408,5 +471,6 @@ export function unmount() {
   exThumb = exIndex = exMiddle = exRing = exPinky = null;
   capturePoseBtn = resetPoseBtn = saveExerciseBtn = exportExerciseBtn = savedExercisesList = null;
   _selectedPatient = null;
+  _patientsById = new Map();
   _container = null;
 }

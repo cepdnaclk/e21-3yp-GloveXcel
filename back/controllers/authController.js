@@ -99,22 +99,16 @@ const listPatients = async (req, res) => {
             ? tokenDoctorId
             : (requestedDoctorId || null);
 
-        if (!fetchAll && doctorId) {
+        if (doctorId && (role === 'doctor' || !fetchAll)) {
             await ensureChannelRequestsTable(pool);
             const patients = await pool.query(
                 `
                 SELECT DISTINCT p.patient_id, p.name, p.age, p.email, p.primary_hospital_id
                 FROM public.patients p
-                WHERE p.patient_id IN (
-                    SELECT r.patient_id
-                    FROM public.doctor_patient_channel_requests r
-                    WHERE r.doctor_id = $1 AND r.status = 'approved'
-                    UNION
-                    SELECT e.patient_id
-                    FROM public.exercises e
-                    WHERE e.doctor_id = $1
-                )
-                ORDER BY p.patient_id ASC
+                INNER JOIN public.doctor_patient_channel_requests r
+                    ON r.patient_id = p.patient_id
+                WHERE r.doctor_id = $1 AND r.status = 'approved'
+                ORDER BY p.name ASC, p.patient_id ASC
                 `,
                 [doctorId]
             );

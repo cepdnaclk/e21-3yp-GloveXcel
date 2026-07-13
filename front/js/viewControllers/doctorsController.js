@@ -11,8 +11,10 @@ let doctorSearchInput = null;
 let doctorProfileSection = null;
 let doctorProfileContent = null;
 let backToDoctorsBtn = null;
+let toggleOtherDoctorsBtn = null;
 let _doctors = [];
 let _selectedDoctor = null;
+let _showOtherHospitals = false;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -35,11 +37,15 @@ function renderDoctors(doctors) {
     const name = escapeHtml(doctor.name || 'Unnamed doctor');
     const hospital = escapeHtml(doctor.hospital_name || doctor.hospital_id || 'Hospital not listed');
     const doctorId = escapeHtml(doctor.doctor_id || '');
+    const status = doctor.channel_status
+      ? `<div class="doctor-channel-status">${escapeHtml(doctor.channel_status)}</div>`
+      : '';
 
     return `
       <article class="doctor-card" data-doctor-id="${doctorId}" tabindex="0" role="button" aria-label="View ${name}'s profile">
         <div class="doctor-name">${name}</div>
         <div class="doctor-hospital">${hospital}</div>
+        ${status}
       </article>
     `;
   }).join('');
@@ -75,6 +81,11 @@ function showDoctorProfile(doctorId) {
 
   _selectedDoctor = doctor;
   const hospitalName = doctor.hospital_name || doctor.hospital_id || 'Hospital not listed';
+  const channelStatus = String(doctor.channel_status || '').trim().toLowerCase();
+  const requestButtonText = channelStatus === 'approved'
+    ? 'Already in your doctors'
+    : (channelStatus === 'pending' ? 'Request sent' : 'Request to channel the doctor');
+  const requestButtonDisabled = ['approved', 'pending'].includes(channelStatus) ? 'disabled' : '';
 
   doctorProfileContent.innerHTML = `
     <div class="doctor-profile-name">${escapeHtml(doctor.name || 'Unnamed doctor')}</div>
@@ -87,8 +98,8 @@ function showDoctorProfile(doctorId) {
       ${profileField('Hospital ID', doctor.hospital_id)}
       ${profileField('Hospital Location', doctor.hospital_location)}
     </div>
-    <button id="requestDoctorChannelBtn" class="btn-primary doctor-request-btn" type="button">
-      Request to channel the doctor
+    <button id="requestDoctorChannelBtn" class="btn-primary doctor-request-btn" type="button" ${requestButtonDisabled}>
+      ${escapeHtml(requestButtonText)}
     </button>
     <div id="requestDoctorChannelStatus" class="doctor-request-status" aria-live="polite"></div>
   `;
@@ -179,10 +190,13 @@ function applySearch() {
 async function loadDoctors() {
   if (!doctorsListEl || !_state) return;
 
-  doctorsListEl.textContent = 'Loading doctors...';
+  doctorsListEl.textContent = _showOtherHospitals
+    ? 'Loading other hospital doctors...'
+    : 'Loading same hospital doctors...';
 
   try {
-    const resp = await fetch(`${_state.apiBase}/api/auth/doctors`, {
+    const query = _showOtherHospitals ? '?include_other_hospitals=true' : '';
+    const resp = await fetch(`${_state.apiBase}/api/auth/doctors${query}`, {
       headers: _state.getAuthHeaders()
     });
 
@@ -197,6 +211,12 @@ async function loadDoctors() {
 
     const data = await resp.json();
     _doctors = Array.isArray(data.doctors) ? data.doctors : [];
+    if (toggleOtherDoctorsBtn) {
+      toggleOtherDoctorsBtn.textContent = _showOtherHospitals
+        ? 'Show Same Hospital Doctors'
+        : 'Show Other Hospital Doctors';
+    }
+    hideDoctorProfile();
     applySearch();
   } catch (error) {
     console.error('[Doctors] Failed to load doctors:', error);
@@ -214,8 +234,13 @@ export function mount(container, gloveState) {
   doctorProfileSection = _container.querySelector('#doctorProfileSection');
   doctorProfileContent = _container.querySelector('#doctorProfileContent');
   backToDoctorsBtn = _container.querySelector('#backToDoctorsBtn');
+  toggleOtherDoctorsBtn = _container.querySelector('#toggleOtherDoctorsBtn');
   doctorSearchInput?.addEventListener('input', applySearch);
   backToDoctorsBtn?.addEventListener('click', hideDoctorProfile);
+  toggleOtherDoctorsBtn?.addEventListener('click', () => {
+    _showOtherHospitals = !_showOtherHospitals;
+    loadDoctors();
+  });
   loadDoctors();
 }
 
@@ -227,6 +252,8 @@ export function unmount() {
   doctorProfileSection = null;
   doctorProfileContent = null;
   backToDoctorsBtn = null;
+  toggleOtherDoctorsBtn = null;
   _doctors = [];
   _selectedDoctor = null;
+  _showOtherHospitals = false;
 }

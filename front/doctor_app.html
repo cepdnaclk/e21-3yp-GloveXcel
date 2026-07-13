@@ -116,12 +116,27 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      width: 100%;
       min-width: 0;
-      margin: -22px 0 28px;
+      margin: 0;
       padding: 10px;
       border-radius: 16px;
       border: 1px solid var(--c-border);
       background: #f7fcfb;
+      color: inherit;
+      text-align: left;
+    }
+
+    .doctor-profile-chip:hover,
+    .doctor-profile-chip[aria-expanded="true"] {
+      background: #eefbf9;
+      border-color: rgba(37, 99, 235, 0.24);
+      box-shadow: 0 12px 28px rgba(7, 59, 92, 0.08);
+    }
+
+    .doctor-profile-menu-wrap {
+      position: relative;
+      margin: -22px 0 28px;
     }
 
     .doctor-profile-avatar {
@@ -164,6 +179,71 @@
       color: var(--c-navy);
     }
 
+    .doctor-profile-caret {
+      margin-left: auto;
+      color: var(--c-text-muted);
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .doctor-profile-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      right: 0;
+      z-index: 40;
+      display: none;
+      padding: 10px;
+      border: 1px solid var(--c-border);
+      border-radius: 14px;
+      background: #ffffff;
+      box-shadow: 0 18px 42px rgba(7, 59, 92, 0.16);
+    }
+
+    .doctor-profile-menu.open {
+      display: block;
+    }
+
+    .doctor-profile-menu-name {
+      color: var(--c-navy);
+      font-size: 14px;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .doctor-profile-menu-email {
+      color: var(--c-text-muted);
+      font-size: 12px;
+      line-height: 1.4;
+      margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .doctor-profile-menu-divider {
+      height: 1px;
+      margin: 10px 0;
+      background: var(--c-border);
+    }
+
+    .doctor-logout-btn {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(217, 74, 74, 0.08);
+      color: var(--c-danger);
+      font-size: 13px;
+      font-weight: 800;
+      text-align: left;
+    }
+
+    .doctor-logout-btn:hover {
+      background: rgba(217, 74, 74, 0.14);
+    }
+
     .nav-menu {
       display: flex;
       flex-direction: column;
@@ -191,6 +271,25 @@
       color: #ffffff;
       border-color: transparent;
       box-shadow: 0 12px 24px rgba(37, 99, 235, 0.26);
+    }
+
+    .sidebar-refresh-btn {
+      margin-top: auto;
+      width: 100%;
+      border: 1px solid var(--c-border);
+      border-radius: 14px;
+      background: #ffffff;
+      color: var(--c-navy);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 16px;
+      text-align: center;
+      box-shadow: none;
+    }
+
+    .sidebar-refresh-btn:hover {
+      background: #eefbf9;
+      color: var(--c-navy);
     }
 
     .sidebar-footer {
@@ -582,12 +681,31 @@
         Doctor Dashboard
       </div>
 
-      <div class="doctor-profile-chip" id="doctorProfileChip" title="Logged-in doctor">
-        <span class="doctor-profile-avatar" id="doctorProfileAvatar" aria-hidden="true">D</span>
-        <span class="doctor-profile-meta">
-          <span class="doctor-profile-label">Doctor</span>
-          <span class="doctor-profile-name" id="doctorProfileName">Doctor</span>
-        </span>
+      <div class="doctor-profile-menu-wrap">
+        <button
+          class="doctor-profile-chip"
+          id="doctorProfileChip"
+          type="button"
+          title="Logged-in doctor"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          aria-controls="doctorProfileMenu"
+        >
+          <span class="doctor-profile-avatar" id="doctorProfileAvatar" aria-hidden="true">D</span>
+          <span class="doctor-profile-meta">
+            <span class="doctor-profile-label">Doctor</span>
+            <span class="doctor-profile-name" id="doctorProfileName">Doctor</span>
+          </span>
+          <span class="doctor-profile-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="doctor-profile-menu" id="doctorProfileMenu" role="menu">
+          <div class="doctor-profile-menu-name" id="doctorProfileMenuName">Doctor</div>
+          <div class="doctor-profile-menu-email" id="doctorProfileMenuEmail">doctor</div>
+          <div class="doctor-profile-menu-divider"></div>
+          <button class="doctor-logout-btn" id="doctorLogoutBtn" type="button" role="menuitem">
+            Logout
+          </button>
+        </div>
       </div>
 
       <nav class="nav-menu" aria-label="Main navigation">
@@ -597,10 +715,10 @@
         <button class="nav-btn" data-route="doctor-live">Live Assessment</button>
       </nav>
 
-      <div class="sidebar-footer">
-        GloveXcel v2.0 SPA<br>
-        <a href="./patient_app.html" style="color:var(--c-brand);text-decoration:none;margin-top:8px;display:inline-block;">Switch to Patient App</a>
-      </div>
+      <button class="sidebar-refresh-btn" id="doctorSidebarRefreshBtn" type="button">
+        Refresh
+      </button>
+
     </aside>
 
     <!-- ── 2. View Container (Dynamic) ──────────────────────────────────── -->
@@ -689,16 +807,61 @@
     function renderDoctorProfile(profile) {
       const doctorName = profile.name || profile.email || profile.doctor_id || 'Doctor';
       const profileNameEl = document.getElementById('doctorProfileName');
+      const profileMenuNameEl = document.getElementById('doctorProfileMenuName');
+      const profileMenuEmailEl = document.getElementById('doctorProfileMenuEmail');
       const profileAvatarEl = document.getElementById('doctorProfileAvatar');
       const profileChipEl = document.getElementById('doctorProfileChip');
 
       if (profileNameEl) profileNameEl.textContent = doctorName;
+      if (profileMenuNameEl) profileMenuNameEl.textContent = doctorName;
+      if (profileMenuEmailEl) profileMenuEmailEl.textContent = profile.email || profile.doctor_id || '';
       if (profileAvatarEl) profileAvatarEl.textContent = getInitials(doctorName);
       if (profileChipEl) {
         profileChipEl.title = `${doctorName} (${profile.doctor_id})`;
       }
 
       localStorage.setItem('doctorId', profile.doctor_id);
+    }
+
+    function logoutDoctor() {
+      [
+        'auth_token',
+        'auth_role',
+        'auth_profile',
+        'doctorId',
+        'doctorSelectedPatient'
+      ].forEach((key) => localStorage.removeItem(key));
+
+      window.location.replace('./login.html');
+    }
+
+    function bindDoctorProfileMenu() {
+      const profileChipEl = document.getElementById('doctorProfileChip');
+      const profileMenuEl = document.getElementById('doctorProfileMenu');
+      const logoutBtn = document.getElementById('doctorLogoutBtn');
+
+      if (!profileChipEl || !profileMenuEl) return;
+
+      const setMenuOpen = (isOpen) => {
+        profileMenuEl.classList.toggle('open', isOpen);
+        profileChipEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      };
+
+      profileChipEl.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setMenuOpen(!profileMenuEl.classList.contains('open'));
+      });
+
+      profileMenuEl.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+
+      logoutBtn?.addEventListener('click', logoutDoctor);
+
+      document.addEventListener('click', () => setMenuOpen(false));
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setMenuOpen(false);
+      });
     }
 
     function bootstrapDoctorApp() {
@@ -708,6 +871,7 @@
         return;
       }
       renderDoctorProfile(doctorProfile);
+      bindDoctorProfileMenu();
 
       // 1. Initialize Singletons
       const viewContainer = document.getElementById('view-container');
@@ -723,7 +887,7 @@
       };
 
       // 2. Initialize Router
-      const router = createRouter(viewContainer, GloveState, ThreeEngine, 'doctor-patients');
+      const router = createRouter(viewContainer, GloveState, ThreeEngine, 'doctor-setup');
 
       // 3. Bind Navigation Buttons
       document.querySelectorAll('.nav-btn[data-route]').forEach(btn => {
@@ -732,10 +896,15 @@
         });
       });
 
+      document.getElementById('doctorSidebarRefreshBtn')?.addEventListener('click', () => {
+        const route = window.location.hash.replace(/^#\/?/, '').trim() || 'doctor-setup';
+        router.go(route);
+      });
+
       // 4. Start Routing
-      // Provide a fallback hash if none exists so it boots cleanly to patients
+      // Provide a fallback hash if none exists so it boots cleanly to calibration/setup
       if (!window.location.hash || window.location.hash === '#') {
-        window.location.hash = '#doctor-patients';
+        window.location.hash = '#doctor-setup';
       }
       router.initial();
     }

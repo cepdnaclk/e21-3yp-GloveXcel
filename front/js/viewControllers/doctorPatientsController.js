@@ -2,6 +2,11 @@ let _container = null;
 let _state = null;
 let requestsListEl = null;
 let patientsListEl = null;
+let patientSearchFormEl = null;
+let patientSearchInputEl = null;
+let patientsStatusEl = null;
+let approvedPatients = [];
+let patientSearchTerm = '';
 const SELECTED_PATIENT_KEY = 'doctorSelectedPatient';
 
 function escapeHtml(value) {
@@ -20,8 +25,10 @@ function patientName(item) {
 function patientMeta(item) {
   const parts = [
     item.patient_id ? `ID: ${item.patient_id}` : '',
-    item.patient_email ? `Email: ${item.patient_email}` : '',
-    item.patient_age !== null && item.patient_age !== undefined ? `Age: ${item.patient_age}` : '',
+    item.patient_email || item.email ? `Email: ${item.patient_email || item.email}` : '',
+    item.patient_age !== null && item.patient_age !== undefined
+      ? `Age: ${item.patient_age}`
+      : (item.age !== null && item.age !== undefined ? `Age: ${item.age}` : ''),
     item.hospital_name || item.primary_hospital_id ? `Hospital: ${item.hospital_name || item.primary_hospital_id}` : '',
   ].filter(Boolean);
 
@@ -42,6 +49,33 @@ function formatDate(value) {
   if (!value) return '--';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function patientSearchText(item) {
+  return [
+    patientName(item),
+    item.patient_id,
+    item.patient_email,
+    item.email,
+    item.patient_age,
+    item.age,
+    item.hospital_name,
+    item.primary_hospital_id
+  ].filter((value) => value !== null && value !== undefined)
+    .join(' ')
+    .toLowerCase();
+}
+
+function filteredPatients() {
+  const term = patientSearchTerm.trim().toLowerCase();
+  if (!term) return approvedPatients;
+  return approvedPatients.filter((patient) => patientSearchText(patient).includes(term));
+}
+
+function setPatientStatus(message, isError = false) {
+  if (!patientsStatusEl) return;
+  patientsStatusEl.textContent = message || '';
+  patientsStatusEl.classList.toggle('error-state', Boolean(isError));
 }
 
 function getAuthRole() {
@@ -96,7 +130,9 @@ function renderPatients(patients) {
   if (!patientsListEl) return;
 
   if (!Array.isArray(patients) || patients.length === 0) {
-    patientsListEl.innerHTML = '<div class="empty-state">No approved patients yet.</div>';
+    patientsListEl.innerHTML = patientSearchTerm
+      ? '<div class="empty-state">No patients match your search.</div>'
+      : '<div class="empty-state">No approved patients yet.</div>';
     return;
   }
 
@@ -127,6 +163,14 @@ function renderPatients(patients) {
           >
             Live Exercise
           </button>
+          <button
+            class="btn-secondary remove-patient-btn"
+            type="button"
+            data-patient-id="${escapeHtml(patient.patient_id || '')}"
+            data-patient-name="${escapeHtml(patientName(patient))}"
+          >
+            Remove Patient
+          </button>
         </div>
       </div>
     </article>
@@ -144,6 +188,10 @@ function renderPatients(patients) {
       }
       window.dispatchEvent(new CustomEvent('spa:navigate', { detail: { route: button.dataset.route } }));
     });
+  });
+
+  patientsListEl.querySelectorAll('.remove-patient-btn').forEach((button) => {
+    button.addEventListener('click', () => removePatient(button));
   });
 }
 
@@ -172,13 +220,53 @@ async function loadDoctorPatients() {
       throw new Error(message);
     }
 
+    approvedPatients = data.patients || [];
     renderRequests(data.requests || []);
-    renderPatients(data.patients || []);
+    renderPatients(filteredPatients());
   } catch (error) {
     console.error('[DoctorPatients] Failed to load data:', error);
     const message = escapeHtml(error.message);
     requestsListEl.innerHTML = `<div class="error-state">Failed to load requests: ${message}</div>`;
     patientsListEl.innerHTML = `<div class="error-state">Failed to load patients: ${message}</div>`;
+  }
+}
+
+async function removePatient(button) {
+  const patientId = String(button?.dataset?.patientId || '').trim();
+  const patientLabel = button?.dataset?.patientName || patientId || 'this patient';
+
+  if (!patientId || !_state) return;
+
+  const confirmed = window.confirm(`Remove ${patientLabel} from My Patients?`);
+  if (!confirmed) return;
+
+  button.disabled = true;
+  setPatientStatus(`Removing ${patientLabel}...`);
+
+  try {
+    const resp = await fetch(`${_state.apiBase}/api/channel-requests/patients/${encodeURIComponent(patientId)}`, {
+      method: 'DELETE',
+      headers: _state.getAuthHeaders(),
+    });
+    const data = await resp.json().catch(() => ({}));
+
+    if (!resp.ok) throw new Error(data.message || `HTTP ${resp.status}`);
+
+    try {
+      const selectedPatient = JSON.parse(localStorage.getItem(SELECTED_PATIENT_KEY) || 'null');
+      if (selectedPatient?.patient_id === patientId) {
+        localStorage.removeItem(SELECTED_PATIENT_KEY);
+      }
+    } catch (error) {
+      console.warn('[DoctorPatients] Failed to clear selected patient:', error);
+    }
+
+    setPatientStatus(`${patientLabel} was removed from My Patients.`);
+    await loadDoctorPatients();
+  } catch (error) {
+    console.error('[DoctorPatients] Failed to remove patient:', error);
+    button.disabled = false;
+    setPatientStatus(`Failed to remove patient: ${error.message}`, true);
   }
 }
 
@@ -215,6 +303,23 @@ export function mount(container, gloveState) {
   _state = gloveState;
   requestsListEl = _container.querySelector('#channelRequestsList');
   patientsListEl = _container.querySelector('#doctorPatientsList');
+  patientSearchFormEl = _container.querySelector('#doctorPatientSearchForm');
+  patientSearchInputEl = _container.querySelector('#doctorPatientSearchInput');
+  patientsStatusEl = _container.querySelector('#doctorPatientsStatus');
+  approvedPatients = [];
+  patientSearchTerm = '';
+
+  patientSearchFormEl?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    patientSearchTerm = patientSearchInputEl?.value || '';
+    renderPatients(filteredPatients());
+  });
+
+  patientSearchInputEl?.addEventListener('input', () => {
+    patientSearchTerm = patientSearchInputEl.value || '';
+    renderPatients(filteredPatients());
+  });
+
   loadDoctorPatients();
 }
 
@@ -223,4 +328,9 @@ export function unmount() {
   _state = null;
   requestsListEl = null;
   patientsListEl = null;
+  patientSearchFormEl = null;
+  patientSearchInputEl = null;
+  patientsStatusEl = null;
+  approvedPatients = [];
+  patientSearchTerm = '';
 }

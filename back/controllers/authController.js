@@ -5,6 +5,14 @@ const { getPool, ensureChannelRequestsTable } = require('../config/supabaseDb');
 const pool = getPool();
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const SUPABASE_URL = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+const SUPABASE_PUBLIC_KEY = (
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    ''
+).trim();
 
 const ensureJwtConfigured = (res) => {
     if (!JWT_SECRET) {
@@ -16,6 +24,32 @@ const ensureJwtConfigured = (res) => {
 
 const signAuthToken = (payload) =>
     jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+const normalizeEmail = (email) => (email || '').trim().toLowerCase();
+
+const getGoogleProfileName = (supabaseUser) =>
+    (
+        supabaseUser?.user_metadata?.full_name ||
+        supabaseUser?.user_metadata?.name ||
+        supabaseUser?.email?.split('@')[0] ||
+        ''
+    ).trim();
+
+const createOAuthPasswordHash = async (providerUserId) =>
+    bcrypt.hash(`google-oauth:${providerUserId}:${Date.now()}`, 10);
+
+const getSupabaseAuthConfig = (_req, res) => {
+    if (!SUPABASE_URL || !SUPABASE_PUBLIC_KEY) {
+        return res.status(500).json({
+            message: 'Supabase Auth is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY to env.'
+        });
+    }
+
+    return res.status(200).json({
+        supabaseUrl: SUPABASE_URL,
+        supabaseAnonKey: SUPABASE_PUBLIC_KEY
+    });
+};
 
 const isDoctorVerified = (verificationValue) =>
     (verificationValue || '').trim().toLowerCase() === 'yes';
@@ -37,6 +71,24 @@ const hospitalExists = async (hospitalId) => {
         [hospitalId]
     );
     return found.rowCount > 0;
+};
+
+const getDoctorHospitalId = async (doctorId) => {
+    if (!doctorId) return '';
+    const result = await pool.query(
+        'SELECT hospital_id FROM public.doctors WHERE doctor_id = $1 LIMIT 1',
+        [doctorId]
+    );
+    return String(result.rows[0]?.hospital_id || '').trim();
+};
+
+const getPatientHospitalId = async (patientId) => {
+    if (!patientId) return '';
+    const result = await pool.query(
+        'SELECT primary_hospital_id FROM public.patients WHERE patient_id = $1 LIMIT 1',
+        [patientId]
+    );
+    return String(result.rows[0]?.primary_hospital_id || '').trim();
 };
 
 const createHospital = async (req, res) => {
@@ -95,9 +147,49 @@ const listPatients = async (req, res) => {
         const tokenDoctorId = req.user?.sub;
         const requestedDoctorId = (req.query.doctor_id || '').trim();
         const fetchAll = req.query.all === 'true';
+        const discoverPatients = req.query.discover === 'true';
+        const includeOtherHospitals = req.query.include_other_hospitals === 'true';
         const doctorId = role === 'doctor'
             ? tokenDoctorId
             : (requestedDoctorId || null);
+
+        if (role === 'doctor' && discoverPatients) {
+            await ensureChannelRequestsTable(pool);
+            const hospitalId = await getDoctorHospitalId(doctorId);
+
+            if (!hospitalId) {
+                return res.status(400).json({ message: 'Doctor hospital was not found.' });
+            }
+
+            const hospitalOperator = includeOtherHospitals ? '<>' : '=';
+            const patients = await pool.query(
+                `
+                SELECT
+                    p.patient_id,
+                    p.name,
+                    p.age,
+                    p.email,
+                    p.primary_hospital_id,
+                    h.name AS hospital_name,
+                    h.location AS hospital_location,
+                    r.request_id,
+                    r.status AS channel_status
+                FROM public.patients p
+                LEFT JOIN public.hospitals h ON h.hospital_id = p.primary_hospital_id
+                LEFT JOIN public.doctor_patient_channel_requests r
+                    ON r.patient_id = p.patient_id AND r.doctor_id = $1
+                WHERE p.primary_hospital_id ${hospitalOperator} $2
+                ORDER BY p.name ASC, p.patient_id ASC
+                `,
+                [doctorId, hospitalId]
+            );
+
+            return res.status(200).json({
+                patients: patients.rows,
+                scope: includeOtherHospitals ? 'other_hospitals' : 'same_hospital',
+                hospital_id: hospitalId
+            });
+        }
 
         if (doctorId && (role === 'doctor' || !fetchAll)) {
             await ensureChannelRequestsTable(pool);
@@ -131,13 +223,56 @@ const listPatients = async (req, res) => {
     }
 };
 
-const listDoctors = async (_req, res) => {
+const listDoctors = async (req, res) => {
     try {
+        const role = req.user?.role;
+        const patientId = req.user?.sub;
+        const includeOtherHospitals = req.query.include_other_hospitals === 'true';
+
+        if (role === 'patient') {
+            await ensureChannelRequestsTable(pool);
+            const hospitalId = await getPatientHospitalId(patientId);
+
+            if (!hospitalId) {
+                return res.status(400).json({ message: 'Patient hospital was not found.' });
+            }
+
+            const hospitalOperator = includeOtherHospitals ? '<>' : '=';
+            const doctors = await pool.query(
+                `
+                SELECT
+                    d.doctor_id,
+                    d.name,
+                    d.email,
+                    d.hospital_id,
+                    h.name AS hospital_name,
+                    h.location AS hospital_location,
+                    r.request_id,
+                    r.status AS channel_status
+                FROM public.doctors d
+                LEFT JOIN public.hospitals h ON h.hospital_id = d.hospital_id
+                LEFT JOIN public.doctor_patient_channel_requests r
+                    ON r.doctor_id = d.doctor_id AND r.patient_id = $1
+                WHERE d.hospital_id ${hospitalOperator} $2
+                  AND LOWER(COALESCE(d."Verification", 'pending')) = 'yes'
+                ORDER BY d.name ASC, d.doctor_id ASC
+                `,
+                [patientId, hospitalId]
+            );
+
+            return res.status(200).json({
+                doctors: doctors.rows,
+                scope: includeOtherHospitals ? 'other_hospitals' : 'same_hospital',
+                hospital_id: hospitalId
+            });
+        }
+
         const doctors = await pool.query(
             `
             SELECT d.doctor_id, d.name, d.email, d.hospital_id, h.name AS hospital_name, h.location AS hospital_location
             FROM public.doctors d
             LEFT JOIN public.hospitals h ON h.hospital_id = d.hospital_id
+            WHERE LOWER(COALESCE(d."Verification", 'pending')) = 'yes'
             ORDER BY d.name ASC
             `
         );
@@ -146,6 +281,260 @@ const listDoctors = async (_req, res) => {
     } catch (error) {
         console.error('LIST_DOCTORS_ERROR:', error);
         return res.status(500).json({ message: 'Failed to load doctors.' });
+    }
+};
+
+const getSupabaseUserFromAccessToken = async (accessToken) => {
+    if (!SUPABASE_URL || !SUPABASE_PUBLIC_KEY) {
+        const error = new Error('Supabase Auth is not configured.');
+        error.status = 500;
+        throw error;
+    }
+
+    const response = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/user`, {
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            apikey: SUPABASE_PUBLIC_KEY
+        }
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const error = new Error(data.msg || data.message || 'Google session could not be verified.');
+        error.status = 401;
+        throw error;
+    }
+
+    return data;
+};
+
+const googleLogin = async (req, res) => {
+    try {
+        if (!ensureJwtConfigured(res)) {
+            return;
+        }
+
+        const { access_token, role } = req.body;
+        const normalizedRole = (role || '').trim().toLowerCase();
+
+        if (!access_token) {
+            return res.status(400).json({ message: 'Google access token is required.' });
+        }
+
+        if (!['doctor', 'patient'].includes(normalizedRole)) {
+            return res.status(400).json({ message: 'Google login is available only for doctors and patients.' });
+        }
+
+        const supabaseUser = await getSupabaseUserFromAccessToken(access_token);
+        const normalizedEmail = normalizeEmail(supabaseUser.email);
+
+        if (!normalizedEmail) {
+            return res.status(401).json({ message: 'Google account email was not found.' });
+        }
+
+        if (normalizedRole === 'doctor') {
+            const foundDoctor = await pool.query(
+                `
+                SELECT doctor_id, name, email, hospital_id, "Verification" AS verification
+                FROM public.doctors
+                WHERE LOWER(email) = $1
+                LIMIT 1
+                `,
+                [normalizedEmail]
+            );
+
+            if (foundDoctor.rowCount === 0) {
+                return res.status(200).json({
+                    message: 'Select a hospital to create your doctor account.',
+                    requiresHospital: true,
+                    role: 'doctor',
+                    googleProfile: {
+                        name: getGoogleProfileName(supabaseUser),
+                        email: normalizedEmail
+                    }
+                });
+            }
+
+            const doctor = foundDoctor.rows[0];
+            if (!isDoctorVerified(doctor.verification)) {
+                return res.status(403).json({ message: getDoctorVerificationMessage(doctor.verification) });
+            }
+
+            const token = signAuthToken({
+                sub: doctor.doctor_id,
+                role: 'doctor',
+                email: doctor.email
+            });
+
+            return res.status(200).json({
+                message: 'Doctor Google login successful.',
+                role: 'doctor',
+                token,
+                profile: {
+                    doctor_id: doctor.doctor_id,
+                    name: doctor.name,
+                    email: doctor.email,
+                    hospital_id: doctor.hospital_id,
+                    verification: doctor.verification
+                }
+            });
+        }
+
+        const foundPatient = await pool.query(
+            `
+            SELECT patient_id, name, age, email, primary_hospital_id
+            FROM public.patients
+            WHERE LOWER(email) = $1
+            LIMIT 1
+            `,
+            [normalizedEmail]
+        );
+
+        if (foundPatient.rowCount === 0) {
+            return res.status(200).json({
+                message: 'Select a hospital to create your patient account.',
+                requiresHospital: true,
+                role: 'patient',
+                googleProfile: {
+                    name: getGoogleProfileName(supabaseUser),
+                    email: normalizedEmail
+                }
+            });
+        }
+
+        const patient = foundPatient.rows[0];
+        const token = signAuthToken({
+            sub: patient.patient_id,
+            role: 'patient',
+            email: patient.email
+        });
+
+        return res.status(200).json({
+            message: 'Patient Google login successful.',
+            role: 'patient',
+            token,
+            profile: {
+                patient_id: patient.patient_id,
+                name: patient.name,
+                age: patient.age,
+                email: patient.email,
+                primary_hospital_id: patient.primary_hospital_id
+            }
+        });
+    } catch (error) {
+        console.error('GOOGLE_LOGIN_ERROR:', error);
+        return res.status(error.status || 500).json({
+            message: error.status === 401 ? error.message : 'Failed to login with Google.'
+        });
+    }
+};
+
+const googleCompleteSignup = async (req, res) => {
+    try {
+        if (!ensureJwtConfigured(res)) {
+            return;
+        }
+
+        const { access_token, role, hospital_id } = req.body;
+        const normalizedRole = (role || '').trim().toLowerCase();
+        const normalizedHospitalId = (hospital_id || '').trim();
+
+        if (!access_token) {
+            return res.status(400).json({ message: 'Google access token is required.' });
+        }
+
+        if (!['doctor', 'patient'].includes(normalizedRole)) {
+            return res.status(400).json({ message: 'Google signup is available only for doctors and patients.' });
+        }
+
+        if (!normalizedHospitalId) {
+            return res.status(400).json({ message: 'Hospital is required.' });
+        }
+
+        const isValidHospital = await hospitalExists(normalizedHospitalId);
+        if (!isValidHospital) {
+            return res.status(400).json({ message: 'Selected hospital_id does not exist.' });
+        }
+
+        const supabaseUser = await getSupabaseUserFromAccessToken(access_token);
+        const normalizedEmail = normalizeEmail(supabaseUser.email);
+        const googleName = getGoogleProfileName(supabaseUser);
+
+        if (!normalizedEmail || !googleName) {
+            return res.status(401).json({ message: 'Google account name or email was not found.' });
+        }
+
+        const passwordHash = await createOAuthPasswordHash(supabaseUser.id || normalizedEmail);
+
+        if (normalizedRole === 'doctor') {
+            const existingDoctor = await pool.query(
+                'SELECT doctor_id FROM public.doctors WHERE LOWER(email) = $1 LIMIT 1',
+                [normalizedEmail]
+            );
+
+            if (existingDoctor.rowCount > 0) {
+                return res.status(409).json({ message: 'Doctor account already exists for this Google email.' });
+            }
+
+            const inserted = await pool.query(
+                `
+                INSERT INTO public.doctors (name, email, password_hash, hospital_id, "Verification")
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING doctor_id, name, email, hospital_id, "Verification" AS verification
+                `,
+                [googleName, normalizedEmail, passwordHash, normalizedHospitalId, 'pending']
+            );
+
+            return res.status(201).json({
+                message: 'Doctor account created. Please wait for admin approval.',
+                requiresApproval: true,
+                role: 'doctor',
+                profile: inserted.rows[0]
+            });
+        }
+
+        const existingPatient = await pool.query(
+            'SELECT patient_id FROM public.patients WHERE LOWER(email) = $1 LIMIT 1',
+            [normalizedEmail]
+        );
+
+        if (existingPatient.rowCount > 0) {
+            return res.status(409).json({ message: 'Patient account already exists for this Google email.' });
+        }
+
+        const inserted = await pool.query(
+            `
+            INSERT INTO public.patients (name, age, email, password_hash, primary_hospital_id)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING patient_id, name, age, email, primary_hospital_id
+            `,
+            [googleName, 0, normalizedEmail, passwordHash, normalizedHospitalId]
+        );
+
+        const patient = inserted.rows[0];
+        const token = signAuthToken({
+            sub: patient.patient_id,
+            role: 'patient',
+            email: patient.email
+        });
+
+        return res.status(201).json({
+            message: 'Patient account created successfully.',
+            role: 'patient',
+            token,
+            profile: {
+                patient_id: patient.patient_id,
+                name: patient.name,
+                age: patient.age,
+                email: patient.email,
+                primary_hospital_id: patient.primary_hospital_id
+            }
+        });
+    } catch (error) {
+        console.error('GOOGLE_COMPLETE_SIGNUP_ERROR:', error);
+        return res.status(error.status || 500).json({
+            message: error.status === 401 ? error.message : 'Failed to complete Google signup.'
+        });
     }
 };
 
@@ -848,6 +1237,7 @@ const login = async (req, res) => {
 };
 
 module.exports = {
+    getSupabaseAuthConfig,
     createHospital,
     listHospitals,
     listPatients,
@@ -861,5 +1251,7 @@ module.exports = {
     patientSignup,
     doctorLogin,
     patientLogin,
-    login
+    login,
+    googleLogin,
+    googleCompleteSignup
 };

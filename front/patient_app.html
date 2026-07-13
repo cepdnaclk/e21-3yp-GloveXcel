@@ -109,6 +109,18 @@
       border: 1px solid var(--c-border);
       background: rgba(28, 34, 48, 0.9);
       color: var(--c-ink);
+      text-align: left;
+    }
+
+    .patient-profile-chip:hover,
+    .patient-profile-chip[aria-expanded="true"] {
+      background: var(--c-surface-2);
+      border-color: rgba(37, 99, 235, 0.24);
+    }
+
+    .patient-profile-menu-wrap {
+      position: relative;
+      display: inline-flex;
     }
 
     .patient-profile-avatar {
@@ -149,6 +161,75 @@
       font-size: 13px;
       font-weight: 700;
       color: var(--c-ink);
+    }
+
+    .patient-profile-caret {
+      color: var(--c-ink-muted);
+      font-size: 12px;
+      line-height: 1;
+      margin-left: 2px;
+    }
+
+    .patient-profile-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 45;
+      display: none;
+      width: 230px;
+      padding: 10px;
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-md);
+      background: #ffffff;
+      box-shadow: 0 18px 42px rgba(7, 59, 92, 0.16);
+    }
+
+    .patient-profile-menu.open {
+      display: block;
+    }
+
+    .patient-profile-menu-name {
+      color: var(--c-navy);
+      font-size: 14px;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .patient-profile-menu-email {
+      color: var(--c-ink-muted);
+      font-size: 12px;
+      line-height: 1.4;
+      margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .patient-profile-menu-divider {
+      height: 1px;
+      margin: 10px 0;
+      background: var(--c-border);
+    }
+
+    .patient-logout-btn {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(217, 78, 78, 0.08);
+      color: var(--c-danger);
+      box-shadow: none;
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .patient-logout-btn:hover:not(:disabled) {
+      background: rgba(217, 78, 78, 0.14);
+      color: var(--c-danger);
+      box-shadow: none;
+      transform: none;
     }
 
     /* BLE connection status pill */
@@ -259,6 +340,27 @@
       color: var(--c-brand);
       border-color: #2a3f6e;
       font-weight: 600;
+    }
+
+    .sidebar-refresh-btn {
+      margin-top: auto;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-md);
+      background: var(--c-surface-2);
+      color: var(--c-ink-2);
+      box-shadow: none;
+      font-size: 13px;
+      font-weight: 800;
+      text-align: left;
+    }
+
+    .sidebar-refresh-btn:hover:not(:disabled) {
+      background: var(--c-border);
+      color: var(--c-ink);
+      box-shadow: none;
+      transform: none;
     }
 
     .sidebar-divider {
@@ -918,6 +1020,24 @@
       font-weight: 600;
     }
 
+    .sidebar-refresh-btn {
+      background: #ffffff;
+      color: var(--c-navy);
+      border: 1px solid var(--c-border);
+      border-radius: 14px;
+      box-shadow: none;
+      font-size: 14px;
+      padding: 12px 16px;
+      text-align: center;
+    }
+
+    .sidebar-refresh-btn:hover:not(:disabled) {
+      background: #eefbf9;
+      color: var(--c-navy);
+      box-shadow: none;
+      transform: none;
+    }
+
     .sidebar-footer {
       border-top-color: var(--c-border);
       color: var(--c-ink-muted);
@@ -1131,12 +1251,31 @@
     <span class="header-subtitle">Patient Console</span>
     <div class="header-spacer"></div>
 
-    <div class="patient-profile-chip" id="patientProfileChip" title="Logged-in patient">
-      <span class="patient-profile-avatar" id="patientProfileAvatar" aria-hidden="true">P</span>
-      <span class="patient-profile-meta">
-        <span class="patient-profile-label">Patient</span>
-        <span class="patient-profile-name" id="patientProfileName">Patient</span>
-      </span>
+    <div class="patient-profile-menu-wrap">
+      <button
+        class="patient-profile-chip"
+        id="patientProfileChip"
+        type="button"
+        title="Logged-in patient"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-controls="patientProfileMenu"
+      >
+        <span class="patient-profile-avatar" id="patientProfileAvatar" aria-hidden="true">P</span>
+        <span class="patient-profile-meta">
+          <span class="patient-profile-label">Patient</span>
+          <span class="patient-profile-name" id="patientProfileName">Patient</span>
+        </span>
+        <span class="patient-profile-caret" aria-hidden="true">v</span>
+      </button>
+      <div class="patient-profile-menu" id="patientProfileMenu" role="menu">
+        <div class="patient-profile-menu-name" id="patientProfileMenuName">Patient</div>
+        <div class="patient-profile-menu-email" id="patientProfileMenuEmail">patient</div>
+        <div class="patient-profile-menu-divider"></div>
+        <button class="patient-logout-btn" id="patientLogoutBtn" type="button" role="menuitem">
+          Logout
+        </button>
+      </div>
     </div>
 
     <!-- Global BLE connection status pill -->
@@ -1195,11 +1334,10 @@
         Doctors
       </button>
 
-      <hr class="sidebar-divider" />
+      <button class="sidebar-refresh-btn" id="patientSidebarRefreshBtn" type="button">
+        Refresh
+      </button>
 
-      <div class="sidebar-footer">
-        Serve via a local HTTP&nbsp;server — <code>fetch()</code> is blocked on <code>file://</code>.
-      </div>
     </nav>
 
     <!-- ── Dynamic view container ─────────────────────────────────────── -->
@@ -1271,10 +1409,14 @@
     function renderPatientProfile(profile) {
       const patientName = profile.name || profile.email || profile.patient_id || 'Patient';
       const profileNameEl = document.getElementById('patientProfileName');
+      const profileMenuNameEl = document.getElementById('patientProfileMenuName');
+      const profileMenuEmailEl = document.getElementById('patientProfileMenuEmail');
       const profileAvatarEl = document.getElementById('patientProfileAvatar');
       const profileChipEl = document.getElementById('patientProfileChip');
 
       if (profileNameEl) profileNameEl.textContent = patientName;
+      if (profileMenuNameEl) profileMenuNameEl.textContent = patientName;
+      if (profileMenuEmailEl) profileMenuEmailEl.textContent = profile.email || profile.patient_id || '';
       if (profileAvatarEl) profileAvatarEl.textContent = getInitials(patientName);
       if (profileChipEl) {
         profileChipEl.title = `${patientName} (${profile.patient_id})`;
@@ -1283,12 +1425,53 @@
       localStorage.setItem('patientId', profile.patient_id);
     }
 
+    function logoutPatient() {
+      [
+        'auth_token',
+        'auth_role',
+        'auth_profile',
+        'patientId'
+      ].forEach((key) => localStorage.removeItem(key));
+
+      window.location.replace('./login.html');
+    }
+
+    function bindPatientProfileMenu() {
+      const profileChipEl = document.getElementById('patientProfileChip');
+      const profileMenuEl = document.getElementById('patientProfileMenu');
+      const logoutBtn = document.getElementById('patientLogoutBtn');
+
+      if (!profileChipEl || !profileMenuEl) return;
+
+      const setMenuOpen = (isOpen) => {
+        profileMenuEl.classList.toggle('open', isOpen);
+        profileChipEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      };
+
+      profileChipEl.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setMenuOpen(!profileMenuEl.classList.contains('open'));
+      });
+
+      profileMenuEl.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+
+      logoutBtn?.addEventListener('click', logoutPatient);
+
+      document.addEventListener('click', () => setMenuOpen(false));
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setMenuOpen(false);
+      });
+    }
+
     const patientProfile = getPatientSession();
     if (!patientProfile) {
       window.location.replace('./login.html');
       throw new Error('Patient login required.');
     }
     renderPatientProfile(patientProfile);
+    bindPatientProfileMenu();
 
     // ── 1. Initialise the WebGL engine inside #canvas-wrapper ───────────
     //    (Builds the scene, loads the GLB, starts the rAF loop — all once.)
@@ -1322,8 +1505,16 @@
       btn.addEventListener('click', () => router.go(btn.dataset.route));
     });
 
+    document.getElementById('patientSidebarRefreshBtn')?.addEventListener('click', () => {
+      const route = window.location.hash.replace(/^#\/?/, '').trim() || 'calibration';
+      router.go(route);
+    });
+
     // ── 5. Navigate to the initial route (URL hash or default) ─────────
     // Handles deep-links (#calibration, #/live, etc.) and page refreshes.
+    if (!window.location.hash || window.location.hash === '#') {
+      window.location.hash = '#calibration';
+    }
     router.initial();
 
     // ── Note: spa:navigate custom event ────────────────────────────────

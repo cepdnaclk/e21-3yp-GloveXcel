@@ -20,8 +20,8 @@
   <!-- ── Navigation and Data Source ──────────────────────────────────── -->
   <section class="card" id="preloadedDataSourceSection">
     <h3 class="card-title">Glove &amp; Data Source</h3>
-    <div class="actions">
-      <button id="loadPatientCalibBtn" class="btn-secondary" type="button">Load Patient Calibration</button>
+    <div class="actions data-source-actions">
+      <button id="loadPatientCalibBtn" class="data-source-btn data-source-btn-secondary" type="button">Load Patient Calibration</button>
     </div>
     <p id="gloveStatus" class="note">Patient glove status: Not connected.</p>
     <p id="patientCalibStatus" class="note">Patient calibration status: Not loaded.</p>
@@ -68,11 +68,33 @@
     </p>
   </section>
 
-  <!-- ── Computed Targets ─────────────────────────────────────────────── -->
-  <section class="card" id="computedTargetsSection">
-    <h3 class="card-title">Computed Targets</h3>
-    <div id="targetGrid" class="mini-grid"></div>
-    <p class="note">Target per finger = min(exercise max angle, level angle).</p>
-  </section>
+  <style>
+    .view-namespace-preloaded .data-source-actions {
+      gap: 10px;
+      margin-bottom: 0;
+    }
+
+    .view-namespace-preloaded .data-source-btn {
+      min-height: 42px;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 800;
+      box-shadow: none;
+    }
+
+    .view-namespace-preloaded .data-source-btn-secondary {
+      border: 1px solid rgba(37, 99, 235, 0.24);
+      background: #ffffff;
+      color: var(--c-navy);
+    }
+
+    .view-namespace-preloaded .data-source-btn-secondary:hover:not(:disabled) {
+      background: #eaf1ff;
+      border-color: rgba(37, 99, 235, 0.36);
+      box-shadow: 0 12px 26px rgba(7, 59, 92, 0.08);
+      transform: translateY(-1px);
+    }
+  </style>
 
 </div><!-- /.view-namespace-preloaded -->

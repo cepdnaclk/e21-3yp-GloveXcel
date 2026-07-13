@@ -380,12 +380,6 @@
           <p class="note">Loop movement: min -> doctor targets -> min continuously, based on doctor level and exercise max values.</p>
         </section>
 
-        <section class="section" id="computedTargetsSection">
-          <h3>Computed Targets</h3>
-          <div id="targetGrid" class="computed-grid"></div>
-          <p class="note">Target per finger = min(exercise max angle, level angle).</p>
-        </section>
-
       </div>
 
       <aside class="right-column">
@@ -906,10 +900,17 @@
     }
 
     function renderTargetGrid() {
+      if (!targetGridEl) {
+        renderMatchGrid();
+        return;
+      }
+
       const levelAngle = getCurrentLevelAngle();
       const targets = getTargetAngles();
 
-      levelInfoEl.textContent = `Selected doctor level target angle: ${levelAngle}deg.`;
+      if (levelInfoEl) {
+        levelInfoEl.textContent = `Selected doctor level target angle: ${levelAngle}deg.`;
+      }
       targetGridEl.innerHTML = "";
       for (let i = 0; i < FINGER_LABELS.length; i += 1) {
         const card = document.createElement("div");

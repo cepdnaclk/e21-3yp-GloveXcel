@@ -18,6 +18,9 @@
         placeholder="Search by doctor or hospital"
         aria-label="Search doctors"
       />
+      <button id="toggleOtherDoctorsBtn" class="btn-secondary doctor-scope-btn" type="button">
+        Show Other Hospital Doctors
+      </button>
     </div>
     <div id="doctorsList" class="doctors-list">
       Loading doctors...
@@ -31,6 +34,9 @@
 
   <style>
     .view-namespace-doctors .doctor-search-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
       margin-bottom: 14px;
     }
     .view-namespace-doctors .doctor-search-input {
@@ -41,6 +47,9 @@
       border-radius: var(--radius-sm);
       color: var(--c-navy);
       font: inherit;
+    }
+    .view-namespace-doctors .doctor-scope-btn {
+      flex: 0 0 auto;
     }
     .view-namespace-doctors .doctor-search-input:focus {
       outline: none;
@@ -79,6 +88,17 @@
       color: var(--c-ink-muted);
       font-size: 13px;
       line-height: 1.45;
+    }
+    .view-namespace-doctors .doctor-channel-status {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.1);
+      color: var(--c-brand);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
     }
     .view-namespace-doctors .doctor-empty,
     .view-namespace-doctors .doctor-error {

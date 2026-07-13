@@ -14,6 +14,7 @@ jest.mock('bcryptjs', () => ({
 }));
 
 const { patientSignup, listPatients } = require('../controllers/authController');
+const { removeApprovedPatient } = require('../controllers/channelRequestController');
 const db = require('../config/supabaseDb');
 
 const mockPool = db.getPool();
@@ -229,6 +230,60 @@ describe('authController.listPatients doctor scoping', () => {
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({
             patients: [{ patient_id: 'PAT-123', name: 'John Doe' }]
+        });
+    });
+});
+
+describe('channelRequestController.removeApprovedPatient', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('removes an approved patient relationship for the logged-in doctor', async () => {
+        const req = {
+            user: { role: 'doctor', sub: 'DOC-123' },
+            params: { patientId: 'PAT-123' }
+        };
+        const res = mockResponse();
+
+        mockPool.query.mockResolvedValueOnce({
+            rowCount: 1,
+            rows: [{
+                request_id: 'REQ-123',
+                doctor_id: 'DOC-123',
+                patient_id: 'PAT-123',
+                status: 'approved'
+            }]
+        });
+
+        await removeApprovedPatient(req, res);
+
+        expect(db.ensureChannelRequestsTable).toHaveBeenCalled();
+        expect(mockPool.query).toHaveBeenCalledTimes(1);
+        expect(mockPool.query.mock.calls[0][0]).toContain('DELETE FROM public.doctor_patient_channel_requests');
+        expect(mockPool.query.mock.calls[0][0]).toContain("status = 'approved'");
+        expect(mockPool.query.mock.calls[0][0]).toContain('AND doctor_id = $2');
+        expect(mockPool.query.mock.calls[0][1]).toEqual(['PAT-123', 'DOC-123']);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            message: 'Patient removed from My Patients.',
+            removed: expect.objectContaining({ patient_id: 'PAT-123' })
+        }));
+    });
+
+    test('returns 404 when the patient is not approved for the doctor', async () => {
+        const req = {
+            user: { role: 'doctor', sub: 'DOC-123' },
+            params: { patientId: 'PAT-404' }
+        };
+        const res = mockResponse();
+
+        mockPool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+
+        await removeApprovedPatient(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Approved patient was not found for this doctor.'
         });
     });
 });

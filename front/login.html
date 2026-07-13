@@ -23,6 +23,7 @@
             --radius-panel: 28px;
             --shadow: 0 30px 90px rgba(3, 7, 18, 0.38);
             --trans: 0.18s ease;
+            --auth-visual-image: url("./Assets/patient-consulting-doctor.jpg");
         }
 
         * {
@@ -91,7 +92,7 @@
             color: #fff;
             background:
                 linear-gradient(180deg, rgba(4, 16, 39, 0.08) 0%, rgba(7, 18, 41, 0.76) 78%),
-                url("./Assets/patient-consulting-doctor.jpg") center / cover no-repeat;
+                var(--auth-visual-image) center / cover no-repeat;
             border-top-left-radius: var(--radius-card);
             border-bottom-left-radius: var(--radius-card);
             border-bottom-right-radius: 86px;
@@ -322,6 +323,25 @@
             background: #f8fafc;
         }
 
+        .secondary-auth-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.68;
+        }
+
+        .google-mark {
+            display: inline-grid;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            place-items: center;
+            border-radius: 50%;
+            color: #fff;
+            background: conic-gradient(from -45deg, #4285f4 0 25%, #34a853 0 50%, #fbbc05 0 75%, #ea4335 0);
+            font-size: 12px;
+            font-weight: 800;
+            vertical-align: -3px;
+        }
+
         .toggle-mode {
             margin-top: 22px;
             text-align: center;
@@ -484,8 +504,20 @@
                 <button class="submit-btn" type="submit">Create Patient Account</button>
             </form>
 
-            <div class="auth-divider">or</div>
-            <button class="secondary-auth-btn" type="button">Continue with Google</button>
+            <form id="googleHospitalForm" class="auth-form hidden">
+                <label for="googleHospitalId">Hospital ID</label>
+                <select id="googleHospitalId" required>
+                    <option value="">Select hospital</option>
+                </select>
+
+                <button class="submit-btn" type="submit">Continue</button>
+            </form>
+
+            <div class="auth-divider" id="googleAuthDivider">or</div>
+            <button class="secondary-auth-btn" id="googleAuthBtn" type="button">
+                <span class="google-mark" aria-hidden="true">G</span>
+                Continue with Google
+            </button>
 
             <div class="toggle-mode">
                 <span id="togglePrompt">Need an account?</span>
@@ -496,6 +528,7 @@
         </section>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const API_BASE = 'http://localhost:3000/api/auth';
 
@@ -507,14 +540,27 @@
         const loginForm = document.getElementById('loginForm');
         const doctorSignupForm = document.getElementById('doctorSignupForm');
         const patientSignupForm = document.getElementById('patientSignupForm');
+        const googleHospitalForm = document.getElementById('googleHospitalForm');
         const doctorHospitalIdSelect = document.getElementById('doctorHospitalId');
         const patientHospitalIdSelect = document.getElementById('patientHospitalId');
+        const googleHospitalIdSelect = document.getElementById('googleHospitalId');
         const togglePrompt = document.getElementById('togglePrompt');
         const toggleModeBtn = document.getElementById('toggleModeBtn');
         const statusMessage = document.getElementById('statusMessage');
+        const googleAuthDivider = document.getElementById('googleAuthDivider');
+        const googleAuthBtn = document.getElementById('googleAuthBtn');
 
         let activeRole = 'doctor';
         let mode = 'login';
+        let supabaseAuthClient = null;
+        let supabaseConfigPromise = null;
+        let googleSignupSession = null;
+        let googleSignupRole = '';
+        const roleVisualImages = {
+            admin: './Assets/man-working-night.jpg',
+            doctor: './Assets/patient-consulting-doctor.jpg',
+            patient: './Assets/therapist-doctor-analyzing-heart-pulse-medical-consulting-hospital-ward-afroamerican-nurse.jpg'
+        };
 
         const setMessage = (text, type) => {
             statusMessage.className = `message ${type || ''}`;
@@ -541,6 +587,7 @@
 
             doctorHospitalIdSelect.innerHTML = optionsMarkup;
             patientHospitalIdSelect.innerHTML = optionsMarkup;
+            googleHospitalIdSelect.innerHTML = optionsMarkup;
         };
 
         const loadHospitals = async () => {
@@ -564,6 +611,11 @@
             patientRoleBtn.classList.toggle('active', activeRole === 'patient');
         };
 
+        const updateRoleVisual = () => {
+            const imageUrl = roleVisualImages[activeRole] || roleVisualImages.doctor;
+            document.documentElement.style.setProperty('--auth-visual-image', `url("${imageUrl}")`);
+        };
+
         const updateView = () => {
             const canSignup = activeRole !== 'admin';
             if (!canSignup && mode === 'signup') {
@@ -571,19 +623,29 @@
             }
 
             updateRoleButtons();
+            updateRoleVisual();
 
             const isLogin = mode === 'login';
+            const isGoogleHospital = mode === 'google_hospital';
             const roleName = activeRole.charAt(0).toUpperCase() + activeRole.slice(1);
-            formTitle.textContent = `${roleName} ${isLogin ? 'Login' : 'Signup'}`;
-            formSubtitle.textContent = isLogin
-                ? `Access your ${roleName.toLowerCase()} workspace with your registered credentials.`
-                : `Create a secure ${roleName.toLowerCase()} account connected to your hospital workflow.`;
+            formTitle.textContent = isGoogleHospital
+                ? 'Select Hospital'
+                : `${roleName} ${isLogin ? 'Login' : 'Signup'}`;
+            formSubtitle.textContent = isGoogleHospital
+                ? 'Choose your hospital to finish Google account setup.'
+                : (isLogin
+                    ? `Access your ${roleName.toLowerCase()} workspace with your registered credentials.`
+                    : `Create a secure ${roleName.toLowerCase()} account connected to your hospital workflow.`);
 
             loginForm.classList.toggle('hidden', !isLogin);
-            doctorSignupForm.classList.toggle('hidden', isLogin || activeRole !== 'doctor');
-            patientSignupForm.classList.toggle('hidden', isLogin || activeRole !== 'patient');
+            doctorSignupForm.classList.toggle('hidden', isLogin || isGoogleHospital || activeRole !== 'doctor');
+            patientSignupForm.classList.toggle('hidden', isLogin || isGoogleHospital || activeRole !== 'patient');
+            googleHospitalForm.classList.toggle('hidden', !isGoogleHospital);
+            const canUseGoogle = isLogin && ['doctor', 'patient'].includes(activeRole);
+            googleAuthDivider.classList.toggle('hidden', !canUseGoogle);
+            googleAuthBtn.classList.toggle('hidden', !canUseGoogle);
 
-            if (canSignup) {
+            if (canSignup && !isGoogleHospital) {
                 togglePrompt.textContent = isLogin ? 'Need an account?' : 'Already have an account?';
                 toggleModeBtn.textContent = isLogin ? 'Sign up' : 'Login';
                 togglePrompt.parentElement.classList.remove('hidden');
@@ -629,6 +691,138 @@
             window.location.href = 'patient_app.html';
         };
 
+        const getGoogleRedirectUrl = () => {
+            const url = new URL(window.location.href);
+            url.hash = '';
+            url.searchParams.delete('code');
+            url.searchParams.delete('error');
+            url.searchParams.delete('error_code');
+            url.searchParams.delete('error_description');
+            return url.toString();
+        };
+
+        const getSupabaseClient = async () => {
+            if (supabaseAuthClient) {
+                return supabaseAuthClient;
+            }
+
+            if (!supabaseConfigPromise) {
+                supabaseConfigPromise = fetch(`${API_BASE}/supabase-auth-config`)
+                    .then(async (response) => {
+                        const data = await response.json();
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Supabase Auth is not configured.');
+                        }
+                        return data;
+                    });
+            }
+
+            const config = await supabaseConfigPromise;
+            if (!window.supabase?.createClient) {
+                throw new Error('Supabase login library could not be loaded.');
+            }
+
+            supabaseAuthClient = window.supabase.createClient(
+                config.supabaseUrl,
+                config.supabaseAnonKey,
+                { auth: { detectSessionInUrl: true, persistSession: true } }
+            );
+            return supabaseAuthClient;
+        };
+
+        const showGoogleHospitalForm = (session, selectedRole, googleProfile) => {
+            googleSignupSession = session;
+            googleSignupRole = selectedRole;
+            activeRole = selectedRole;
+            mode = 'google_hospital';
+            updateView();
+            const displayName = googleProfile?.name || googleProfile?.email || 'your Google account';
+            setMessage(`Signed in as ${displayName}. Select your hospital to continue.`, '');
+        };
+
+        const finishGoogleLogin = async (session, selectedRole) => {
+            const response = await fetch(`${API_BASE}/google-login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    access_token: session.access_token,
+                    role: selectedRole
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Google login failed.');
+            }
+
+            if (data.requiresHospital) {
+                showGoogleHospitalForm(session, selectedRole, data.googleProfile);
+                return;
+            }
+
+            if (!data.role || !data.profile || !data.token) {
+                throw new Error('Google login response is missing role/profile data.');
+            }
+
+            activeRole = data.role;
+            saveSession(data.role, data.profile, data.token);
+            setMessage('Google login successful. Redirecting...', 'success');
+
+            setTimeout(() => {
+                goToRolePage(data.role);
+            }, 500);
+        };
+
+        const handleGoogleRedirect = async () => {
+            const pendingRole = sessionStorage.getItem('google_login_role');
+            const hasOAuthResult = window.location.hash.includes('access_token=')
+                || window.location.search.includes('code=')
+                || window.location.search.includes('error=');
+
+            if (!pendingRole && !hasOAuthResult) {
+                return;
+            }
+
+            if (!['doctor', 'patient'].includes(pendingRole)) {
+                sessionStorage.removeItem('google_login_role');
+                return;
+            }
+
+            activeRole = pendingRole;
+            mode = 'login';
+            updateView();
+            setMessage('Finishing Google login...', '');
+            googleAuthBtn.disabled = true;
+
+            try {
+                const client = await getSupabaseClient();
+                const params = new URLSearchParams(window.location.search);
+                const oauthError = params.get('error_description') || params.get('error');
+                if (oauthError) {
+                    throw new Error(oauthError);
+                }
+
+                const authCode = params.get('code');
+                const { data, error } = authCode
+                    ? await client.auth.exchangeCodeForSession(authCode)
+                    : await client.auth.getSession();
+                if (error) {
+                    throw error;
+                }
+                if (!data.session) {
+                    throw new Error('Google session was not found.');
+                }
+
+                sessionStorage.removeItem('google_login_role');
+                window.history.replaceState({}, document.title, getGoogleRedirectUrl());
+                await finishGoogleLogin(data.session, pendingRole);
+            } catch (error) {
+                setMessage(error.message || 'Google login failed.', 'error');
+            } finally {
+                googleAuthBtn.disabled = false;
+            }
+        };
+
         adminRoleBtn.addEventListener('click', () => {
             activeRole = 'admin';
             updateView();
@@ -647,6 +841,93 @@
         toggleModeBtn.addEventListener('click', () => {
             mode = mode === 'login' ? 'signup' : 'login';
             updateView();
+        });
+
+        googleAuthBtn.addEventListener('click', async () => {
+            if (!['doctor', 'patient'].includes(activeRole) || mode !== 'login') {
+                setMessage('Google login is available only for doctor and patient login.', 'error');
+                return;
+            }
+
+            setMessage('Opening Google login...', '');
+            googleAuthBtn.disabled = true;
+            sessionStorage.setItem('google_login_role', activeRole);
+
+            try {
+                const client = await getSupabaseClient();
+                const { error } = await client.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: { redirectTo: getGoogleRedirectUrl() }
+                });
+
+                if (error) {
+                    throw error;
+                }
+            } catch (error) {
+                sessionStorage.removeItem('google_login_role');
+                googleAuthBtn.disabled = false;
+                setMessage(error.message || 'Unable to start Google login.', 'error');
+            }
+        });
+
+        googleHospitalForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!googleSignupSession || !googleSignupRole) {
+                setMessage('Google session was not found. Please try Google login again.', 'error');
+                mode = 'login';
+                updateView();
+                return;
+            }
+
+            const hospitalId = googleHospitalIdSelect.value.trim();
+            if (!hospitalId) {
+                setMessage('Please select a hospital.', 'error');
+                return;
+            }
+
+            setMessage('Creating your account...', '');
+
+            try {
+                const response = await fetch(`${API_BASE}/google-complete-signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        access_token: googleSignupSession.access_token,
+                        role: googleSignupRole,
+                        hospital_id: hospitalId
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    setMessage(data.message || 'Google account setup failed.', 'error');
+                    return;
+                }
+
+                googleSignupSession = null;
+                googleSignupRole = '';
+
+                if (data.requiresApproval) {
+                    mode = 'login';
+                    activeRole = 'doctor';
+                    updateView();
+                    setMessage(data.message || 'Doctor account created. Please wait for admin approval.', 'success');
+                    return;
+                }
+
+                if (!data.role || !data.profile || !data.token) {
+                    setMessage('Google signup response is missing role/profile data.', 'error');
+                    return;
+                }
+
+                saveSession(data.role, data.profile, data.token);
+                setMessage('Account created. Redirecting...', 'success');
+                setTimeout(() => {
+                    goToRolePage(data.role);
+                }, 500);
+            } catch (error) {
+                setMessage('Unable to connect to server.', 'error');
+            }
         });
 
         loginForm.addEventListener('submit', async (event) => {
@@ -764,6 +1045,7 @@
 
         loadHospitals();
         updateView();
+        handleGoogleRedirect();
     </script>
 </body>
 </html>

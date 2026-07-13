@@ -21,9 +21,9 @@
   <!-- ── Navigation and Data Source ──────────────────────────────────── -->
   <section class="card" id="liveDataSourceSection">
     <h3 class="card-title">Glove &amp; Data Source</h3>
-    <div class="actions">
-      <button id="mqttToggleBtn" type="button" class="btn-secondary">Share Live Data</button>
-      <button id="liveLoadCalibBtn" class="btn-secondary" type="button">Load Patient Calibration</button>
+    <div class="actions data-source-actions">
+      <button id="mqttToggleBtn" type="button" class="data-source-btn data-source-btn-primary">Share Live Data</button>
+      <button id="liveLoadCalibBtn" class="data-source-btn data-source-btn-secondary" type="button">Load Patient Calibration</button>
     </div>
     <p id="liveGloveStatus" class="note live-hidden-status">Patient glove status: Not connected.</p>
     <p id="liveCalibStatus" class="note live-hidden-status">Patient calibration status: Not loaded.</p>
@@ -102,6 +102,48 @@
   <style>
     .view-namespace-live .live-hidden-status {
       display: none !important;
+    }
+
+    .view-namespace-live .data-source-actions {
+      gap: 10px;
+      margin-bottom: 0;
+    }
+
+    .view-namespace-live .data-source-btn {
+      min-height: 42px;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 800;
+      box-shadow: none;
+    }
+
+    .view-namespace-live .data-source-btn-primary {
+      border: 1px solid transparent;
+      background: linear-gradient(135deg, var(--c-brand), var(--c-brand-hover));
+      color: #ffffff;
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
+    }
+
+    .view-namespace-live .data-source-btn-secondary {
+      border: 1px solid rgba(37, 99, 235, 0.24);
+      background: #ffffff;
+      color: var(--c-navy);
+    }
+
+    .view-namespace-live .data-source-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .view-namespace-live .data-source-btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--c-brand-hover), #1e40af);
+      box-shadow: 0 18px 34px rgba(37, 99, 235, 0.28);
+    }
+
+    .view-namespace-live .data-source-btn-secondary:hover:not(:disabled) {
+      background: #eaf1ff;
+      border-color: rgba(37, 99, 235, 0.36);
+      box-shadow: 0 12px 26px rgba(7, 59, 92, 0.08);
     }
 
     .view-namespace-live #patientLiveExerciseSelect {

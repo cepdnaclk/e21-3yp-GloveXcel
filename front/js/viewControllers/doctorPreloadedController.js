@@ -100,6 +100,11 @@ function patientLabelForId(patientId) {
   return patientId || 'Unknown patient';
 }
 
+function exerciseDisplayName(exercise, index) {
+  const description = String(exercise?.description || '').trim();
+  return description || `Exercise ${index + 1}`;
+}
+
 function updateSelectedPatientHeader() {
   if (!exerciseBuilderTitle || !exerciseBuilderSubtitle) return;
 
@@ -205,9 +210,9 @@ function renderExerciseList() {
     return;
   }
   
-  visibleExercises.forEach(ex => {
+  visibleExercises.forEach((ex, index) => {
     const li = document.createElement('li');
-    li.textContent = `${ex.exercise_id} | Pt: ${patientLabelForId(ex.patient_id)} | ${ex.description} | Sets: ${ex.target_sets} | Reps: ${ex.target_reps}`;
+    li.textContent = `${exerciseDisplayName(ex, index)} | Patient: ${patientLabelForId(ex.patient_id)} | Sets: ${ex.target_sets} | Reps: ${ex.target_reps}`;
     savedExercisesList.appendChild(li);
   });
 }

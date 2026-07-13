@@ -56,6 +56,49 @@ const requestDoctorChannel = async (req, res) => {
   }
 };
 
+const channelPatient = async (req, res) => {
+  const doctorId = req.user?.role === 'admin'
+    ? String(req.body?.doctor_id || '').trim()
+    : getUserId(req);
+  const patientId = String(req.body?.patient_id || '').trim();
+
+  if (!doctorId) {
+    return res.status(req.user?.role === 'admin' ? 400 : 401).json({
+      message: req.user?.role === 'admin' ? 'doctor_id is required.' : 'Doctor token is missing.'
+    });
+  }
+
+  if (!patientId) {
+    return res.status(400).json({ message: 'patient_id is required.' });
+  }
+
+  try {
+    const pool = getPool();
+    await ensureChannelRequestsTable(pool);
+    const result = await pool.query(
+      `
+      INSERT INTO public.doctor_patient_channel_requests
+        (request_id, doctor_id, patient_id, status, requested_at, responded_at)
+      VALUES ($1, $2, $3, 'approved', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (doctor_id, patient_id)
+      DO UPDATE SET
+        status = 'approved',
+        responded_at = CURRENT_TIMESTAMP
+      RETURNING request_id, doctor_id, patient_id, status, requested_at, responded_at
+      `,
+      [createRequestId(), doctorId, patientId]
+    );
+
+    return res.status(201).json({
+      message: 'Patient channeled successfully.',
+      request: result.rows[0]
+    });
+  } catch (error) {
+    console.error('[ChannelRequests] Failed to channel patient:', error);
+    return res.status(500).json({ message: 'Failed to channel patient.' });
+  }
+};
+
 async function listByStatus(pool, doctorId, status) {
   const result = await pool.query(
     `
@@ -150,8 +193,55 @@ const updateChannelRequestStatus = async (req, res) => {
   }
 };
 
+const removeApprovedPatient = async (req, res) => {
+  const patientId = String(req.params.patientId || '').trim();
+  const doctorId = req.user?.role === 'admin'
+    ? String(req.query?.doctor_id || '').trim()
+    : getUserId(req);
+
+  if (!patientId) {
+    return res.status(400).json({ message: 'patientId is required.' });
+  }
+
+  if (!doctorId) {
+    return res.status(req.user?.role === 'admin' ? 400 : 401).json({
+      message: req.user?.role === 'admin' ? 'doctor_id is required.' : 'Doctor token is missing.'
+    });
+  }
+
+  try {
+    const pool = getPool();
+    await ensureChannelRequestsTable(pool);
+
+    const result = await pool.query(
+      `
+      DELETE FROM public.doctor_patient_channel_requests
+      WHERE patient_id = $1
+        AND status = 'approved'
+        AND doctor_id = $2
+      RETURNING request_id, doctor_id, patient_id, status
+      `,
+      [patientId, doctorId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Approved patient was not found for this doctor.' });
+    }
+
+    return res.json({
+      message: 'Patient removed from My Patients.',
+      removed: result.rows[0]
+    });
+  } catch (error) {
+    console.error('[ChannelRequests] Failed to remove patient:', error);
+    return res.status(500).json({ message: 'Failed to remove patient.' });
+  }
+};
+
 module.exports = {
   requestDoctorChannel,
+  channelPatient,
   listDoctorChannelData,
   updateChannelRequestStatus,
+  removeApprovedPatient,
 };

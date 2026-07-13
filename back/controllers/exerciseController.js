@@ -97,9 +97,13 @@ const createExercise = async (req, res) => {
 
 const listExercises = async (req, res) => {
     const requestedPatientId = req.query.patient_id;
+    const requestedDoctorId = String(req.query.doctor_id || '').trim();
     const effectivePatientId = req.user?.role === 'patient'
         ? req.user.sub
         : requestedPatientId;
+    const effectiveDoctorId = req.user?.role === 'doctor'
+        ? req.user.sub
+        : requestedDoctorId;
 
     if (!effectivePatientId) {
         return res.status(400).json({ error: 'patient_id is required.' });
@@ -107,15 +111,20 @@ const listExercises = async (req, res) => {
 
     try {
         const pool = getPool();
+        const values = [effectivePatientId];
+        const doctorFilter = effectiveDoctorId ? 'AND doctor_id = $2' : '';
+        if (effectiveDoctorId) values.push(effectiveDoctorId);
+
         const result = await pool.query(
             `
             SELECT exercise_id, description, level, target_reps, target_sets,
                    start_date, end_date, patient_id, doctor_id
             FROM Exercises
             WHERE patient_id = $1
+              ${doctorFilter}
             ORDER BY start_date DESC NULLS LAST, exercise_id ASC
             `,
-            [effectivePatientId]
+            values
         );
 
         return res.status(200).json({ exercises: result.rows });

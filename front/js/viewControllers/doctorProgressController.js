@@ -418,12 +418,15 @@ async function loadPatients() {
   }
 }
 
-async function loadExerciseNames(patientId) {
+async function loadExerciseNames(patientId, doctorId = '') {
   _exerciseNamesById = new Map();
   if (!patientId || !_state) return;
 
   try {
-    const resp = await fetch(`${_state.apiBase}/api/exercises?patient_id=${encodeURIComponent(patientId)}`, {
+    const params = new URLSearchParams({ patient_id: patientId });
+    if (doctorId) params.set('doctor_id', doctorId);
+
+    const resp = await fetch(`${_state.apiBase}/api/exercises?${params.toString()}`, {
       headers: _state.getAuthHeaders()
     });
     if (!resp.ok) return;
@@ -489,7 +492,7 @@ async function loadProgress() {
   setStatus(`Loading latest progress for ${selectedPatientLabel() || patientId}...`);
 
   try {
-    await loadExerciseNames(patientId);
+    await loadExerciseNames(patientId, doctorId);
     const params = new URLSearchParams({
       patient_id: patientId,
       doctor_id: doctorId

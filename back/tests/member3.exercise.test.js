@@ -12,7 +12,7 @@ jest.mock('../models/ExerciseMax', () => ({
     findOneAndUpdate: jest.fn()
 }));
 
-const { createExercise } = require('../controllers/exerciseController');
+const { createExercise, listExercises } = require('../controllers/exerciseController');
 const db = require('../config/supabaseDb');
 const ExerciseMax = require('../models/ExerciseMax');
 
@@ -112,5 +112,60 @@ describe('Member 3 - exerciseController.createExercise Unit Tests', () => {
         await createExercise(req, res);
         expect(res.status).toHaveBeenCalledWith(403);
         expect(res.json).toHaveBeenCalledWith({ error: 'Only doctors or admins can create exercises.' });
+    });
+
+    test('EX-006: Doctor listing is filtered to the authenticated doctor', async () => {
+        const req = {
+            user: { role: 'doctor', sub: 'DOC-123' },
+            query: {
+                patient_id: 'PAT-001',
+                doctor_id: 'DOC-SPOOF'
+            }
+        };
+        const res = mockResponse();
+        mockPool.query.mockResolvedValueOnce({
+            rows: [{ exercise_id: 'EX-001', patient_id: 'PAT-001', doctor_id: 'DOC-123' }]
+        });
+
+        await listExercises(req, res);
+
+        expect(mockPool.query).toHaveBeenCalledWith(
+            expect.stringContaining('AND doctor_id = $2'),
+            ['PAT-001', 'DOC-123']
+        );
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            exercises: [{ exercise_id: 'EX-001', patient_id: 'PAT-001', doctor_id: 'DOC-123' }]
+        });
+    });
+
+    test('EX-007: Patient listing remains unfiltered by doctor', async () => {
+        const req = {
+            user: { role: 'patient', sub: 'PAT-001' },
+            query: {
+                patient_id: 'PAT-SPOOF'
+            }
+        };
+        const res = mockResponse();
+        mockPool.query.mockResolvedValueOnce({
+            rows: [
+                { exercise_id: 'EX-001', patient_id: 'PAT-001', doctor_id: 'DOC-123' },
+                { exercise_id: 'EX-002', patient_id: 'PAT-001', doctor_id: 'DOC-456' }
+            ]
+        });
+
+        await listExercises(req, res);
+
+        expect(mockPool.query).toHaveBeenCalledWith(
+            expect.not.stringContaining('AND doctor_id = $2'),
+            ['PAT-001']
+        );
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            exercises: [
+                { exercise_id: 'EX-001', patient_id: 'PAT-001', doctor_id: 'DOC-123' },
+                { exercise_id: 'EX-002', patient_id: 'PAT-001', doctor_id: 'DOC-456' }
+            ]
+        });
     });
 });

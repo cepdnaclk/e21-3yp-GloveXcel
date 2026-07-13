@@ -60,6 +60,12 @@ const MQTT_BROKER_URL = 'wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.clo
 const MQTT_USERNAME = 'Glovexl';
 const MQTT_PASSWORD = '200209Ost';
 const MQTT_TOPIC_BASE = 'project/glove01/patients';
+const LIVE_ANALYTICS_SAVE_DELAY_MS = 1500;
+
+let _liveAnalyticsMaxAngles = null;
+let _liveAnalyticsDirty = false;
+let _liveAnalyticsSaveTimer = null;
+let _liveAnalyticsSaving = false;
 
 function mqttSafeSegment(value) {
   return String(value || '')
@@ -450,6 +456,92 @@ function getPacketAngles(packet) {
   });
 }
 
+function createEmptyFingerAngles() {
+  return FINGER_KEYS.reduce((acc, key) => {
+    acc[key] = 0;
+    return acc;
+  }, {});
+}
+
+function resetLiveAnalyticsTracking() {
+  if (_liveAnalyticsSaveTimer) {
+    clearTimeout(_liveAnalyticsSaveTimer);
+    _liveAnalyticsSaveTimer = null;
+  }
+  _liveAnalyticsMaxAngles = createEmptyFingerAngles();
+  _liveAnalyticsDirty = false;
+  _liveAnalyticsSaving = false;
+}
+
+function scheduleLiveAnalyticsSave() {
+  if (_liveAnalyticsSaveTimer || _liveAnalyticsSaving) return;
+
+  _liveAnalyticsSaveTimer = setTimeout(() => {
+    _liveAnalyticsSaveTimer = null;
+    saveLiveAnalyticsSnapshot();
+  }, LIVE_ANALYTICS_SAVE_DELAY_MS);
+}
+
+async function saveLiveAnalyticsSnapshot() {
+  if (!_state || !_selectedLiveExercise || !_liveAnalyticsMaxAngles || !_liveAnalyticsDirty) return;
+
+  const forceLevel = resolveLiveExerciseForceLevel(_selectedLiveExercise);
+  if (forceLevel === null) return;
+
+  const payload = {
+    patient_id: _state.patientId,
+    doctor_id: _selectedLiveExercise.doctor_id,
+    exercise_id: _selectedLiveExercise.exercise_id,
+    force_level: forceLevel,
+    max_angles: { ..._liveAnalyticsMaxAngles }
+  };
+
+  if (!payload.patient_id || !payload.doctor_id || !payload.exercise_id) return;
+
+  _liveAnalyticsSaving = true;
+  _liveAnalyticsDirty = false;
+
+  try {
+    const resp = await fetch(`${_state.apiBase}/api/live-analytics`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  } catch (error) {
+    console.warn('[LiveCtrl] Failed to save live analytics:', error);
+    _liveAnalyticsDirty = true;
+  } finally {
+    _liveAnalyticsSaving = false;
+    if (_liveAnalyticsDirty) {
+      scheduleLiveAnalyticsSave();
+    }
+  }
+}
+
+function updateLiveAnalyticsFromPacket(packet) {
+  if (!_selectedLiveExercise || !_patientCalibration.ready) return;
+  if (!_liveAnalyticsMaxAngles) {
+    _liveAnalyticsMaxAngles = createEmptyFingerAngles();
+  }
+
+  const angles = getPacketAngles(packet);
+  let improved = false;
+
+  FINGER_KEYS.forEach((key, index) => {
+    const angle = angles[index];
+    if (angle !== null && angle > (_liveAnalyticsMaxAngles[key] ?? 0)) {
+      _liveAnalyticsMaxAngles[key] = angle;
+      improved = true;
+    }
+  });
+
+  if (improved) {
+    _liveAnalyticsDirty = true;
+    scheduleLiveAnalyticsSave();
+  }
+}
+
 function getLiveExerciseTargets(exercise) {
   return FINGER_KEYS.map((key) => {
     const fromLiveAngles = Number(exercise?.live_angles?.[key]);
@@ -527,6 +619,7 @@ function selectLiveExercise(exerciseId) {
   _selectedLiveExercise = _liveExercises.find((exercise) => exercise.exercise_id === exerciseId) || null;
   _doctorAssignedForceLevel = null;
   _patientSelectedForceLevel = null;
+  resetLiveAnalyticsTracking();
 
   if (patientLiveExerciseSelectEl) {
     patientLiveExerciseSelectEl.value = _selectedLiveExercise?.exercise_id || '';
@@ -535,6 +628,7 @@ function selectLiveExercise(exerciseId) {
   renderPatientLiveExercises(_liveExercises);
   renderSelectedLiveExerciseSliders();
   updatePatientForceOverrideControls();
+  updateLiveAnalyticsFromPacket(_latestPatientPacket);
   setStatus(
     _selectedLiveExercise
       ? `Live exercise ${exerciseId} selected. Force level ${resolveLiveExerciseForceLevel(_selectedLiveExercise) ?? 'invalid'} is ready to fetch.`
@@ -823,6 +917,7 @@ export function mount(container, gloveState, threeEngine) {
     renderRawGrid(packet);
     renderLiveMatchGrid(packet);
     renderSelectedLiveExerciseSliders();
+    updateLiveAnalyticsFromPacket(packet);
     if (_engine.isModelLoaded) {
       _engine.setPose(buildPoseFromPacket(packet));
     }
@@ -1025,6 +1120,8 @@ export function unmount() {
   patientForceOverrideSelectEl = applyPatientForceBtn = patientForceOverrideStatusEl = null;
   _liveExercises = [];
   _selectedLiveExercise = null;
+  resetLiveAnalyticsTracking();
+  _liveAnalyticsMaxAngles = null;
   _doctorNameById = new Map();
   _doctorAssignedForceLevel = null;
   _patientSelectedForceLevel = null;

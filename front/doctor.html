@@ -587,6 +587,7 @@
             <section class="section">
                 <div class="actions">
                     <button id="connectBtn">Connect to Glove</button>
+                    <button id="disconnectBtn" class="secondary" type="button" disabled>Disconnect Glove</button>
                     <button id="openCalibrationBtn" class="secondary" type="button">Open Calibration Page</button>
                 </div>
                 <div class="note">Calibration is now done in a separate page with two passes: non-thumb and thumb-only.</div>
@@ -970,6 +971,7 @@
         }
 
         const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
         const openCalibrationBtn = document.getElementById('openCalibrationBtn');
         const statusEl = document.getElementById('status');
         const doctorPreloadedModeBtn = document.getElementById('doctorPreloadedModeBtn');
@@ -1496,15 +1498,45 @@
                 connectBtn.textContent = 'Connected (This Page)';
                 connectBtn.classList.add('success');
                 connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
             } else if (remoteCalibrationConnected) {
                 connectBtn.textContent = 'Using Calibration Connection';
                 connectBtn.classList.add('success');
                 connectBtn.disabled = true;
+                disconnectBtn.disabled = true;
             } else {
                 connectBtn.disabled = false;
                 connectBtn.classList.remove('success');
                 connectBtn.textContent = 'Reconnect to Glove';
+                disconnectBtn.disabled = true;
             }
+        }
+
+        async function disconnectGlove() {
+            disconnectBtn.disabled = true;
+
+            try {
+                if (bleCharacteristic && typeof bleCharacteristic.stopNotifications === 'function') {
+                    await bleCharacteristic.stopNotifications();
+                }
+            } catch (error) {
+                console.warn('BLE notification stop failed:', error);
+            }
+
+            try {
+                if (bleDevice?.gatt?.connected) {
+                    bleDevice.gatt.disconnect();
+                }
+            } catch (error) {
+                console.warn('BLE disconnect failed:', error);
+            }
+
+            bleCharacteristic = null;
+            motorCharacteristic = null;
+            bleDevice = null;
+            setStatus('Glove disconnected.');
+            setConnectedState(false);
+            broadcastDoctorState();
         }
 
         async function connectGlove() {
@@ -1516,6 +1548,7 @@
 
             connectBtn.disabled = true;
             connectBtn.textContent = 'Connecting...';
+            disconnectBtn.disabled = true;
             setStatus('Requesting BLE device...');
 
             try {
@@ -1569,6 +1602,10 @@
                 connectBtn.textContent = 'Connect to Glove';
                 connectBtn.disabled = false;
                 connectBtn.classList.remove('success');
+                disconnectBtn.disabled = true;
+                bleCharacteristic = null;
+                motorCharacteristic = null;
+                bleDevice = null;
                 updateDoctorSessionModeUi();
             }
         }
@@ -1726,6 +1763,7 @@
         }
 
         connectBtn.addEventListener('click', connectGlove);
+        disconnectBtn.addEventListener('click', disconnectGlove);
         if (doctorPreloadedModeBtn) {
             doctorPreloadedModeBtn.addEventListener('click', () => setDoctorSessionMode(DOCTOR_SESSION_MODE_PRELOADED));
         }

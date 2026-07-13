@@ -284,6 +284,10 @@ export function mount(container, gloveState, threeEngine) {
   renderExerciseList();
   renderCalibrationBanner();
   updateCaptureUI();
+  _state.hydrateDoctorCalibrationFromDatabase?.().then(() => {
+    renderCalibrationBanner();
+    updateCaptureUI();
+  });
   
   // Event Listeners
   capturePoseBtn.addEventListener('click', () => {

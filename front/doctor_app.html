@@ -223,6 +223,146 @@
       white-space: nowrap;
     }
 
+    .doctor-profile-form {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .doctor-profile-form label {
+      color: var(--c-text-muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .doctor-profile-form input {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--c-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      color: var(--c-navy);
+      background: #f8fcfb;
+      font: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .doctor-profile-form input:focus {
+      border-color: rgba(37, 99, 235, 0.42);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      background: #ffffff;
+    }
+
+    .doctor-profile-form input[readonly] {
+      color: var(--c-text-muted);
+      background: #f3f8f7;
+    }
+
+    .doctor-profile-save-btn {
+      width: 100%;
+      min-height: 38px;
+      border-radius: 10px;
+      color: #ffffff;
+      background: var(--c-brand);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .doctor-profile-save-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.58;
+    }
+
+    .doctor-profile-message {
+      min-height: 18px;
+      color: var(--c-text-muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .doctor-profile-message.ok { color: var(--c-ok); }
+    .doctor-profile-message.error { color: var(--c-danger); }
+
+    .profile-password-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(7, 59, 92, 0.28);
+      backdrop-filter: blur(6px);
+    }
+
+    .profile-password-modal.open {
+      display: flex;
+    }
+
+    .profile-password-dialog {
+      width: min(360px, 100%);
+      border: 1px solid var(--c-border);
+      border-radius: 18px;
+      background: #ffffff;
+      box-shadow: 0 24px 70px rgba(7, 59, 92, 0.22);
+      padding: 20px;
+    }
+
+    .profile-password-dialog h3 {
+      margin: 0 0 6px;
+      color: var(--c-navy);
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .profile-password-dialog p {
+      margin: 0 0 14px;
+      color: var(--c-text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .profile-password-dialog label {
+      color: var(--c-text-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .profile-password-dialog input {
+      width: 100%;
+      min-height: 42px;
+      margin-top: 6px;
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      padding: 9px 11px;
+      color: var(--c-navy);
+      background: #f8fcfb;
+      font: inherit;
+      outline: none;
+    }
+
+    .profile-password-dialog input:focus {
+      border-color: rgba(37, 99, 235, 0.42);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      background: #ffffff;
+    }
+
+    .profile-password-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .profile-password-message {
+      min-height: 18px;
+      margin-top: 10px;
+      color: var(--c-danger);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
     .doctor-profile-menu-divider {
       height: 1px;
       margin: 10px 0;
@@ -701,6 +841,21 @@
         <div class="doctor-profile-menu" id="doctorProfileMenu" role="menu">
           <div class="doctor-profile-menu-name" id="doctorProfileMenuName">Doctor</div>
           <div class="doctor-profile-menu-email" id="doctorProfileMenuEmail">doctor</div>
+          <form class="doctor-profile-form" id="doctorProfileForm">
+            <label for="doctorProfileEditName">Name</label>
+            <input id="doctorProfileEditName" type="text" autocomplete="name" required>
+
+            <label for="doctorProfileEditEmail">Email</label>
+            <input id="doctorProfileEditEmail" type="email" readonly>
+
+            <label for="doctorProfileEditPhone">Phone</label>
+            <input id="doctorProfileEditPhone" type="tel" autocomplete="tel" required>
+
+            <button class="doctor-profile-save-btn hidden" id="doctorProfileSaveBtn" type="submit">
+              Save Edited Details
+            </button>
+            <div class="doctor-profile-message" id="doctorProfileMessage"></div>
+          </form>
           <div class="doctor-profile-menu-divider"></div>
           <button class="doctor-logout-btn" id="doctorLogoutBtn" type="button" role="menuitem">
             Logout
@@ -737,6 +892,20 @@
       <div id="doctorRendererContainer"></div>
     </aside>
 
+  </div>
+
+  <div class="profile-password-modal" id="doctorPasswordModal" aria-hidden="true">
+    <form class="profile-password-dialog" id="doctorPasswordForm">
+      <h3>Confirm Password</h3>
+      <p>Enter your password to save the profile changes.</p>
+      <label for="doctorProfilePasswordConfirm">Password</label>
+      <input id="doctorProfilePasswordConfirm" type="password" autocomplete="current-password" required>
+      <div class="profile-password-message" id="doctorPasswordMessage"></div>
+      <div class="profile-password-actions">
+        <button class="btn-secondary" id="doctorPasswordCancelBtn" type="button">Cancel</button>
+        <button class="btn-primary" id="doctorPasswordConfirmBtn" type="submit">Save</button>
+      </div>
+    </form>
   </div>
 
   <!-- ── 4. SPA Bootstrapper ────────────────────────────────────────────── -->
@@ -804,6 +973,13 @@
       return initials.toUpperCase() || 'D';
     }
 
+    function getGreetingText() {
+      const hour = new Date().getHours();
+      if (hour < 12) return 'Good morning';
+      if (hour < 17) return 'Good afternoon';
+      return 'Good evening';
+    }
+
     function renderDoctorProfile(profile) {
       const doctorName = profile.name || profile.email || profile.doctor_id || 'Doctor';
       const profileNameEl = document.getElementById('doctorProfileName');
@@ -811,16 +987,62 @@
       const profileMenuEmailEl = document.getElementById('doctorProfileMenuEmail');
       const profileAvatarEl = document.getElementById('doctorProfileAvatar');
       const profileChipEl = document.getElementById('doctorProfileChip');
+      const editNameEl = document.getElementById('doctorProfileEditName');
+      const editEmailEl = document.getElementById('doctorProfileEditEmail');
+      const editPhoneEl = document.getElementById('doctorProfileEditPhone');
+      const greetingTextEl = document.getElementById('doctorGreetingText');
+      const greetingMetaEl = document.getElementById('doctorGreetingMeta');
 
       if (profileNameEl) profileNameEl.textContent = doctorName;
       if (profileMenuNameEl) profileMenuNameEl.textContent = doctorName;
-      if (profileMenuEmailEl) profileMenuEmailEl.textContent = profile.email || profile.doctor_id || '';
+      if (profileMenuEmailEl) {
+        const phone = profile.phone ? ` | ${profile.phone}` : ' | Phone not added';
+        profileMenuEmailEl.textContent = `${profile.email || profile.doctor_id || ''}${phone}`;
+      }
       if (profileAvatarEl) profileAvatarEl.textContent = getInitials(doctorName);
       if (profileChipEl) {
         profileChipEl.title = `${doctorName} (${profile.doctor_id})`;
       }
+      if (editNameEl) editNameEl.value = profile.name || '';
+      if (editEmailEl) editEmailEl.value = profile.email || '';
+      if (editPhoneEl) editPhoneEl.value = profile.phone || '';
+      window.dispatchEvent(new CustomEvent('doctor-profile:rendered'));
+      if (greetingTextEl) greetingTextEl.textContent = `${getGreetingText()}, ${doctorName}`;
+      if (greetingMetaEl) {
+        greetingMetaEl.textContent = 'Ready to manage today\'s rehabilitation sessions.';
+      }
 
       localStorage.setItem('doctorId', profile.doctor_id);
+    }
+
+    function saveDoctorProfileToSession(profile) {
+      localStorage.setItem('auth_profile', JSON.stringify(profile));
+      localStorage.setItem('doctorId', profile.doctor_id);
+      renderDoctorProfile(profile);
+    }
+
+    async function refreshDoctorProfile() {
+      try {
+        const response = await fetch(`${GloveState.apiBase}/api/auth/doctor/profile`, {
+          headers: GloveState.getAuthHeaders()
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.profile) {
+          saveDoctorProfileToSession(data.profile);
+        }
+      } catch (error) {
+        console.warn('[DoctorApp] Failed to refresh doctor profile:', error);
+      }
+    }
+
+    function setDoctorProfileMessage(text, type = '') {
+      const messageEl = document.getElementById('doctorProfileMessage');
+      if (!messageEl) return;
+      messageEl.className = `doctor-profile-message ${type}`;
+      messageEl.textContent = text || '';
     }
 
     function logoutDoctor() {
@@ -839,12 +1061,49 @@
       const profileChipEl = document.getElementById('doctorProfileChip');
       const profileMenuEl = document.getElementById('doctorProfileMenu');
       const logoutBtn = document.getElementById('doctorLogoutBtn');
+      const profileForm = document.getElementById('doctorProfileForm');
+      const saveBtn = document.getElementById('doctorProfileSaveBtn');
+      const nameInput = document.getElementById('doctorProfileEditName');
+      const phoneInput = document.getElementById('doctorProfileEditPhone');
+      const passwordModal = document.getElementById('doctorPasswordModal');
+      const passwordForm = document.getElementById('doctorPasswordForm');
+      const passwordInput = document.getElementById('doctorProfilePasswordConfirm');
+      const passwordMessage = document.getElementById('doctorPasswordMessage');
+      const passwordCancelBtn = document.getElementById('doctorPasswordCancelBtn');
+      const passwordConfirmBtn = document.getElementById('doctorPasswordConfirmBtn');
+      let pendingProfileUpdate = null;
 
       if (!profileChipEl || !profileMenuEl) return;
 
       const setMenuOpen = (isOpen) => {
         profileMenuEl.classList.toggle('open', isOpen);
         profileChipEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      };
+
+      const setPasswordModalOpen = (isOpen) => {
+        passwordModal?.classList.toggle('open', isOpen);
+        passwordModal?.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        if (passwordMessage) passwordMessage.textContent = '';
+        if (isOpen) {
+          passwordInput?.focus();
+        } else if (passwordInput) {
+          passwordInput.value = '';
+        }
+      };
+
+      const getStoredProfile = () => {
+        try {
+          return JSON.parse(localStorage.getItem('auth_profile') || '{}') || {};
+        } catch {
+          return {};
+        }
+      };
+
+      const updateProfileSaveVisibility = () => {
+        const storedProfile = getStoredProfile();
+        const changed = (nameInput?.value.trim() || '') !== String(storedProfile.name || '').trim()
+          || (phoneInput?.value.trim() || '') !== String(storedProfile.phone || '').trim();
+        saveBtn?.classList.toggle('hidden', !changed);
       };
 
       profileChipEl.addEventListener('click', (event) => {
@@ -856,11 +1115,104 @@
         event.stopPropagation();
       });
 
+      nameInput?.addEventListener('input', updateProfileSaveVisibility);
+      phoneInput?.addEventListener('input', updateProfileSaveVisibility);
+      window.addEventListener('doctor-profile:rendered', updateProfileSaveVisibility);
+      updateProfileSaveVisibility();
+
+      profileForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const name = document.getElementById('doctorProfileEditName')?.value.trim() || '';
+        const phone = document.getElementById('doctorProfileEditPhone')?.value.trim() || '';
+
+        if (!name || !phone) {
+          setDoctorProfileMessage('Name and phone are required.', 'error');
+          return;
+        }
+
+        pendingProfileUpdate = { name, phone };
+        setDoctorProfileMessage('');
+        setPasswordModalOpen(true);
+      });
+
+      passwordForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!pendingProfileUpdate) {
+          setPasswordModalOpen(false);
+          return;
+        }
+
+        const password = passwordInput?.value || '';
+        if (!password) {
+          if (passwordMessage) passwordMessage.textContent = 'Password is required.';
+          return;
+        }
+
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Saving...';
+        }
+        if (passwordConfirmBtn) {
+          passwordConfirmBtn.disabled = true;
+          passwordConfirmBtn.textContent = 'Saving...';
+        }
+        setDoctorProfileMessage('Saving contact details...');
+        if (passwordMessage) passwordMessage.textContent = '';
+
+        try {
+          const response = await fetch(`${GloveState.apiBase}/api/auth/doctor/profile`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', ...GloveState.getAuthHeaders() },
+            body: JSON.stringify({ ...pendingProfileUpdate, password })
+          });
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(data.message || 'Failed to update profile.');
+          }
+
+          if (data.profile) {
+            saveDoctorProfileToSession(data.profile);
+          }
+          pendingProfileUpdate = null;
+          setPasswordModalOpen(false);
+          setDoctorProfileMessage('Contact details saved.', 'ok');
+        } catch (error) {
+          if (passwordMessage) passwordMessage.textContent = error.message || 'Failed to update profile.';
+          setDoctorProfileMessage('Profile was not saved.', 'error');
+        } finally {
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Edited Details';
+          }
+          if (passwordConfirmBtn) {
+            passwordConfirmBtn.disabled = false;
+            passwordConfirmBtn.textContent = 'Save';
+          }
+        }
+      });
+
+      passwordCancelBtn?.addEventListener('click', () => {
+        pendingProfileUpdate = null;
+        setPasswordModalOpen(false);
+      });
+
+      passwordModal?.addEventListener('click', (event) => {
+        if (event.target === passwordModal) {
+          pendingProfileUpdate = null;
+          setPasswordModalOpen(false);
+        }
+      });
+
       logoutBtn?.addEventListener('click', logoutDoctor);
 
       document.addEventListener('click', () => setMenuOpen(false));
       document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') setMenuOpen(false);
+        if (event.key === 'Escape') {
+          setMenuOpen(false);
+          pendingProfileUpdate = null;
+          setPasswordModalOpen(false);
+        }
       });
     }
 
@@ -872,6 +1224,7 @@
       }
       renderDoctorProfile(doctorProfile);
       bindDoctorProfileMenu();
+      refreshDoctorProfile();
 
       // 1. Initialize Singletons
       const viewContainer = document.getElementById('view-container');

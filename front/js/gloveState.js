@@ -87,6 +87,15 @@ class GlobalGloveState {
       : '';
   }
 
+  get doctorId() {
+    try {
+      const profile = JSON.parse(localStorage.getItem('auth_profile') || '{}');
+      if (profile?.doctor_id) return profile.doctor_id;
+    } catch { /* fall through */ }
+
+    return localStorage.getItem('doctorId') || '';
+  }
+
   /** Expose the channel so controllers can check if cross-page sync is active */
   get broadcastChannel() { return this._broadcastChannel; }
 
@@ -179,6 +188,80 @@ class GlobalGloveState {
       }
     } catch (err) {
       console.warn('[GloveState] Doctor Calibration load failed:', err);
+    }
+  }
+
+  _emptyDoctorCalibration() {
+    return {
+      min: [null, null, null, null, null],
+      max: [null, null, null, null, null],
+      nonThumbMin: [null, null, null, null, null],
+      nonThumbMax: [null, null, null, null, null],
+      thumbMin: [null, null, null, null, null],
+      thumbMax: [null, null, null, null, null],
+      ready: false,
+      capturedAt: null,
+    };
+  }
+
+  _doctorCalibrationFromDatabaseDoc(doc) {
+    const keys = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+    const min = doc?.min || {};
+    const max = doc?.max || {};
+    const finalMin = keys.map(k => {
+      const value = Number(min[k]);
+      return Number.isFinite(value) ? value : null;
+    });
+    const finalMax = keys.map(k => {
+      const value = Number(max[k]);
+      return Number.isFinite(value) ? value : null;
+    });
+    const ready = finalMin.every(Number.isFinite) && finalMax.every(Number.isFinite);
+
+    return {
+      version: 2,
+      nonThumbMin: [null, finalMin[1], finalMin[2], finalMin[3], finalMin[4]],
+      nonThumbMax: [null, finalMax[1], finalMax[2], finalMax[3], finalMax[4]],
+      thumbMin: [finalMin[0], null, null, null, null],
+      thumbMax: [finalMax[0], null, null, null, null],
+      finalMin,
+      finalMax,
+      capturedAt: doc?.updatedAt || null,
+      ready,
+    };
+  }
+
+  async hydrateDoctorCalibrationFromDatabase() {
+    const doctorId = this.doctorId;
+    if (!doctorId) {
+      this.doctorCalibration = this._emptyDoctorCalibration();
+      localStorage.removeItem(DOCTOR_CALIB_KEY_V2);
+      return { found: false, reason: 'missing-doctor-id' };
+    }
+
+    try {
+      const resp = await fetch(
+        `${this.apiBase}/api/doctor-cal/${encodeURIComponent(doctorId)}`,
+        { headers: this.getAuthHeaders() }
+      );
+
+      if (resp.status === 404) {
+        this.doctorCalibration = this._emptyDoctorCalibration();
+        localStorage.removeItem(DOCTOR_CALIB_KEY_V2);
+        return { found: false, reason: 'not-found' };
+      }
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const doc = await resp.json();
+      const calData = this._doctorCalibrationFromDatabaseDoc(doc);
+      localStorage.setItem(DOCTOR_CALIB_KEY_V2, JSON.stringify(calData));
+      this.loadDoctorCalibration();
+      return { found: true, ready: this.doctorCalibration.ready };
+    } catch (err) {
+      console.warn('[GloveState] Doctor DB calibration hydration failed:', err);
+      this.loadDoctorCalibration();
+      return { found: false, reason: err?.message || 'db-fetch-failed' };
     }
   }
 

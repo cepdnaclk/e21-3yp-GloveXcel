@@ -1,14 +1,9 @@
 <div class="view-namespace-doctor-setup">
   <nav class="setup-topbar" aria-label="Setup workspace">
-    <div>
-      <p class="topbar-kicker">GloveXcel</p>
-      <h2 class="topbar-title">Doctor Dashboard</h2>
+    <div class="topbar-greeting">
+      <h2 class="topbar-title" id="doctorGreetingText">Welcome back, Doctor</h2>
     </div>
     <div class="topbar-actions">
-      <div class="topbar-status" aria-live="polite">
-        <span id="doctorSetupGloveStatusIndicator" class="status-indicator"></span>
-        <span id="doctorSetupGloveStatus">Doctor glove status: Disconnected.</span>
-      </div>
       <button id="doctorSetupConnectBtn" class="btn-primary" type="button">Connect to Glove</button>
       <button id="doctorSetupDisconnectBtn" class="btn-secondary" type="button" disabled>Disconnect Glove</button>
       <div class="topbar-avatar" aria-hidden="true">DR</div>
@@ -122,6 +117,11 @@
       box-shadow: var(--shadow);
     }
 
+    .view-namespace-doctor-setup .topbar-greeting {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
     .view-namespace-doctor-setup .topbar-kicker,
     .view-namespace-doctor-setup .section-label,
     .view-namespace-doctor-setup .hero-label {
@@ -136,8 +136,12 @@
     .view-namespace-doctor-setup .topbar-title {
       margin: 0;
       color: var(--c-navy);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       font-size: 18px;
-      font-weight: 800;
+      font-weight: 900;
     }
 
     .view-namespace-doctor-setup .topbar-actions {
@@ -146,6 +150,7 @@
       justify-content: flex-end;
       gap: 12px;
       flex-wrap: wrap;
+      flex: 0 0 auto;
     }
 
     .view-namespace-doctor-setup .topbar-status {

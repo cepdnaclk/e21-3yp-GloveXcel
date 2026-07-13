@@ -20,6 +20,7 @@ let _targetAngles = [90, 90, 90, 90, 90];
 
 // DOM refs
 let doctorSetupGloveStatusIndicator, doctorSetupGloveStatus, doctorSetupConnectBtn, doctorSetupDisconnectBtn;
+let doctorGreetingText;
 let doctorCalibGrid, doctorLiveGrid, openCalibrationBtn;
 let captureNonThumbMinBtn, captureNonThumbMaxBtn, captureThumbMinBtn, captureThumbMaxBtn;
 let previewNonThumbMinBtn, previewNonThumbMaxBtn, previewThumbMinBtn, previewThumbMaxBtn, livePreviewBtn;
@@ -42,6 +43,39 @@ function getDoctorId() {
   } catch { /* fall through */ }
 
   return localStorage.getItem('doctorId') || 'DOC-1b402238f4ad4c92a7deedbc1a53c813';
+}
+
+function getDoctorProfile() {
+  try {
+    return JSON.parse(localStorage.getItem('auth_profile') || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function getGreetingText() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function renderDoctorGreeting() {
+  const profile = getDoctorProfile();
+  const doctorName = profile.name || profile.email || 'Doctor';
+  if (doctorGreetingText) {
+    doctorGreetingText.textContent = `${getGreetingText()}, ${doctorName}`;
+  }
+}
+
+function getAuthHeaders() {
+  return _state?.getAuthHeaders ? _state.getAuthHeaders() : {};
+}
+
+function setStatus(text) {
+  if (doctorSetupGloveStatus && text) {
+    doctorSetupGloveStatus.textContent = text;
+  }
 }
 
 function setDoctorSetupConnectionUi(connected, statusText) {
@@ -94,37 +128,72 @@ function loadDoctorCalibrationLocally() {
 }
 
 async function fetchDoctorCalibrationFromDB() {
-  try {
-    const resp = await fetch(`${_state.apiBase}/api/doctor-cal/${encodeURIComponent(getDoctorId())}`, {
-      headers: _state.getAuthHeaders()
-    });
-    if (!resp.ok) {
-      if (resp.status !== 404) console.warn('[DoctorSetup] HTTP error fetching doctor cal:', resp.status);
-      return;
-    }
-    const doc = await resp.json();
-    const min = doc?.min || {};
-    const max = doc?.max || {};
-    const finalMin = ['thumb', 'index', 'middle', 'ring', 'pinky'].map(k => Number.isFinite(Number(min[k])) ? Number(min[k]) : null);
-    const finalMax = ['thumb', 'index', 'middle', 'ring', 'pinky'].map(k => Number.isFinite(Number(max[k])) ? Number(max[k]) : null);
-    
-    const calData = {
-      version: 2,
-      nonThumbMin: [null, finalMin[1], finalMin[2], finalMin[3], finalMin[4]],
-      nonThumbMax: [null, finalMax[1], finalMax[2], finalMax[3], finalMax[4]],
-      thumbMin: [finalMin[0], null, null, null, null],
-      thumbMax: [finalMax[0], null, null, null, null],
-      finalMin,
-      finalMax,
-      capturedAt: doc.updatedAt || new Date().toISOString()
-    };
-    
-    localStorage.setItem(DOCTOR_CALIB_KEY_V2, JSON.stringify(calData));
-    _state.doctorCalibration = loadDoctorCalibrationLocally();
-    renderCalibrationSnapshot();
-  } catch (err) {
-    console.error('[DoctorSetup] Error fetching DB calibration:', err);
+  const result = await _state.hydrateDoctorCalibrationFromDatabase();
+  renderCalibrationSnapshot();
+  renderLiveGrid(_state.latestPacket);
+  return result;
+}
+
+async function saveDoctorCalibrationToDatabase() {
+  const cal = _state.doctorCalibration;
+  const doctorId = getDoctorId();
+  if (!doctorId) return { remoteSaved: false, reason: 'missing-doctor-id' };
+
+  const minThumb = cal.min[0];
+  const maxThumb = cal.max[0];
+  const minFingers = {
+    index: cal.min[1],
+    middle: cal.min[2],
+    ring: cal.min[3],
+    pinky: cal.min[4],
+  };
+  const maxFingers = {
+    index: cal.max[1],
+    middle: cal.max[2],
+    ring: cal.max[3],
+    pinky: cal.max[4],
+  };
+  const headers = { 'Content-Type': 'application/json', ...getAuthHeaders() };
+  const baseUrl = `${_state.apiBase}/api/doctor-cal/${encodeURIComponent(doctorId)}`;
+  const requests = [];
+
+  if (Number.isFinite(minThumb)) {
+    requests.push(fetch(`${baseUrl}/min/thumb`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ thumb: minThumb }),
+    }));
   }
+  if (Object.values(minFingers).every(Number.isFinite)) {
+    requests.push(fetch(`${baseUrl}/min/fingers`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(minFingers),
+    }));
+  }
+  if (Number.isFinite(maxThumb)) {
+    requests.push(fetch(`${baseUrl}/max/thumb`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ thumb: maxThumb }),
+    }));
+  }
+  if (Object.values(maxFingers).every(Number.isFinite)) {
+    requests.push(fetch(`${baseUrl}/max/fingers`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(maxFingers),
+    }));
+  }
+
+  if (!requests.length) return { remoteSaved: false, reason: 'incomplete-calibration' };
+
+  const responses = await Promise.all(requests);
+  const failed = responses.find(response => !response.ok);
+  if (failed) return { remoteSaved: false, reason: `HTTP ${failed.status}` };
+
+  await _state.hydrateDoctorCalibrationFromDatabase();
+  return { remoteSaved: true };
 }
 
 async function _saveDoctorCalibration() {
@@ -145,7 +214,9 @@ async function _saveDoctorCalibration() {
     capturedAt: cal.capturedAt
   };
   localStorage.setItem(DOCTOR_CALIB_KEY_V2, JSON.stringify(calData));
+  _state.loadDoctorCalibration();
   renderCalibrationSnapshot();
+  return await saveDoctorCalibrationToDatabase();
 }
 
 async function _capturePass(indexes, targetArrayName) {
@@ -155,7 +226,14 @@ async function _capturePass(indexes, targetArrayName) {
   }
   const targetArray = _state.doctorCalibration[targetArrayName];
   indexes.forEach(idx => { targetArray[idx] = _state.latestPacket[idx]; });
-  await _saveDoctorCalibration();
+  const result = await _saveDoctorCalibration();
+  renderCalibrationSnapshot();
+  renderLiveGrid(_state.latestPacket);
+  if (result.remoteSaved) {
+    setStatus(`Doctor glove status: Calibration saved to database for ${getDoctorId()}.`);
+  } else {
+    setStatus(`Doctor glove status: Calibration captured locally. Database sync failed (${result.reason}).`);
+  }
 }
 
 function _previewCalibrationPose(mode) {
@@ -246,13 +324,13 @@ export function mount(container, gloveState, threeEngine) {
   
   // Attach doctorCalibration to state for other views to reuse
   _state.doctorCalibration = loadDoctorCalibrationLocally();
-  fetchDoctorCalibrationFromDB();
   
   // DOM Bindings
   doctorSetupGloveStatusIndicator = _container.querySelector('#doctorSetupGloveStatusIndicator');
   doctorSetupGloveStatus          = _container.querySelector('#doctorSetupGloveStatus');
   doctorSetupConnectBtn           = _container.querySelector('#doctorSetupConnectBtn');
   doctorSetupDisconnectBtn        = _container.querySelector('#doctorSetupDisconnectBtn');
+  doctorGreetingText              = _container.querySelector('#doctorGreetingText');
   doctorCalibGrid                 = _container.querySelector('#doctorCalibGrid');
   doctorLiveGrid                  = _container.querySelector('#doctorLiveGrid');
   openCalibrationBtn              = _container.querySelector('#openCalibrationBtn');
@@ -267,8 +345,10 @@ export function mount(container, gloveState, threeEngine) {
   livePreviewBtn                  = _container.querySelector('#livePreviewBtn');
   
   // Initial Render
+  renderDoctorGreeting();
   renderCalibrationSnapshot();
   renderLiveGrid(_state.latestPacket);
+  fetchDoctorCalibrationFromDB();
   
   // Connection State Reflection
   setDoctorSetupConnectionUi(_state.isConnected, _state.isConnected ? 'Doctor glove status: Connected.' : null);
@@ -282,6 +362,7 @@ export function mount(container, gloveState, threeEngine) {
       await _state.connect();
       _state.isConnected = true;
       setDoctorSetupConnectionUi(true, 'Doctor glove status: Connected.');
+      await fetchDoctorCalibrationFromDB();
     } catch (err) {
       console.error('[DoctorSetup] Connection failed:', err);
       setDoctorSetupConnectionUi(false, `Connection failed: ${err.message}`);
@@ -338,7 +419,9 @@ export function mount(container, gloveState, threeEngine) {
       setDoctorSetupConnectionUi(false, 'Doctor glove status: Disconnected.');
       return;
     }
-    doctorSetupGloveStatus.textContent = `Doctor glove status: ${msg}`;
+    if (doctorSetupGloveStatus) {
+      doctorSetupGloveStatus.textContent = `Doctor glove status: ${msg}`;
+    }
   };
   
   _activePreviewMode = 'live';
@@ -357,6 +440,7 @@ export function unmount() {
   }
   
   doctorSetupGloveStatusIndicator = doctorSetupGloveStatus = doctorSetupConnectBtn = doctorSetupDisconnectBtn = null;
+  doctorGreetingText = null;
   doctorCalibGrid = doctorLiveGrid = openCalibrationBtn = null;
   captureNonThumbMinBtn = captureNonThumbMaxBtn = captureThumbMinBtn = captureThumbMaxBtn = null;
   previewNonThumbMinBtn = previewNonThumbMaxBtn = previewThumbMinBtn = previewThumbMaxBtn = livePreviewBtn = null;

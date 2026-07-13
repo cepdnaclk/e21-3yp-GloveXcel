@@ -41,6 +41,7 @@ async function connectPostgres() {
 
   try {
     await client.query('SELECT 1');
+    await ensureDoctorPhoneColumn(client);
     await ensureDoctorExists(client, DEFAULT_DOCTOR_ID);
     await ensureChannelRequestsTable(client);
     console.log('✅ Connected to PostgreSQL (Supabase)!');
@@ -61,6 +62,18 @@ async function getTableColumns(client, tableName) {
   );
 
   return result.rows;
+}
+
+async function ensureDoctorPhoneColumn(queryable = getPool()) {
+  await queryable.query(`
+    ALTER TABLE public.doctors
+    ADD COLUMN IF NOT EXISTS phone character varying DEFAULT ''
+  `);
+
+  await queryable.query(`
+    ALTER TABLE public.doctors
+    ADD COLUMN IF NOT EXISTS auth_provider character varying DEFAULT 'local'
+  `);
 }
 
 function columnNames(columns) {
@@ -231,4 +244,5 @@ module.exports = {
   connectPostgres,
   ensureDoctorAndPatientExist,
   ensureChannelRequestsTable,
+  ensureDoctorPhoneColumn,
 };

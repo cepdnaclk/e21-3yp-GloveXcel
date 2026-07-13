@@ -472,6 +472,9 @@
                 <label for="doctorEmail">Email</label>
                 <input id="doctorEmail" type="email" required>
 
+                <label for="doctorPhone">Phone Number</label>
+                <input id="doctorPhone" type="tel" autocomplete="tel" required>
+
                 <label for="doctorPassword">Password</label>
                 <input id="doctorPassword" type="password" required>
 
@@ -982,6 +985,7 @@
             const body = {
                 name: document.getElementById('doctorName').value.trim(),
                 email: document.getElementById('doctorEmail').value.trim(),
+                phone: document.getElementById('doctorPhone').value.trim(),
                 password: document.getElementById('doctorPassword').value,
                 hospital_id: document.getElementById('doctorHospitalId').value.trim()
             };

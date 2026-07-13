@@ -593,10 +593,20 @@ export function mount(container, gloveState, threeEngine) {
 
   updateSelectedPatientHeader();
   initGrids();
-  renderCalibrationBanner();
   activeDoctorTargets = Array(5).fill(getDefaultTarget());
   updateTargetSourceLabel();
   updateRepSetStatus(false);
+  renderCalibrationBanner();
+
+  _state.hydrateDoctorCalibrationFromDatabase?.().then(() => {
+    renderCalibrationBanner();
+    const hydratedAngles = getCurrentAngles(_state.latestPacket);
+    currentRawValues = Array.isArray(_state.latestPacket) ? _state.latestPacket.slice(0, 5) : currentRawValues;
+    processLiveStream(hydratedAngles);
+    if (_engine.isModelLoaded && _state.doctorCalibration?.ready) {
+      _engine.setPose(buildPoseFromAngles(hydratedAngles));
+    }
+  });
 
   // Initial render with latest packet
   const initialAngles = getCurrentAngles(_state.latestPacket);

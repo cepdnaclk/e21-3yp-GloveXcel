@@ -18,6 +18,8 @@ const {
     getPendingDoctorRequests,
     getApprovedDoctors,
     updateDoctorVerificationStatus,
+    getDoctorProfile,
+    updateDoctorProfile,
     doctorSignup,
     patientSignup,
     doctorLogin,
@@ -46,6 +48,8 @@ router.get('/admin/approved-doctors', getApprovedDoctors);
 router.patch('/admin/doctor-requests/:doctorId/verification', updateDoctorVerificationStatus);
 router.post('/doctor/signup', doctorSignup);
 router.post('/doctor/login', doctorLogin);
+router.get('/doctor/profile', authenticateToken, requireRole('doctor'), getDoctorProfile);
+router.patch('/doctor/profile', authenticateToken, requireRole('doctor'), updateDoctorProfile);
 router.post('/patient/signup', patientSignup);
 router.post('/patient/login', patientLogin);
 router.post('/login', login);

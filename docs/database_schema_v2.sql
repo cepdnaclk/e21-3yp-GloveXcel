@@ -13,7 +13,9 @@ CREATE TABLE public.doctors (
   doctor_id character varying PRIMARY KEY DEFAULT ('DOC-' || replace(gen_random_uuid()::text, '-', '')),
   name character varying NOT NULL,
   email character varying NOT NULL UNIQUE,
+  phone character varying DEFAULT '',
   password_hash character varying NOT NULL,
+  auth_provider character varying DEFAULT 'local',
   hospital_id character varying NOT NULL,
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT doctors_hospital_id_fkey FOREIGN KEY (hospital_id) REFERENCES public.hospitals(hospital_id)

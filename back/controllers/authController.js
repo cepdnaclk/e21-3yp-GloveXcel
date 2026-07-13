@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getPool, ensureChannelRequestsTable } = require('../config/supabaseDb');
+const { getPool, ensureChannelRequestsTable, ensureDoctorPhoneColumn } = require('../config/supabaseDb');
 
 const pool = getPool();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -26,6 +26,7 @@ const signAuthToken = (payload) =>
     jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
 const normalizeEmail = (email) => (email || '').trim().toLowerCase();
+const normalizePhone = (phone) => (phone || '').trim();
 
 const getGoogleProfileName = (supabaseUser) =>
     (
@@ -37,6 +38,15 @@ const getGoogleProfileName = (supabaseUser) =>
 
 const createOAuthPasswordHash = async (providerUserId) =>
     bcrypt.hash(`google-oauth:${providerUserId}:${Date.now()}`, 10);
+
+const doctorProfilePayload = (doctor) => ({
+    doctor_id: doctor.doctor_id,
+    name: doctor.name,
+    email: doctor.email,
+    phone: doctor.phone || '',
+    hospital_id: doctor.hospital_id,
+    verification: doctor.verification
+});
 
 const getSupabaseAuthConfig = (_req, res) => {
     if (!SUPABASE_URL || !SUPABASE_PUBLIC_KEY) {
@@ -225,6 +235,8 @@ const listPatients = async (req, res) => {
 
 const listDoctors = async (req, res) => {
     try {
+        await ensureDoctorPhoneColumn();
+
         const role = req.user?.role;
         const patientId = req.user?.sub;
         const includeOtherHospitals = req.query.include_other_hospitals === 'true';
@@ -244,6 +256,7 @@ const listDoctors = async (req, res) => {
                     d.doctor_id,
                     d.name,
                     d.email,
+                    d.phone,
                     d.hospital_id,
                     h.name AS hospital_name,
                     h.location AS hospital_location,
@@ -269,7 +282,7 @@ const listDoctors = async (req, res) => {
 
         const doctors = await pool.query(
             `
-            SELECT d.doctor_id, d.name, d.email, d.hospital_id, h.name AS hospital_name, h.location AS hospital_location
+            SELECT d.doctor_id, d.name, d.email, d.phone, d.hospital_id, h.name AS hospital_name, h.location AS hospital_location
             FROM public.doctors d
             LEFT JOIN public.hospitals h ON h.hospital_id = d.hospital_id
             WHERE LOWER(COALESCE(d."Verification", 'pending')) = 'yes'
@@ -333,9 +346,10 @@ const googleLogin = async (req, res) => {
         }
 
         if (normalizedRole === 'doctor') {
+            await ensureDoctorPhoneColumn();
             const foundDoctor = await pool.query(
                 `
-                SELECT doctor_id, name, email, hospital_id, "Verification" AS verification
+                SELECT doctor_id, name, email, phone, hospital_id, "Verification" AS verification
                 FROM public.doctors
                 WHERE LOWER(email) = $1
                 LIMIT 1
@@ -370,13 +384,7 @@ const googleLogin = async (req, res) => {
                 message: 'Doctor Google login successful.',
                 role: 'doctor',
                 token,
-                profile: {
-                    doctor_id: doctor.doctor_id,
-                    name: doctor.name,
-                    email: doctor.email,
-                    hospital_id: doctor.hospital_id,
-                    verification: doctor.verification
-                }
+                profile: doctorProfilePayload(doctor)
             });
         }
 
@@ -467,6 +475,7 @@ const googleCompleteSignup = async (req, res) => {
         const passwordHash = await createOAuthPasswordHash(supabaseUser.id || normalizedEmail);
 
         if (normalizedRole === 'doctor') {
+            await ensureDoctorPhoneColumn();
             const existingDoctor = await pool.query(
                 'SELECT doctor_id FROM public.doctors WHERE LOWER(email) = $1 LIMIT 1',
                 [normalizedEmail]
@@ -478,11 +487,11 @@ const googleCompleteSignup = async (req, res) => {
 
             const inserted = await pool.query(
                 `
-                INSERT INTO public.doctors (name, email, password_hash, hospital_id, "Verification")
-                VALUES ($1, $2, $3, $4, $5)
-                RETURNING doctor_id, name, email, hospital_id, "Verification" AS verification
+                INSERT INTO public.doctors (name, email, password_hash, hospital_id, "Verification", phone, auth_provider)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING doctor_id, name, email, phone, hospital_id, "Verification" AS verification
                 `,
-                [googleName, normalizedEmail, passwordHash, normalizedHospitalId, 'pending']
+                [googleName, normalizedEmail, passwordHash, normalizedHospitalId, 'pending', '', 'google']
             );
 
             return res.status(201).json({
@@ -540,14 +549,17 @@ const googleCompleteSignup = async (req, res) => {
 
 const doctorSignup = async (req, res) => {
     try {
-        const { email, password, hospital_id, name } = req.body;
+        await ensureDoctorPhoneColumn();
+
+        const { email, password, hospital_id, name, phone } = req.body;
         const normalizedEmail = (email || '').trim().toLowerCase();
         const normalizedHospitalId = (hospital_id || '').trim();
         const normalizedName = (name || '').trim();
+        const normalizedPhone = normalizePhone(phone);
 
-        if (!normalizedEmail || !password || !normalizedHospitalId || !normalizedName) {
+        if (!normalizedEmail || !password || !normalizedHospitalId || !normalizedName || !normalizedPhone) {
             return res.status(400).json({
-                message: 'Doctor signup requires email, password, hospital_id, and name.'
+                message: 'Doctor signup requires name, email, phone, password, and hospital_id.'
             });
         }
 
@@ -569,24 +581,18 @@ const doctorSignup = async (req, res) => {
 
         const inserted = await pool.query(
             `
-            INSERT INTO public.doctors (name, email, password_hash, hospital_id, "Verification")
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING doctor_id, name, email, hospital_id, "Verification" AS verification
+            INSERT INTO public.doctors (name, email, password_hash, hospital_id, "Verification", phone, auth_provider)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING doctor_id, name, email, phone, hospital_id, "Verification" AS verification
             `,
-            [normalizedName, normalizedEmail, password_hash, normalizedHospitalId, 'pending']
+            [normalizedName, normalizedEmail, password_hash, normalizedHospitalId, 'pending', normalizedPhone, 'local']
         );
 
         const doctor = inserted.rows[0];
 
         return res.status(201).json({
             message: 'Doctor account created successfully.',
-            doctor: {
-                doctor_id: doctor.doctor_id,
-                name: doctor.name,
-                email: doctor.email,
-                hospital_id: doctor.hospital_id,
-                verification: doctor.verification
-            }
+            doctor: doctorProfilePayload(doctor)
         });
     } catch (error) {
         console.error('DOCTOR_SIGNUP_ERROR:', error);
@@ -708,6 +714,7 @@ const doctorLogin = async (req, res) => {
         if (!ensureJwtConfigured(res)) {
             return;
         }
+        await ensureDoctorPhoneColumn();
 
         const { email, password } = req.body;
         const normalizedEmail = (email || '').trim().toLowerCase();
@@ -718,7 +725,7 @@ const doctorLogin = async (req, res) => {
 
         const found = await pool.query(
             `
-            SELECT doctor_id, name, email, password_hash, hospital_id, "Verification" AS verification
+            SELECT doctor_id, name, email, phone, password_hash, hospital_id, "Verification" AS verification
             FROM public.doctors
             WHERE email = $1
             LIMIT 1
@@ -750,13 +757,7 @@ const doctorLogin = async (req, res) => {
         return res.status(200).json({
             message: 'Doctor login successful.',
             token,
-            doctor: {
-                doctor_id: doctor.doctor_id,
-                name: doctor.name,
-                email: doctor.email,
-                hospital_id: doctor.hospital_id,
-                verification: doctor.verification
-            }
+            doctor: doctorProfilePayload(doctor)
         });
     } catch (error) {
         console.error('DOCTOR_LOGIN_ERROR:', error);
@@ -823,7 +824,7 @@ const getPendingDoctorRequests = async (req, res) => {
     try {
         const pendingRequests = await pool.query(
             `
-            SELECT d.doctor_id, d.name, d.email, d.hospital_id, h.name AS hospital_name, d."Verification" AS verification
+            SELECT d.doctor_id, d.name, d.email, d.phone, d.hospital_id, h.name AS hospital_name, d."Verification" AS verification
             FROM public.doctors d
             LEFT JOIN public.hospitals h ON h.hospital_id = d.hospital_id
             WHERE LOWER(COALESCE(d."Verification", 'pending')) = 'pending'
@@ -844,7 +845,7 @@ const getApprovedDoctors = async (req, res) => {
     try {
         const approvedDoctors = await pool.query(
             `
-            SELECT d.doctor_id, d.name, d.email, d.hospital_id, h.name AS hospital_name, d."Verification" AS verification
+            SELECT d.doctor_id, d.name, d.email, d.phone, d.hospital_id, h.name AS hospital_name, d."Verification" AS verification
             FROM public.doctors d
             LEFT JOIN public.hospitals h ON h.hospital_id = d.hospital_id
             WHERE LOWER(COALESCE(d."Verification", 'pending')) = 'yes'
@@ -891,7 +892,7 @@ const updateDoctorVerificationStatus = async (req, res) => {
             UPDATE public.doctors
             SET "Verification" = $1
             WHERE doctor_id = $2
-            RETURNING doctor_id, name, email, hospital_id, "Verification" AS verification
+            RETURNING doctor_id, name, email, phone, hospital_id, "Verification" AS verification
             `,
             [nextStatus, normalizedDoctorId]
         );
@@ -1026,9 +1027,10 @@ const login = async (req, res) => {
         }
 
         if (normalizedRole === 'doctor') {
+            await ensureDoctorPhoneColumn();
             const foundDoctor = await pool.query(
                 `
-                SELECT doctor_id, name, email, password_hash, hospital_id, "Verification" AS verification
+                SELECT doctor_id, name, email, phone, password_hash, hospital_id, "Verification" AS verification
                 FROM public.doctors
                 WHERE email = $1
                 LIMIT 1
@@ -1061,13 +1063,7 @@ const login = async (req, res) => {
                 message: 'Doctor login successful.',
                 role: 'doctor',
                 token,
-                profile: {
-                    doctor_id: doctor.doctor_id,
-                    name: doctor.name,
-                    email: doctor.email,
-                    hospital_id: doctor.hospital_id,
-                    verification: doctor.verification
-                }
+                profile: doctorProfilePayload(doctor)
             });
         }
 
@@ -1149,9 +1145,10 @@ const login = async (req, res) => {
             });
         }
 
+        await ensureDoctorPhoneColumn();
         const foundDoctor = await pool.query(
             `
-            SELECT doctor_id, name, email, password_hash, hospital_id, "Verification" AS verification
+            SELECT doctor_id, name, email, phone, password_hash, hospital_id, "Verification" AS verification
             FROM public.doctors
             WHERE email = $1
             LIMIT 1
@@ -1181,13 +1178,7 @@ const login = async (req, res) => {
                 message: 'Doctor login successful.',
                 role: 'doctor',
                 token,
-                profile: {
-                    doctor_id: doctor.doctor_id,
-                    name: doctor.name,
-                    email: doctor.email,
-                    hospital_id: doctor.hospital_id,
-                    verification: doctor.verification
-                }
+                profile: doctorProfilePayload(doctor)
             });
         }
 
@@ -1236,6 +1227,106 @@ const login = async (req, res) => {
     }
 };
 
+const getDoctorProfile = async (req, res) => {
+    try {
+        await ensureDoctorPhoneColumn();
+
+        const doctorId = String(req.user?.sub || '').trim();
+        if (!doctorId) {
+            return res.status(400).json({ message: 'Doctor token is missing doctor id.' });
+        }
+
+        const found = await pool.query(
+            `
+            SELECT doctor_id, name, email, phone, hospital_id, "Verification" AS verification
+            FROM public.doctors
+            WHERE doctor_id = $1
+            LIMIT 1
+            `,
+            [doctorId]
+        );
+
+        if (found.rowCount === 0) {
+            return res.status(404).json({ message: 'Doctor profile not found.' });
+        }
+
+        return res.status(200).json({ profile: doctorProfilePayload(found.rows[0]) });
+    } catch (error) {
+        console.error('GET_DOCTOR_PROFILE_ERROR:', error);
+        return res.status(500).json({ message: 'Failed to load doctor profile.' });
+    }
+};
+
+const updateDoctorProfile = async (req, res) => {
+    try {
+        await ensureDoctorPhoneColumn();
+
+        const doctorId = String(req.user?.sub || '').trim();
+        const normalizedName = (req.body?.name || '').trim();
+        const normalizedPhone = normalizePhone(req.body?.phone);
+        const password = String(req.body?.password || '');
+
+        if (!doctorId) {
+            return res.status(400).json({ message: 'Doctor token is missing doctor id.' });
+        }
+
+        if (!normalizedName || !normalizedPhone) {
+            return res.status(400).json({ message: 'Name and phone are required.' });
+        }
+
+        if (!password) {
+            return res.status(400).json({ message: 'Password is required to update contact details.' });
+        }
+
+        const found = await pool.query(
+            `
+            SELECT doctor_id, password_hash, COALESCE(auth_provider, 'local') AS auth_provider
+            FROM public.doctors
+            WHERE doctor_id = $1
+            LIMIT 1
+            `,
+            [doctorId]
+        );
+
+        if (found.rowCount === 0) {
+            return res.status(404).json({ message: 'Doctor profile not found.' });
+        }
+
+        const doctor = found.rows[0];
+        const isValidPassword = await bcrypt.compare(password, doctor.password_hash);
+        const isGoogleOnlyAccount = String(doctor.auth_provider || '').trim().toLowerCase() === 'google';
+
+        if (!isValidPassword && !isGoogleOnlyAccount) {
+            return res.status(401).json({ message: 'Password is incorrect.' });
+        }
+
+        const nextPasswordHash = isValidPassword
+            ? doctor.password_hash
+            : await bcrypt.hash(password, 10);
+
+        const updated = await pool.query(
+            `
+            UPDATE public.doctors
+            SET name = $1,
+                phone = $2,
+                password_hash = $3,
+                auth_provider = 'local'
+            WHERE doctor_id = $4
+            RETURNING doctor_id, name, email, phone, hospital_id, "Verification" AS verification
+            `,
+            [normalizedName, normalizedPhone, nextPasswordHash, doctorId]
+        );
+
+        return res.status(200).json({
+            message: 'Doctor profile updated successfully.',
+            profile: doctorProfilePayload(updated.rows[0])
+        });
+    } catch (error) {
+        console.error('UPDATE_DOCTOR_PROFILE_ERROR:', error);
+        return res.status(500).json({ message: 'Failed to update doctor profile.' });
+    }
+};
+
 module.exports = {
     getSupabaseAuthConfig,
     createHospital,
@@ -1247,6 +1338,8 @@ module.exports = {
     getPendingDoctorRequests,
     getApprovedDoctors,
     updateDoctorVerificationStatus,
+    getDoctorProfile,
+    updateDoctorProfile,
     doctorSignup,
     patientSignup,
     doctorLogin,

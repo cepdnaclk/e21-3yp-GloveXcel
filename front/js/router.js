@@ -55,6 +55,11 @@ const ROUTES = {
     controller: () => import('./viewControllers/doctorLiveController.js'),
     label:      'Live Assessment',
   },
+  'doctor-progress': {
+    template:   './views/doctor_progress.html',
+    controller: () => import('./viewControllers/doctorProgressController.js'),
+    label:      'Patient Progress',
+  },
 };
 
 // ─── Factory ──────────────────────────────────────────────────────────────────

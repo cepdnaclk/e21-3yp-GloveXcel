@@ -485,29 +485,14 @@ function scheduleLiveAnalyticsSave() {
 async function saveLiveAnalyticsSnapshot() {
   if (!_state || !_selectedLiveExercise || !_liveAnalyticsMaxAngles || !_liveAnalyticsDirty) return;
 
-  const forceLevel = resolveLiveExerciseForceLevel(_selectedLiveExercise);
-  if (forceLevel === null) return;
-
-  const payload = {
-    patient_id: _state.patientId,
-    doctor_id: _selectedLiveExercise.doctor_id,
-    exercise_id: _selectedLiveExercise.exercise_id,
-    force_level: forceLevel,
-    max_angles: { ..._liveAnalyticsMaxAngles }
-  };
-
-  if (!payload.patient_id || !payload.doctor_id || !payload.exercise_id) return;
+  const payload = buildLiveAnalyticsPayload();
+  if (!payload) return;
 
   _liveAnalyticsSaving = true;
   _liveAnalyticsDirty = false;
 
   try {
-    const resp = await fetch(`${_state.apiBase}/api/live-analytics`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
-      body: JSON.stringify(payload)
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    await postLiveAnalyticsPayload(payload);
   } catch (error) {
     console.warn('[LiveCtrl] Failed to save live analytics:', error);
     _liveAnalyticsDirty = true;
@@ -517,6 +502,47 @@ async function saveLiveAnalyticsSnapshot() {
       scheduleLiveAnalyticsSave();
     }
   }
+}
+
+function buildLiveAnalyticsPayload() {
+  const forceLevel = resolveLiveExerciseForceLevel(_selectedLiveExercise);
+  if (forceLevel === null) return null;
+
+  const payload = {
+    patient_id: _state.patientId,
+    doctor_id: _selectedLiveExercise.doctor_id,
+    exercise_id: _selectedLiveExercise.exercise_id,
+    force_level: forceLevel,
+    max_angles: { ..._liveAnalyticsMaxAngles }
+  };
+
+  return payload.patient_id && payload.doctor_id && payload.exercise_id ? payload : null;
+}
+
+async function postLiveAnalyticsPayload(payload) {
+  const resp = await fetch(`${_state.apiBase}/api/live-analytics`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+}
+
+function flushLiveAnalyticsSnapshot() {
+  if (_liveAnalyticsSaveTimer) {
+    clearTimeout(_liveAnalyticsSaveTimer);
+    _liveAnalyticsSaveTimer = null;
+  }
+
+  if (!_liveAnalyticsDirty) return;
+
+  const payload = buildLiveAnalyticsPayload();
+  if (!payload) return;
+
+  _liveAnalyticsDirty = false;
+  postLiveAnalyticsPayload(payload).catch((error) => {
+    console.warn('[LiveCtrl] Failed to flush live analytics:', error);
+  });
 }
 
 function updateLiveAnalyticsFromPacket(packet) {
@@ -616,6 +642,7 @@ function renderPatientLiveExercises(exercises) {
 }
 
 function selectLiveExercise(exerciseId) {
+  flushLiveAnalyticsSnapshot();
   _selectedLiveExercise = _liveExercises.find((exercise) => exercise.exercise_id === exerciseId) || null;
   _doctorAssignedForceLevel = null;
   _patientSelectedForceLevel = null;
@@ -942,6 +969,7 @@ export function mount(container, gloveState, threeEngine) {
   _state.onStatus = (msg) => {
     if (liveGloveStatusEl) liveGloveStatusEl.textContent = `Patient glove status: ${msg}`;
     if (msg === 'Disconnected' && liveConnectGloveBtn) {
+      flushLiveAnalyticsSnapshot();
       liveConnectGloveBtn.disabled    = false;
       liveConnectGloveBtn.textContent = 'Reconnect Patient Glove';
     }
@@ -1090,6 +1118,7 @@ export function mount(container, gloveState, threeEngine) {
 }
 
 export function unmount() {
+  flushLiveAnalyticsSnapshot();
   // ── Memory-leak contract ──────────────────────────────────────────────
   // 1. Null GloveState callbacks
   if (_state) {

@@ -1,8 +1,9 @@
 jest.mock('../models/LiveAnalytics', () => ({
-    findOneAndUpdate: jest.fn()
+    findOneAndUpdate: jest.fn(),
+    find: jest.fn()
 }));
 
-const { saveLiveAnalytics } = require('../controllers/liveAnalyticsController');
+const { saveLiveAnalytics, listLiveAnalytics } = require('../controllers/liveAnalyticsController');
 const LiveAnalytics = require('../models/LiveAnalytics');
 
 function mockResponse() {
@@ -116,5 +117,44 @@ describe('liveAnalyticsController.saveLiveAnalytics Unit Tests', () => {
         expect(LiveAnalytics.findOneAndUpdate).not.toHaveBeenCalled();
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({ error: 'max_angles with all 5 finger values is required.' });
+    });
+
+    test('lists latest analytics for selected doctor and patient', async () => {
+        const req = {
+            user: { role: 'doctor', sub: 'DOC-123' },
+            query: {
+                patient_id: 'PAT-001',
+                doctor_id: 'DOC-SPOOF'
+            }
+        };
+        const res = mockResponse();
+        const docs = [{ patient_id: 'PAT-001', doctor_id: 'DOC-123', exercise_id: 'EX-1' }];
+        const lean = jest.fn().mockResolvedValue(docs);
+        const sort = jest.fn().mockReturnValue({ lean });
+        LiveAnalytics.find.mockReturnValue({ sort });
+
+        await listLiveAnalytics(req, res);
+
+        expect(LiveAnalytics.find).toHaveBeenCalledWith({
+            patient_id: 'PAT-001',
+            doctor_id: 'DOC-123'
+        });
+        expect(sort).toHaveBeenCalledWith({ updatedAt: -1, createdAt: -1 });
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({ analytics: docs });
+    });
+
+    test('requires patient_id when listing analytics', async () => {
+        const req = {
+            user: { role: 'doctor', sub: 'DOC-123' },
+            query: {}
+        };
+        const res = mockResponse();
+
+        await listLiveAnalytics(req, res);
+
+        expect(LiveAnalytics.find).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ error: 'patient_id is required.' });
     });
 });

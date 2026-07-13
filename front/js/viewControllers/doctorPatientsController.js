@@ -164,6 +164,14 @@ function renderPatients(patients) {
             Live Exercise
           </button>
           <button
+            class="btn-secondary patient-action-btn"
+            type="button"
+            data-route="doctor-progress"
+            data-patient="${escapeHtml(JSON.stringify(patientContext(patient)))}"
+          >
+            Patient Progress
+          </button>
+          <button
             class="btn-secondary remove-patient-btn"
             type="button"
             data-patient-id="${escapeHtml(patient.patient_id || '')}"

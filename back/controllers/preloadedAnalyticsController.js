@@ -1,4 +1,4 @@
-const LiveAnalytics = require('../models/LiveAnalytics');
+const PreloadedAnalytics = require('../models/PreloadedAnalytics');
 
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
@@ -25,7 +25,7 @@ function normalizeMaxAngles(maxAngles = {}) {
     return normalized;
 }
 
-const saveLiveAnalytics = async (req, res) => {
+const savePreloadedAnalytics = async (req, res) => {
     try {
         const { patient_id, doctor_id, exercise_id, force_level, max_angles } = req.body;
 
@@ -42,7 +42,7 @@ const saveLiveAnalytics = async (req, res) => {
         }
 
         if (req.user && !['patient', 'doctor', 'admin'].includes(req.user.role)) {
-            return res.status(403).json({ error: 'Only patients, doctors, or admins can save live analytics.' });
+            return res.status(403).json({ error: 'Only patients, doctors, or admins can save preloaded analytics.' });
         }
 
         const normalizedForceLevel = normalizeForceLevel(force_level);
@@ -61,7 +61,7 @@ const saveLiveAnalytics = async (req, res) => {
         }
 
         const now = Date.now();
-        const doc = await LiveAnalytics.findOneAndUpdate(
+        const doc = await PreloadedAnalytics.findOneAndUpdate(
             { patient_id: effectivePatientId, exercise_id },
             {
                 $set: {
@@ -77,14 +77,14 @@ const saveLiveAnalytics = async (req, res) => {
             { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
         );
 
-        return res.status(200).json({ message: 'Live analytics saved.', analytics: doc });
+        return res.status(200).json({ message: 'Preloaded analytics saved.', analytics: doc });
     } catch (error) {
-        console.error('Error saving live analytics:', error);
-        return res.status(500).json({ error: 'Failed to save live analytics', details: error.message });
+        console.error('Error saving preloaded analytics:', error);
+        return res.status(500).json({ error: 'Failed to save preloaded analytics', details: error.message });
     }
 };
 
-const listLiveAnalytics = async (req, res) => {
+const listPreloadedAnalytics = async (req, res) => {
     try {
         const requestedPatientId = String(req.query.patient_id || '').trim();
         const requestedDoctorId = String(req.query.doctor_id || '').trim();
@@ -98,7 +98,7 @@ const listLiveAnalytics = async (req, res) => {
             : requestedPatientId;
 
         if (req.user && !['doctor', 'admin', 'patient'].includes(req.user.role)) {
-            return res.status(403).json({ error: 'Only patients, doctors, or admins can view live analytics.' });
+            return res.status(403).json({ error: 'Only patients, doctors, or admins can view preloaded analytics.' });
         }
 
         if (!effectivePatientId) {
@@ -113,15 +113,15 @@ const listLiveAnalytics = async (req, res) => {
         if (effectiveDoctorId) query.doctor_id = effectiveDoctorId;
         if (requestedExerciseId) query.exercise_id = requestedExerciseId;
 
-        const analytics = await LiveAnalytics.find(query)
+        const analytics = await PreloadedAnalytics.find(query)
             .sort({ updatedAt: -1, createdAt: -1 })
             .lean();
 
         return res.status(200).json({ analytics });
     } catch (error) {
-        console.error('Error listing live analytics:', error);
-        return res.status(500).json({ error: 'Failed to list live analytics', details: error.message });
+        console.error('Error listing preloaded analytics:', error);
+        return res.status(500).json({ error: 'Failed to list preloaded analytics', details: error.message });
     }
 };
 
-module.exports = { saveLiveAnalytics, listLiveAnalytics };
+module.exports = { savePreloadedAnalytics, listPreloadedAnalytics };

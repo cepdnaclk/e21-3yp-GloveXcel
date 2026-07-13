@@ -22,6 +22,7 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 const FINGER_KEYS       = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const FINGER_LABELS     = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const PATIENT_CALIB_KEY = 'patientCalibrationV1';
+const PRELOADED_ANALYTICS_SAVE_DELAY_MS = 1500;
 
 // ─── Module-level mutable state ───────────────────────────────────────────────
 // All variables are reset inside mount() so each view visit starts clean.
@@ -59,6 +60,12 @@ let startLoopBtn, stopLoopBtn, resetPoseBtn;
 let levelSelect, cycleMsInput;
 let exerciseSelectEl, exerciseDetailsEl;
 let exerciseForceLevelEl, sendExerciseMotorBtn, exerciseMotorStatusEl;
+
+let _selectedExercise = null;
+let _preloadedAnalyticsMaxAngles = null;
+let _preloadedAnalyticsDirty = false;
+let _preloadedAnalyticsSaveTimer = null;
+let _preloadedAnalyticsSaving = false;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MATH — preserved VERBATIM from patient_exercise.html
@@ -444,7 +451,123 @@ async function sendSelectedExerciseMotorLevel() {
   }
 }
 
+function createEmptyFingerAngles() {
+  return FINGER_KEYS.reduce((acc, key) => {
+    acc[key] = 0;
+    return acc;
+  }, {});
+}
+
+function resetPreloadedAnalyticsTracking() {
+  if (_preloadedAnalyticsSaveTimer) {
+    clearTimeout(_preloadedAnalyticsSaveTimer);
+    _preloadedAnalyticsSaveTimer = null;
+  }
+  _preloadedAnalyticsMaxAngles = createEmptyFingerAngles();
+  _preloadedAnalyticsDirty = false;
+  _preloadedAnalyticsSaving = false;
+}
+
+function schedulePreloadedAnalyticsSave() {
+  if (_preloadedAnalyticsSaveTimer || _preloadedAnalyticsSaving) return;
+
+  _preloadedAnalyticsSaveTimer = setTimeout(() => {
+    _preloadedAnalyticsSaveTimer = null;
+    savePreloadedAnalyticsSnapshot();
+  }, PRELOADED_ANALYTICS_SAVE_DELAY_MS);
+}
+
+function buildPreloadedAnalyticsPayload() {
+  const forceLevel = normalizeForceLevel(_selectedExercise?.level);
+  if (forceLevel === null) return null;
+
+  const payload = {
+    patient_id: _state?.patientId,
+    doctor_id: _selectedExercise?.doctor_id,
+    exercise_id: _selectedExercise?.exercise_id,
+    force_level: forceLevel,
+    max_angles: { ..._preloadedAnalyticsMaxAngles }
+  };
+
+  return payload.patient_id && payload.doctor_id && payload.exercise_id ? payload : null;
+}
+
+async function postPreloadedAnalyticsPayload(payload) {
+  const resp = await fetch(`${_state.apiBase}/api/preloaded-analytics`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ..._state.getAuthHeaders() },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+}
+
+async function savePreloadedAnalyticsSnapshot() {
+  if (!_state || !_selectedExercise || !_preloadedAnalyticsMaxAngles || !_preloadedAnalyticsDirty) return;
+
+  const payload = buildPreloadedAnalyticsPayload();
+  if (!payload) return;
+
+  _preloadedAnalyticsSaving = true;
+  _preloadedAnalyticsDirty = false;
+
+  try {
+    await postPreloadedAnalyticsPayload(payload);
+  } catch (error) {
+    console.warn('[PreloadedCtrl] Failed to save preloaded analytics:', error);
+    _preloadedAnalyticsDirty = true;
+  } finally {
+    _preloadedAnalyticsSaving = false;
+    if (_preloadedAnalyticsDirty) {
+      schedulePreloadedAnalyticsSave();
+    }
+  }
+}
+
+function flushPreloadedAnalyticsSnapshot() {
+  if (_preloadedAnalyticsSaveTimer) {
+    clearTimeout(_preloadedAnalyticsSaveTimer);
+    _preloadedAnalyticsSaveTimer = null;
+  }
+
+  if (!_preloadedAnalyticsDirty) return;
+
+  const payload = buildPreloadedAnalyticsPayload();
+  if (!payload) return;
+
+  _preloadedAnalyticsDirty = false;
+  postPreloadedAnalyticsPayload(payload).catch((error) => {
+    console.warn('[PreloadedCtrl] Failed to flush preloaded analytics:', error);
+  });
+}
+
+function updatePreloadedAnalyticsFromPacket(packet) {
+  if (!_selectedExercise || !_patientCalibration.ready) return;
+  if (!_preloadedAnalyticsMaxAngles) {
+    _preloadedAnalyticsMaxAngles = createEmptyFingerAngles();
+  }
+
+  const angles = packetToPatientAngles(packet);
+  let improved = false;
+
+  FINGER_KEYS.forEach((key, index) => {
+    const angle = angles[index];
+    if (Number.isFinite(angle) && angle > (_preloadedAnalyticsMaxAngles[key] ?? 0)) {
+      _preloadedAnalyticsMaxAngles[key] = Number(angle.toFixed(1));
+      improved = true;
+    }
+  });
+
+  if (improved) {
+    _preloadedAnalyticsDirty = true;
+    schedulePreloadedAnalyticsSave();
+  }
+}
+
 async function applyExerciseSelection(exerciseId) {
+  flushPreloadedAnalyticsSnapshot();
+  _selectedExercise = null;
+  resetPreloadedAnalyticsTracking();
+
   if (!exerciseId) {
     if (exerciseDetailsEl) exerciseDetailsEl.textContent = 'Select an exercise to view details.';
     setExerciseForceLevel(null);
@@ -460,6 +583,8 @@ async function applyExerciseSelection(exerciseId) {
     setExerciseForceLevel(null);
     return;
   }
+
+  _selectedExercise = exercise;
 
   if (exerciseDetailsEl) {
     exerciseDetailsEl.textContent = `${exercise.description || 'No description'} | Doctor: ${exercise.doctor_id || '--'} | Sets: ${exercise.target_sets || '--'} | Reps: ${exercise.target_reps || '--'} | Level: ${exercise.level || '--'} | ${exercise.start_date || '--'} → ${exercise.end_date || '--'}`;
@@ -507,6 +632,7 @@ async function applyExerciseSelection(exerciseId) {
   _repLatched  = false;
   updateRepSetStatus();
   renderMatchGrid();
+  updatePreloadedAnalyticsFromPacket(_patientPacket);
   setStatus('Exercise details loaded from database.');
 }
 
@@ -740,6 +866,8 @@ export function mount(container, gloveState, threeEngine) {
   _currentReps    = 0;
   _currentSets    = 0;
   _repLatched     = false;
+  _selectedExercise = null;
+  resetPreloadedAnalyticsTracking();
 
   // Priority: use GloveState's in-memory calibration (set by calibration view),
   // falling back to localStorage if the user hasn't calibrated in this session.
@@ -782,12 +910,14 @@ export function mount(container, gloveState, threeEngine) {
     // patient_exercise.html:1147-1148
     _patientPacket = packet;
     renderMatchGrid();
+    updatePreloadedAnalyticsFromPacket(packet);
   };
 
   _state.onStatus = (msg) => {
     // patient_exercise.html:1136-1143
     if (gloveStatusEl) gloveStatusEl.textContent = `Patient glove status: ${msg}`;
     if (msg === 'Disconnected' && connectGloveBtn) {
+      flushPreloadedAnalyticsSnapshot();
       connectGloveBtn.disabled    = false;
       connectGloveBtn.textContent = 'Reconnect Patient Glove';
     }
@@ -901,6 +1031,7 @@ export function mount(container, gloveState, threeEngine) {
 }
 
 export function unmount() {
+  flushPreloadedAnalyticsSnapshot();
   // ── Memory-leak contract ──────────────────────────────────────────────
   // 1. Null GloveState callbacks — prevents stale closures firing into a gone view
   if (_state) {
@@ -927,5 +1058,8 @@ export function unmount() {
   levelSelect = cycleMsInput = null;
   exerciseSelectEl = exerciseDetailsEl = null;
   exerciseForceLevelEl = sendExerciseMotorBtn = exerciseMotorStatusEl = null;
+  _selectedExercise = null;
+  resetPreloadedAnalyticsTracking();
+  _preloadedAnalyticsMaxAngles = null;
   _container = null;
 }

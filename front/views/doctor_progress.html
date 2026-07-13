@@ -1,0 +1,350 @@
+<div class="view-namespace-doctor-progress">
+  <div class="view-header">
+    <h2 class="view-title" id="patientProgressTitle">Patient Progress</h2>
+    <p class="view-subtitle" id="patientProgressSubtitle">Latest saved max angle values from completed patient exercise activity.</p>
+  </div>
+
+  <section class="panel progress-controls">
+    <div class="progress-control-group">
+      <label for="progressPatientSelect">Patient</label>
+      <select id="progressPatientSelect" class="progress-select" disabled>
+        <option value="">-- Loading patients... --</option>
+      </select>
+    </div>
+    <button id="progressRefreshBtn" class="btn-primary" type="button">Refresh Progress</button>
+    <div id="progressStatus" class="progress-status" aria-live="polite"></div>
+  </section>
+
+  <section class="progress-analytics-group progress-live-group" aria-labelledby="progressLiveGroupTitle">
+    <div class="progress-group-header">
+      <h3 id="progressLiveGroupTitle">Live Exercise Progress</h3>
+    </div>
+
+    <section class="panel progress-group-panel">
+      <div class="panel-title">Live Exercises</div>
+      <div id="progressExerciseCards" class="progress-exercise-cards">
+        Select a patient to view saved exercises.
+      </div>
+    </section>
+
+    <section class="panel progress-group-panel">
+      <div class="panel-title" id="progressGraphTitle">Max Angles by Exercise</div>
+      <div class="progress-legend" aria-label="Finger color legend">
+        
+      </div>
+      <div id="progressChart" class="progress-chart">Select a patient to view saved progress.</div>
+    </section>
+  </section>
+
+  <section class="progress-analytics-group progress-preloaded-group" aria-labelledby="progressPreloadedGroupTitle">
+    <div class="progress-group-header">
+      <h3 id="progressPreloadedGroupTitle">Preloaded Exercise Progress</h3>
+    </div>
+
+    <section class="panel progress-group-panel">
+      <div class="panel-title">Preloaded Exercises</div>
+      <div id="progressPreloadedExerciseCards" class="progress-exercise-cards">
+        Select a patient to view saved preloaded exercises.
+      </div>
+    </section>
+
+    <section class="panel progress-group-panel">
+      <div class="panel-title" id="progressPreloadedGraphTitle">Max Angles by Preloaded Exercise</div>
+      <div id="progressPreloadedChart" class="progress-chart">Select a patient to view saved preloaded progress.</div>
+    </section>
+  </section>
+
+  <style>
+    .view-namespace-doctor-progress .progress-controls {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .view-namespace-doctor-progress .progress-control-group {
+      min-width: min(100%, 280px);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .view-namespace-doctor-progress label {
+      color: var(--c-navy);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .view-namespace-doctor-progress .progress-select {
+      min-height: 42px;
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      background: #f8fcfb;
+      color: var(--c-navy);
+      font: inherit;
+      padding: 10px 12px;
+    }
+    .view-namespace-doctor-progress .progress-select:disabled {
+      color: var(--c-text-muted);
+      background: #eafbfa;
+      opacity: 1;
+    }
+    .view-namespace-doctor-progress .progress-status {
+      min-height: 18px;
+      flex-basis: 100%;
+      color: var(--c-text-muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .view-namespace-doctor-progress .progress-status.error {
+      color: var(--c-danger);
+    }
+    .view-namespace-doctor-progress .progress-analytics-group {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid rgba(7, 59, 92, 0.12);
+      border-left: 5px solid var(--c-brand);
+      border-radius: var(--radius-sm);
+      background: #f3faf8;
+      box-shadow: 0 14px 34px rgba(7, 59, 92, 0.06);
+    }
+    .view-namespace-doctor-progress .progress-preloaded-group {
+      border-left-color: #16a56a;
+      background: #f8fcfb;
+    }
+    .view-namespace-doctor-progress .progress-group-header h3 {
+      margin: 0;
+      color: var(--c-navy);
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+    .view-namespace-doctor-progress .progress-group-panel {
+      margin: 0;
+      box-shadow: 0 10px 24px rgba(7, 59, 92, 0.05);
+    }
+    .view-namespace-doctor-progress .progress-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin: 0 0 14px;
+      color: var(--c-text-muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .view-namespace-doctor-progress .progress-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .view-namespace-doctor-progress .progress-legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    .view-namespace-doctor-progress .progress-exercise-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      color: var(--c-text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .view-namespace-doctor-progress .progress-exercise-card {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      min-height: 126px;
+      border: 1px solid rgba(37, 99, 235, 0.12);
+      border-radius: var(--radius-sm);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(234, 251, 250, 0.82)),
+        #ffffff;
+      padding: 18px;
+      color: var(--c-text-muted);
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.45;
+      text-align: left;
+      cursor: pointer;
+      box-shadow: 0 12px 28px rgba(7, 59, 92, 0.07);
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+    .view-namespace-doctor-progress .progress-exercise-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 5px;
+      background: linear-gradient(180deg, var(--c-brand), #16a56a);
+      opacity: 0.72;
+    }
+    .view-namespace-doctor-progress .progress-exercise-card:hover,
+    .view-namespace-doctor-progress .progress-exercise-card.is-selected {
+      border-color: var(--c-brand);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(238, 244, 255, 0.9)),
+        #ffffff;
+      box-shadow: 0 18px 36px rgba(37, 99, 235, 0.16);
+      transform: translateY(-2px);
+    }
+    .view-namespace-doctor-progress .progress-exercise-card.is-selected::before {
+      opacity: 1;
+      width: 6px;
+    }
+    .view-namespace-doctor-progress .progress-exercise-card-top {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .view-namespace-doctor-progress .progress-exercise-card-name {
+      display: block;
+      min-width: 0;
+      color: var(--c-navy);
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .view-namespace-doctor-progress .progress-exercise-force-badge {
+      flex: 0 0 auto;
+      border: 1px solid rgba(37, 99, 235, 0.18);
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.08);
+      color: var(--c-brand);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+      padding: 7px 9px;
+      white-space: nowrap;
+    }
+    .view-namespace-doctor-progress .progress-exercise-card-meta {
+      position: relative;
+      z-index: 1;
+      display: block;
+      margin-top: 18px;
+      color: var(--c-text-muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .view-namespace-doctor-progress .progress-chart {
+      display: block;
+      color: var(--c-text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .view-namespace-doctor-progress .progress-selected-exercise {
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      background: #f8fcfb;
+      padding: 14px;
+    }
+    .view-namespace-doctor-progress .progress-selected-exercise-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .view-namespace-doctor-progress .progress-selected-exercise-name {
+      min-width: 0;
+      color: var(--c-navy);
+      font-size: 15px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+    .view-namespace-doctor-progress .progress-selected-exercise-meta {
+      color: var(--c-text-muted);
+      font-size: 12px;
+      text-align: right;
+      flex: 0 0 auto;
+    }
+    .view-namespace-doctor-progress .progress-bars {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(54px, 1fr));
+      gap: 10px;
+      align-items: end;
+      min-height: 184px;
+      padding: 12px 10px 8px;
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      background:
+        linear-gradient(to top, rgba(7, 59, 92, 0.08) 1px, transparent 1px) 0 0 / 100% 25%,
+        #ffffff;
+    }
+    .view-namespace-doctor-progress .progress-bar-cell {
+      display: grid;
+      grid-template-rows: 1fr auto auto;
+      justify-items: center;
+      gap: 6px;
+      min-width: 0;
+      height: 160px;
+    }
+    .view-namespace-doctor-progress .progress-bar-track {
+      width: min(100%, 44px);
+      height: 122px;
+      display: flex;
+      align-items: flex-end;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #edf6fb 0%, #e6f0f5 100%);
+      overflow: hidden;
+      border: 1px solid #d7e7ee;
+      box-shadow: inset 0 1px 2px rgba(7, 59, 92, 0.08);
+    }
+    .view-namespace-doctor-progress .progress-bar-fill {
+      width: 100%;
+      min-height: 3px;
+      border-radius: 10px 10px 4px 4px;
+      background: linear-gradient(180deg, #2f7df6 0%, #2563eb 58%, #1d4ed8 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.32),
+        0 -6px 14px rgba(37, 99, 235, 0.18);
+    }
+    .view-namespace-doctor-progress .progress-bar-value {
+      color: var(--c-navy);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .view-namespace-doctor-progress .progress-bar-label {
+      color: var(--c-text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .view-namespace-doctor-progress .empty-state {
+      color: var(--c-text-muted);
+      font-size: 13px;
+    }
+    @media (max-width: 720px) {
+      .view-namespace-doctor-progress .progress-controls {
+        align-items: stretch;
+      }
+      .view-namespace-doctor-progress .progress-controls .btn-primary {
+        width: 100%;
+      }
+      .view-namespace-doctor-progress .progress-selected-exercise-head {
+        flex-direction: column;
+      }
+      .view-namespace-doctor-progress .progress-selected-exercise-meta {
+        text-align: left;
+      }
+      .view-namespace-doctor-progress .progress-bars {
+        grid-template-columns: repeat(5, minmax(42px, 1fr));
+        gap: 6px;
+        padding-inline: 6px;
+      }
+      .view-namespace-doctor-progress .progress-bar-track {
+        width: min(100%, 34px);
+      }
+      .view-namespace-doctor-progress .progress-bar-label,
+      .view-namespace-doctor-progress .progress-bar-value {
+        font-size: 10px;
+      }
+    }
+  </style>
+</div>

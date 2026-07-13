@@ -1,4 +1,5 @@
 const LiveExercise = require('../models/LiveExercise');
+const LiveAnalytics = require('../models/LiveAnalytics');
 
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
@@ -162,7 +163,16 @@ const deleteLiveExercise = async (req, res) => {
             return res.status(404).json({ error: 'Live exercise not found.' });
         }
 
-        return res.status(200).json({ message: 'Live exercise deleted successfully', exercise_id });
+        const analyticsQuery = { exercise_id };
+        if (deleted.patient_id) analyticsQuery.patient_id = deleted.patient_id;
+        if (deleted.doctor_id) analyticsQuery.doctor_id = deleted.doctor_id;
+        const analyticsDeleteResult = await LiveAnalytics.deleteMany(analyticsQuery);
+
+        return res.status(200).json({
+            message: 'Live exercise deleted successfully',
+            exercise_id,
+            deleted_analytics_count: analyticsDeleteResult.deletedCount || 0
+        });
     } catch (error) {
         console.error('Error deleting live exercise:', error);
         return res.status(500).json({ error: 'Failed to delete live exercise', details: error.message });

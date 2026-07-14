@@ -146,7 +146,7 @@ function renderPatients(patients) {
             <br>Approved: ${escapeHtml(formatDate(patient.responded_at))}
           </div>
         </div>
-        <div class="request-actions">
+        <div class="request-actions patient-actions">
           <button
             class="btn-primary patient-action-btn"
             type="button"

@@ -124,6 +124,82 @@ function formatAngle(value) {
   return Number.isFinite(num) ? `${num.toFixed(1)} deg` : '--';
 }
 
+function compareRepRecords(a, b) {
+  const aRep = Number(a?.rep_number);
+  const bRep = Number(b?.rep_number);
+  if (Number.isFinite(aRep) && Number.isFinite(bRep) && aRep !== bRep) return aRep - bRep;
+  if (Number.isFinite(aRep) && !Number.isFinite(bRep)) return -1;
+  if (!Number.isFinite(aRep) && Number.isFinite(bRep)) return 1;
+
+  const aCreated = new Date(a?.createdAt || a?.updatedAt || 0).getTime();
+  const bCreated = new Date(b?.createdAt || b?.updatedAt || 0).getTime();
+  return aCreated - bCreated;
+}
+
+function repDisplayName(record, index) {
+  const repNumber = Number(record?.rep_number);
+  if (Number.isFinite(repNumber) && repNumber >= 1) return `Rep ${repNumber}`;
+  if (!record?.rep_id) return 'Summary';
+  const match = String(record.rep_id).match(/rep[_-]?0*(\d+)$/i);
+  return match ? `Rep ${Number(match[1])}` : `Rep ${index + 1}`;
+}
+
+function groupAnalyticsByExercise(analytics) {
+  const groupsById = new Map();
+
+  (Array.isArray(analytics) ? analytics : []).forEach((item) => {
+    const exerciseId = item?.exercise_id || '';
+    if (!exerciseId) return;
+
+    if (!groupsById.has(exerciseId)) {
+      groupsById.set(exerciseId, {
+        exercise_id: exerciseId,
+        records: [],
+        latestRecord: item
+      });
+    }
+
+    const group = groupsById.get(exerciseId);
+    group.records.push(item);
+
+    const latestTime = new Date(group.latestRecord?.updatedAt || group.latestRecord?.createdAt || 0).getTime();
+    const itemTime = new Date(item?.updatedAt || item?.createdAt || 0).getTime();
+    if (itemTime > latestTime) {
+      group.latestRecord = item;
+    }
+  });
+
+  return Array.from(groupsById.values())
+    .map((group) => ({
+      ...group,
+      records: group.records.sort(compareRepRecords)
+    }))
+    .sort((a, b) => {
+      const aTime = new Date(a.latestRecord?.updatedAt || a.latestRecord?.createdAt || 0).getTime();
+      const bTime = new Date(b.latestRecord?.updatedAt || b.latestRecord?.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+}
+
+function renderRepBars(record) {
+  return FINGER_KEYS.map((finger, fingerIndex) => {
+    const value = Number(record?.max_angles?.[finger]);
+    const percent = Number.isFinite(value) ? Math.max(0, Math.min(100, (value / 90) * 100)) : 0;
+    return `
+      <div class="progress-bar-cell">
+        <div class="progress-bar-track" aria-hidden="true">
+          <div
+            class="progress-bar-fill"
+            style="height:${percent.toFixed(1)}%;"
+          ></div>
+        </div>
+        <div class="progress-bar-value">${escapeHtml(formatAngle(value))}</div>
+        <div class="progress-bar-label">${escapeHtml(FINGER_LABELS[fingerIndex])}</div>
+      </div>
+    `;
+  }).join('');
+}
+
 function setStatus(message, type = '') {
   if (!statusEl) return;
   statusEl.className = `progress-status ${type}`;
@@ -184,16 +260,19 @@ function renderCardsEmpty(message, targetCardsEl = exerciseCardsEl) {
 function renderExerciseCards(analytics) {
   if (!exerciseCardsEl) return;
 
-  if (!Array.isArray(analytics) || analytics.length === 0) {
+  const groups = groupAnalyticsByExercise(analytics);
+  if (!groups.length) {
     renderCardsEmpty('No completed progress data has been saved for this patient yet.');
     return;
   }
 
-  exerciseCardsEl.innerHTML = analytics.map((item, index) => {
-    const exerciseId = item?.exercise_id || '';
+  exerciseCardsEl.innerHTML = groups.map((group, index) => {
+    const item = group.latestRecord || {};
+    const exerciseId = group.exercise_id || '';
     const forceLevel = Number(item?.force_level);
     const forceLabel = Number.isFinite(forceLevel) ? forceLevel : '--';
     const isSelected = exerciseId === _selectedExerciseId;
+    const repLabel = `${group.records.length} rep${group.records.length === 1 ? '' : 's'}`;
 
     return `
       <button
@@ -206,7 +285,7 @@ function renderExerciseCards(analytics) {
           <span class="progress-exercise-card-name">${escapeHtml(exerciseDisplayName(item, index))}</span>
           <span class="progress-exercise-force-badge">Level ${escapeHtml(forceLabel)}</span>
         </span>
-        <span class="progress-exercise-card-meta">Updated ${escapeHtml(formatDate(item?.updatedAt))}</span>
+        <span class="progress-exercise-card-meta">${escapeHtml(repLabel)} | Updated ${escapeHtml(formatDate(item?.updatedAt))}</span>
       </button>
     `;
   }).join('');
@@ -221,16 +300,19 @@ function renderExerciseCards(analytics) {
 function renderPreloadedExerciseCards(analytics) {
   if (!preloadedExerciseCardsEl) return;
 
-  if (!Array.isArray(analytics) || analytics.length === 0) {
+  const groups = groupAnalyticsByExercise(analytics);
+  if (!groups.length) {
     renderCardsEmpty('No completed preloaded progress data has been saved for this patient yet.', preloadedExerciseCardsEl);
     return;
   }
 
-  preloadedExerciseCardsEl.innerHTML = analytics.map((item, index) => {
-    const exerciseId = item?.exercise_id || '';
+  preloadedExerciseCardsEl.innerHTML = groups.map((group, index) => {
+    const item = group.latestRecord || {};
+    const exerciseId = group.exercise_id || '';
     const forceLevel = Number(item?.force_level);
     const forceLabel = Number.isFinite(forceLevel) ? forceLevel : '--';
     const isSelected = exerciseId === _selectedPreloadedExerciseId;
+    const repLabel = `${group.records.length} rep${group.records.length === 1 ? '' : 's'}`;
 
     return `
       <button
@@ -243,7 +325,7 @@ function renderPreloadedExerciseCards(analytics) {
           <span class="progress-exercise-card-name">${escapeHtml(exerciseDisplayName(item, index))}</span>
           <span class="progress-exercise-force-badge">Level ${escapeHtml(forceLabel)}</span>
         </span>
-        <span class="progress-exercise-card-meta">Updated ${escapeHtml(formatDate(item?.updatedAt))}</span>
+        <span class="progress-exercise-card-meta">${escapeHtml(repLabel)} | Updated ${escapeHtml(formatDate(item?.updatedAt))}</span>
       </button>
     `;
   }).join('');
@@ -255,55 +337,54 @@ function renderPreloadedExerciseCards(analytics) {
   });
 }
 
+function renderRepGraphGrid(group) {
+  return group.records.map((record, repIndex) => {
+    const forceLevel = Number(record?.force_level);
+    const forceLabel = Number.isFinite(forceLevel) ? `Level ${forceLevel}` : 'Level --';
+
+    return `
+      <article class="progress-rep-card">
+        <div class="progress-rep-card-head">
+          <span>${escapeHtml(repDisplayName(record, repIndex))}</span>
+          <span>${escapeHtml(forceLabel)}</span>
+        </div>
+        <div class="progress-bars progress-rep-bars">${renderRepBars(record)}</div>
+      </article>
+    `;
+  }).join('');
+}
+
 function renderSelectedChart() {
   if (!chartEl) return;
 
-  if (!_analyticsRecords.length) {
+  const groups = groupAnalyticsByExercise(_analyticsRecords);
+  if (!groups.length) {
     renderChartEmpty('Select an exercise card to view its max angle graph.');
     return;
   }
 
-  const selected = _analyticsRecords.find((item) => item?.exercise_id === _selectedExerciseId) || _analyticsRecords[0];
-  if (!selected) {
+  const selectedGroup = groups.find((item) => item?.exercise_id === _selectedExerciseId) || groups[0];
+  if (!selectedGroup) {
     renderChartEmpty('Select an exercise card to view its max angle graph.');
     return;
   }
 
-  _selectedExerciseId = selected.exercise_id || '';
-  const selectedIndex = _analyticsRecords.indexOf(selected);
+  _selectedExerciseId = selectedGroup.exercise_id || '';
+  const selected = selectedGroup.latestRecord || selectedGroup.records[0] || {};
+  const selectedIndex = groups.indexOf(selectedGroup);
   const selectedName = exerciseDisplayName(selected, selectedIndex);
-  if (graphTitleEl) graphTitleEl.textContent = `Max Angles - ${selectedName}`;
-
-  const bars = FINGER_KEYS.map((finger, fingerIndex) => {
-    const value = Number(selected?.max_angles?.[finger]);
-    const percent = Number.isFinite(value) ? Math.max(0, Math.min(100, (value / 90) * 100)) : 0;
-    return `
-      <div class="progress-bar-cell">
-        <div class="progress-bar-track" aria-hidden="true">
-          <div
-            class="progress-bar-fill"
-            style="height:${percent.toFixed(1)}%;"
-          ></div>
-        </div>
-        <div class="progress-bar-value">${escapeHtml(formatAngle(value))}</div>
-        <div class="progress-bar-label">${escapeHtml(FINGER_LABELS[fingerIndex])}</div>
-      </div>
-    `;
-  }).join('');
-
-  const forceLevel = Number(selected?.force_level);
-  const forceLabel = Number.isFinite(forceLevel) ? `Level ${forceLevel}` : 'Level --';
+  if (graphTitleEl) graphTitleEl.textContent = `Max Angles - ${selectedName} (${selectedGroup.records.length} reps)`;
 
   chartEl.innerHTML = `
     <article class="progress-selected-exercise">
       <div class="progress-selected-exercise-head">
         <div class="progress-selected-exercise-name">${escapeHtml(selectedName)}</div>
         <div class="progress-selected-exercise-meta">
-          <div>${escapeHtml(forceLabel)}</div>
+          <div>${escapeHtml(selectedGroup.records.length)} saved rep${selectedGroup.records.length === 1 ? '' : 's'}</div>
           <div>Updated: ${escapeHtml(formatDate(selected?.updatedAt))}</div>
         </div>
       </div>
-      <div class="progress-bars">${bars}</div>
+      <div class="progress-rep-grid">${renderRepGraphGrid(selectedGroup)}</div>
     </article>
   `;
 }
@@ -311,7 +392,8 @@ function renderSelectedChart() {
 function renderPreloadedSelectedChart() {
   if (!preloadedChartEl) return;
 
-  if (!_preloadedAnalyticsRecords.length) {
+  const groups = groupAnalyticsByExercise(_preloadedAnalyticsRecords);
+  if (!groups.length) {
     renderChartEmpty(
       'Select a preloaded exercise card to view its max angle graph.',
       preloadedChartEl,
@@ -321,8 +403,8 @@ function renderPreloadedSelectedChart() {
     return;
   }
 
-  const selected = _preloadedAnalyticsRecords.find((item) => item?.exercise_id === _selectedPreloadedExerciseId) || _preloadedAnalyticsRecords[0];
-  if (!selected) {
+  const selectedGroup = groups.find((item) => item?.exercise_id === _selectedPreloadedExerciseId) || groups[0];
+  if (!selectedGroup) {
     renderChartEmpty(
       'Select a preloaded exercise card to view its max angle graph.',
       preloadedChartEl,
@@ -332,41 +414,22 @@ function renderPreloadedSelectedChart() {
     return;
   }
 
-  _selectedPreloadedExerciseId = selected.exercise_id || '';
-  const selectedIndex = _preloadedAnalyticsRecords.indexOf(selected);
+  _selectedPreloadedExerciseId = selectedGroup.exercise_id || '';
+  const selected = selectedGroup.latestRecord || selectedGroup.records[0] || {};
+  const selectedIndex = groups.indexOf(selectedGroup);
   const selectedName = exerciseDisplayName(selected, selectedIndex);
-  if (preloadedGraphTitleEl) preloadedGraphTitleEl.textContent = `Max Angles - ${selectedName}`;
-
-  const bars = FINGER_KEYS.map((finger, fingerIndex) => {
-    const value = Number(selected?.max_angles?.[finger]);
-    const percent = Number.isFinite(value) ? Math.max(0, Math.min(100, (value / 90) * 100)) : 0;
-    return `
-      <div class="progress-bar-cell">
-        <div class="progress-bar-track" aria-hidden="true">
-          <div
-            class="progress-bar-fill"
-            style="height:${percent.toFixed(1)}%;"
-          ></div>
-        </div>
-        <div class="progress-bar-value">${escapeHtml(formatAngle(value))}</div>
-        <div class="progress-bar-label">${escapeHtml(FINGER_LABELS[fingerIndex])}</div>
-      </div>
-    `;
-  }).join('');
-
-  const forceLevel = Number(selected?.force_level);
-  const forceLabel = Number.isFinite(forceLevel) ? `Level ${forceLevel}` : 'Level --';
+  if (preloadedGraphTitleEl) preloadedGraphTitleEl.textContent = `Max Angles - ${selectedName} (${selectedGroup.records.length} reps)`;
 
   preloadedChartEl.innerHTML = `
     <article class="progress-selected-exercise">
       <div class="progress-selected-exercise-head">
         <div class="progress-selected-exercise-name">${escapeHtml(selectedName)}</div>
         <div class="progress-selected-exercise-meta">
-          <div>${escapeHtml(forceLabel)}</div>
+          <div>${escapeHtml(selectedGroup.records.length)} saved rep${selectedGroup.records.length === 1 ? '' : 's'}</div>
           <div>Updated: ${escapeHtml(formatDate(selected?.updatedAt))}</div>
         </div>
       </div>
-      <div class="progress-bars">${bars}</div>
+      <div class="progress-rep-grid">${renderRepGraphGrid(selectedGroup)}</div>
     </article>
   `;
 }

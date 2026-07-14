@@ -22,7 +22,6 @@ import { FINGER_MAPPING_TABLE } from '../mappingTable.js';
 const FINGER_KEYS       = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 const FINGER_LABELS     = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 const PATIENT_CALIB_KEY = 'patientCalibrationV1';
-const PRELOADED_ANALYTICS_SAVE_DELAY_MS = 1500;
 
 // ─── Module-level mutable state ───────────────────────────────────────────────
 // All variables are reset inside mount() so each view visit starts clean.
@@ -66,6 +65,8 @@ let _preloadedAnalyticsMaxAngles = null;
 let _preloadedAnalyticsDirty = false;
 let _preloadedAnalyticsSaveTimer = null;
 let _preloadedAnalyticsSaving = false;
+let _preloadedAnalyticsSessionId = '';
+let _preloadedAnalyticsRepNumber = 0;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MATH — preserved VERBATIM from patient_exercise.html
@@ -458,7 +459,12 @@ function createEmptyFingerAngles() {
   }, {});
 }
 
-function resetPreloadedAnalyticsTracking() {
+function createAnalyticsSessionId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function resetPreloadedAnalyticsTracking(options = {}) {
+  const { newSession = true } = options;
   if (_preloadedAnalyticsSaveTimer) {
     clearTimeout(_preloadedAnalyticsSaveTimer);
     _preloadedAnalyticsSaveTimer = null;
@@ -466,18 +472,13 @@ function resetPreloadedAnalyticsTracking() {
   _preloadedAnalyticsMaxAngles = createEmptyFingerAngles();
   _preloadedAnalyticsDirty = false;
   _preloadedAnalyticsSaving = false;
+  if (newSession) {
+    _preloadedAnalyticsSessionId = createAnalyticsSessionId('preloaded');
+    _preloadedAnalyticsRepNumber = 0;
+  }
 }
 
-function schedulePreloadedAnalyticsSave() {
-  if (_preloadedAnalyticsSaveTimer || _preloadedAnalyticsSaving) return;
-
-  _preloadedAnalyticsSaveTimer = setTimeout(() => {
-    _preloadedAnalyticsSaveTimer = null;
-    savePreloadedAnalyticsSnapshot();
-  }, PRELOADED_ANALYTICS_SAVE_DELAY_MS);
-}
-
-function buildPreloadedAnalyticsPayload() {
+function buildPreloadedAnalyticsPayload(repId, repNumber, maxAngles = _preloadedAnalyticsMaxAngles) {
   const forceLevel = normalizeForceLevel(_selectedExercise?.level);
   if (forceLevel === null) return null;
 
@@ -485,11 +486,13 @@ function buildPreloadedAnalyticsPayload() {
     patient_id: _state?.patientId,
     doctor_id: _selectedExercise?.doctor_id,
     exercise_id: _selectedExercise?.exercise_id,
+    rep_id: repId,
+    rep_number: repNumber,
     force_level: forceLevel,
-    max_angles: { ..._preloadedAnalyticsMaxAngles }
+    max_angles: { ...maxAngles }
   };
 
-  return payload.patient_id && payload.doctor_id && payload.exercise_id ? payload : null;
+  return payload.patient_id && payload.doctor_id && payload.exercise_id && payload.rep_id ? payload : null;
 }
 
 async function postPreloadedAnalyticsPayload(payload) {
@@ -501,10 +504,10 @@ async function postPreloadedAnalyticsPayload(payload) {
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 }
 
-async function savePreloadedAnalyticsSnapshot() {
+async function savePreloadedAnalyticsSnapshot(repId, repNumber, maxAngles) {
   if (!_state || !_selectedExercise || !_preloadedAnalyticsMaxAngles || !_preloadedAnalyticsDirty) return;
 
-  const payload = buildPreloadedAnalyticsPayload();
+  const payload = buildPreloadedAnalyticsPayload(repId, repNumber, maxAngles);
   if (!payload) return;
 
   _preloadedAnalyticsSaving = true;
@@ -514,12 +517,8 @@ async function savePreloadedAnalyticsSnapshot() {
     await postPreloadedAnalyticsPayload(payload);
   } catch (error) {
     console.warn('[PreloadedCtrl] Failed to save preloaded analytics:', error);
-    _preloadedAnalyticsDirty = true;
   } finally {
     _preloadedAnalyticsSaving = false;
-    if (_preloadedAnalyticsDirty) {
-      schedulePreloadedAnalyticsSave();
-    }
   }
 }
 
@@ -529,15 +528,7 @@ function flushPreloadedAnalyticsSnapshot() {
     _preloadedAnalyticsSaveTimer = null;
   }
 
-  if (!_preloadedAnalyticsDirty) return;
-
-  const payload = buildPreloadedAnalyticsPayload();
-  if (!payload) return;
-
   _preloadedAnalyticsDirty = false;
-  postPreloadedAnalyticsPayload(payload).catch((error) => {
-    console.warn('[PreloadedCtrl] Failed to flush preloaded analytics:', error);
-  });
 }
 
 function updatePreloadedAnalyticsFromPacket(packet) {
@@ -559,8 +550,23 @@ function updatePreloadedAnalyticsFromPacket(packet) {
 
   if (improved) {
     _preloadedAnalyticsDirty = true;
-    schedulePreloadedAnalyticsSave();
   }
+}
+
+function saveCompletedPreloadedRepAnalytics() {
+  updatePreloadedAnalyticsFromPacket(_patientPacket);
+  if (!_preloadedAnalyticsDirty) {
+    resetPreloadedAnalyticsTracking({ newSession: false });
+    return;
+  }
+
+  _preloadedAnalyticsRepNumber += 1;
+  const repNumber = _preloadedAnalyticsRepNumber;
+  const repId = `${_preloadedAnalyticsSessionId}_rep_${String(repNumber).padStart(3, '0')}`;
+  const maxAngles = { ..._preloadedAnalyticsMaxAngles };
+
+  savePreloadedAnalyticsSnapshot(repId, repNumber, maxAngles);
+  resetPreloadedAnalyticsTracking({ newSession: false });
 }
 
 async function applyExerciseSelection(exerciseId) {
@@ -747,6 +753,7 @@ function renderMatchGrid() {
     if (allReached && !_repLatched) {
       _currentReps += 1;
       _repLatched   = true;
+      saveCompletedPreloadedRepAnalytics();
       const targetReps = Number(_doctorData.targetReps) || 0;
       const targetSets = Number(_doctorData.targetSets) || 0;
       if (targetReps > 0 && _currentReps >= targetReps) {
@@ -909,8 +916,8 @@ export function mount(container, gloveState, threeEngine) {
   _state.onPacket = (packet) => {
     // patient_exercise.html:1147-1148
     _patientPacket = packet;
-    renderMatchGrid();
     updatePreloadedAnalyticsFromPacket(packet);
+    renderMatchGrid();
   };
 
   _state.onStatus = (msg) => {

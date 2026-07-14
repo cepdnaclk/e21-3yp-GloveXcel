@@ -275,6 +275,61 @@
         linear-gradient(to top, rgba(7, 59, 92, 0.08) 1px, transparent 1px) 0 0 / 100% 25%,
         #ffffff;
     }
+    .view-namespace-doctor-progress .progress-rep-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+    .view-namespace-doctor-progress .progress-rep-card {
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+      padding: 10px;
+      min-width: 0;
+    }
+    .view-namespace-doctor-progress .progress-rep-card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: var(--c-navy);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .view-namespace-doctor-progress .progress-rep-card-head span:last-child {
+      color: var(--c-text-muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .view-namespace-doctor-progress .progress-rep-bars {
+      grid-template-columns: repeat(5, minmax(24px, 1fr));
+      gap: 5px;
+      min-height: 128px;
+      padding: 8px 6px 6px;
+    }
+    .view-namespace-doctor-progress .progress-rep-bars .progress-bar-cell {
+      height: 112px;
+      gap: 4px;
+    }
+    .view-namespace-doctor-progress .progress-rep-bars .progress-bar-track {
+      width: min(100%, 24px);
+      height: 74px;
+      border-radius: 8px;
+    }
+    .view-namespace-doctor-progress .progress-rep-bars .progress-bar-fill {
+      border-radius: 8px 8px 3px 3px;
+    }
+    .view-namespace-doctor-progress .progress-rep-bars .progress-bar-value {
+      font-size: 9px;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.1;
+    }
+    .view-namespace-doctor-progress .progress-rep-bars .progress-bar-label {
+      font-size: 9px;
+    }
     .view-namespace-doctor-progress .progress-bar-cell {
       display: grid;
       grid-template-rows: 1fr auto auto;
@@ -337,6 +392,12 @@
         grid-template-columns: repeat(5, minmax(42px, 1fr));
         gap: 6px;
         padding-inline: 6px;
+      }
+      .view-namespace-doctor-progress .progress-rep-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+      .view-namespace-doctor-progress .progress-rep-bars {
+        grid-template-columns: repeat(5, minmax(22px, 1fr));
       }
       .view-namespace-doctor-progress .progress-bar-track {
         width: min(100%, 34px);

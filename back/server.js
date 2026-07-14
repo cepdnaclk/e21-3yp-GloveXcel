@@ -8,6 +8,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { connectPostgres } = require('./config/supabaseDb');
+const { ensureAnalyticsIndexes } = require('./config/analyticsIndexes');
 
 // Import Routes
 const dataRoutes = require('./routes/dataRoutes');
@@ -40,6 +41,7 @@ async function connectDatabase() {
     }
 
     await mongoose.connect(process.env.MONGO_URI, { family: 4 });
+    await ensureAnalyticsIndexes();
     console.log('✅ Connected to MongoDB Atlas!');
   }
 

@@ -25,9 +25,23 @@ function normalizeMaxAngles(maxAngles = {}) {
     return normalized;
 }
 
+function normalizeRepId(value) {
+    const repId = String(value || '').trim();
+    return repId || null;
+}
+
+function normalizeRepNumber(value) {
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+
+    const repNumber = Number(value);
+    return Number.isInteger(repNumber) && repNumber >= 1 ? repNumber : null;
+}
+
 const saveLiveAnalytics = async (req, res) => {
     try {
-        const { patient_id, doctor_id, exercise_id, force_level, max_angles } = req.body;
+        const { patient_id, doctor_id, exercise_id, rep_id, rep_number, force_level, max_angles } = req.body;
 
         if (!exercise_id) {
             return res.status(400).json({ error: 'exercise_id is required.' });
@@ -55,22 +69,38 @@ const saveLiveAnalytics = async (req, res) => {
             return res.status(400).json({ error: 'max_angles with all 5 finger values is required.' });
         }
 
+        const normalizedRepId = normalizeRepId(rep_id);
+        if (!normalizedRepId) {
+            return res.status(400).json({ error: 'rep_id is required.' });
+        }
+
+        const normalizedRepNumber = normalizeRepNumber(rep_number);
+        if (rep_number !== undefined && rep_number !== null && rep_number !== '' && normalizedRepNumber === null) {
+            return res.status(400).json({ error: 'rep_number must be a positive integer.' });
+        }
+
         const maxUpdate = {};
         for (const finger of FINGER_KEYS) {
             maxUpdate[`max_angles.${finger}`] = normalizedMaxAngles[finger];
         }
 
         const now = Date.now();
+        const setUpdate = {
+            patient_id: effectivePatientId,
+            doctor_id,
+            exercise_id,
+            rep_id: normalizedRepId,
+            force_level: normalizedForceLevel,
+            updatedAt: now
+        };
+        if (normalizedRepNumber !== null) {
+            setUpdate.rep_number = normalizedRepNumber;
+        }
+
         const doc = await LiveAnalytics.findOneAndUpdate(
-            { patient_id: effectivePatientId, exercise_id },
+            { patient_id: effectivePatientId, exercise_id, rep_id: normalizedRepId },
             {
-                $set: {
-                    patient_id: effectivePatientId,
-                    doctor_id,
-                    exercise_id,
-                    force_level: normalizedForceLevel,
-                    updatedAt: now
-                },
+                $set: setUpdate,
                 $max: maxUpdate,
                 $setOnInsert: { createdAt: now }
             },

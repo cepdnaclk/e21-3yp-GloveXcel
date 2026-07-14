@@ -60,12 +60,14 @@ const MQTT_BROKER_URL = 'wss://f13259acb4eb4d23a9ccdd68b977301c.s1.eu.hivemq.clo
 const MQTT_USERNAME = 'Glovexl';
 const MQTT_PASSWORD = '200209Ost';
 const MQTT_TOPIC_BASE = 'project/glove01/patients';
-const LIVE_ANALYTICS_SAVE_DELAY_MS = 1500;
 
 let _liveAnalyticsMaxAngles = null;
 let _liveAnalyticsDirty = false;
 let _liveAnalyticsSaveTimer = null;
 let _liveAnalyticsSaving = false;
+let _liveAnalyticsSessionId = '';
+let _liveAnalyticsRepNumber = 0;
+let _liveAnalyticsRepLatched = false;
 
 function mqttSafeSegment(value) {
   return String(value || '')
@@ -463,7 +465,12 @@ function createEmptyFingerAngles() {
   }, {});
 }
 
-function resetLiveAnalyticsTracking() {
+function createAnalyticsSessionId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function resetLiveAnalyticsTracking(options = {}) {
+  const { newSession = true } = options;
   if (_liveAnalyticsSaveTimer) {
     clearTimeout(_liveAnalyticsSaveTimer);
     _liveAnalyticsSaveTimer = null;
@@ -471,21 +478,17 @@ function resetLiveAnalyticsTracking() {
   _liveAnalyticsMaxAngles = createEmptyFingerAngles();
   _liveAnalyticsDirty = false;
   _liveAnalyticsSaving = false;
+  _liveAnalyticsRepLatched = false;
+  if (newSession) {
+    _liveAnalyticsSessionId = createAnalyticsSessionId('live');
+    _liveAnalyticsRepNumber = 0;
+  }
 }
 
-function scheduleLiveAnalyticsSave() {
-  if (_liveAnalyticsSaveTimer || _liveAnalyticsSaving) return;
-
-  _liveAnalyticsSaveTimer = setTimeout(() => {
-    _liveAnalyticsSaveTimer = null;
-    saveLiveAnalyticsSnapshot();
-  }, LIVE_ANALYTICS_SAVE_DELAY_MS);
-}
-
-async function saveLiveAnalyticsSnapshot() {
+async function saveLiveAnalyticsSnapshot(repId, repNumber, maxAngles) {
   if (!_state || !_selectedLiveExercise || !_liveAnalyticsMaxAngles || !_liveAnalyticsDirty) return;
 
-  const payload = buildLiveAnalyticsPayload();
+  const payload = buildLiveAnalyticsPayload(repId, repNumber, maxAngles);
   if (!payload) return;
 
   _liveAnalyticsSaving = true;
@@ -495,16 +498,12 @@ async function saveLiveAnalyticsSnapshot() {
     await postLiveAnalyticsPayload(payload);
   } catch (error) {
     console.warn('[LiveCtrl] Failed to save live analytics:', error);
-    _liveAnalyticsDirty = true;
   } finally {
     _liveAnalyticsSaving = false;
-    if (_liveAnalyticsDirty) {
-      scheduleLiveAnalyticsSave();
-    }
   }
 }
 
-function buildLiveAnalyticsPayload() {
+function buildLiveAnalyticsPayload(repId, repNumber, maxAngles = _liveAnalyticsMaxAngles) {
   const forceLevel = resolveLiveExerciseForceLevel(_selectedLiveExercise);
   if (forceLevel === null) return null;
 
@@ -512,11 +511,13 @@ function buildLiveAnalyticsPayload() {
     patient_id: _state.patientId,
     doctor_id: _selectedLiveExercise.doctor_id,
     exercise_id: _selectedLiveExercise.exercise_id,
+    rep_id: repId,
+    rep_number: repNumber,
     force_level: forceLevel,
-    max_angles: { ..._liveAnalyticsMaxAngles }
+    max_angles: { ...maxAngles }
   };
 
-  return payload.patient_id && payload.doctor_id && payload.exercise_id ? payload : null;
+  return payload.patient_id && payload.doctor_id && payload.exercise_id && payload.rep_id ? payload : null;
 }
 
 async function postLiveAnalyticsPayload(payload) {
@@ -534,15 +535,7 @@ function flushLiveAnalyticsSnapshot() {
     _liveAnalyticsSaveTimer = null;
   }
 
-  if (!_liveAnalyticsDirty) return;
-
-  const payload = buildLiveAnalyticsPayload();
-  if (!payload) return;
-
   _liveAnalyticsDirty = false;
-  postLiveAnalyticsPayload(payload).catch((error) => {
-    console.warn('[LiveCtrl] Failed to flush live analytics:', error);
-  });
 }
 
 function updateLiveAnalyticsFromPacket(packet) {
@@ -564,7 +557,54 @@ function updateLiveAnalyticsFromPacket(packet) {
 
   if (improved) {
     _liveAnalyticsDirty = true;
-    scheduleLiveAnalyticsSave();
+  }
+
+  updateLiveRepDetection(angles);
+}
+
+function saveCompletedLiveRepAnalytics() {
+  if (!_liveAnalyticsDirty) {
+    resetLiveAnalyticsTracking({ newSession: false });
+    return;
+  }
+
+  _liveAnalyticsRepNumber += 1;
+  const repNumber = _liveAnalyticsRepNumber;
+  const repId = `${_liveAnalyticsSessionId}_rep_${String(repNumber).padStart(3, '0')}`;
+  const maxAngles = { ..._liveAnalyticsMaxAngles };
+
+  saveLiveAnalyticsSnapshot(repId, repNumber, maxAngles);
+  resetLiveAnalyticsTracking({ newSession: false });
+  _liveAnalyticsRepLatched = true;
+}
+
+function updateLiveRepDetection(angles) {
+  if (!_selectedLiveExercise || !_patientCalibration.ready) return;
+
+  const targets = getLiveExerciseTargets(_selectedLiveExercise);
+  const activeIndexes = targets
+    .map((target, index) => ({ target: Number(target), index }))
+    .filter((item) => Number.isFinite(item.target) && item.target > 0);
+
+  if (!activeIndexes.length) return;
+
+  const allReached = activeIndexes.every(({ target, index }) => {
+    const tolerance = Math.max(5, target * 0.1);
+    return Number.isFinite(angles[index]) && angles[index] >= (target - tolerance);
+  });
+
+  const anyBelowReset = activeIndexes.some(({ target, index }) => {
+    const tolerance = Math.max(5, target * 0.1);
+    return !Number.isFinite(angles[index]) || angles[index] < (target - tolerance);
+  });
+
+  if (allReached && !_liveAnalyticsRepLatched) {
+    saveCompletedLiveRepAnalytics();
+    return;
+  }
+
+  if (anyBelowReset && _liveAnalyticsRepLatched) {
+    _liveAnalyticsRepLatched = false;
   }
 }
 
@@ -736,6 +776,8 @@ async function loadPatientLiveExercises() {
     _liveExercises = Array.isArray(data.exercises) ? data.exercises : [];
     if (!_selectedLiveExercise && _liveExercises.length > 0) {
       _selectedLiveExercise = _liveExercises[0];
+      resetLiveAnalyticsTracking();
+      updateLiveAnalyticsFromPacket(_latestPatientPacket);
     }
     renderPatientLiveExercises(_liveExercises);
     renderSelectedLiveExerciseSliders();
@@ -903,6 +945,7 @@ export function mount(container, gloveState, threeEngine) {
   _manualRefAngle = null;
   _doctorAssignedForceLevel = null;
   _patientSelectedForceLevel = null;
+  resetLiveAnalyticsTracking();
 
   // Priority: use GloveState's in-memory calibration (set by calibration view),
   // falling back to localStorage if the user hasn't calibrated this session.

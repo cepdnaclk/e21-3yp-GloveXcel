@@ -24,6 +24,8 @@ describe('liveAnalyticsController.saveLiveAnalytics Unit Tests', () => {
                 patient_id: 'PAT-001',
                 doctor_id: 'DOC-123',
                 exercise_id: 'EX-LIVE-101',
+                rep_id: 'live-session-rep-001',
+                rep_number: 1,
                 force_level: 4,
                 max_angles: {
                     thumb: 25.2,
@@ -40,12 +42,14 @@ describe('liveAnalyticsController.saveLiveAnalytics Unit Tests', () => {
         await saveLiveAnalytics(req, res);
 
         expect(LiveAnalytics.findOneAndUpdate).toHaveBeenCalledWith(
-            { patient_id: 'PAT-001', exercise_id: 'EX-LIVE-101' },
+            { patient_id: 'PAT-001', exercise_id: 'EX-LIVE-101', rep_id: 'live-session-rep-001' },
             expect.objectContaining({
                 $set: expect.objectContaining({
                     patient_id: 'PAT-001',
                     doctor_id: 'DOC-123',
                     exercise_id: 'EX-LIVE-101',
+                    rep_id: 'live-session-rep-001',
+                    rep_number: 1,
                     force_level: 4
                 }),
                 $max: {
@@ -71,6 +75,7 @@ describe('liveAnalyticsController.saveLiveAnalytics Unit Tests', () => {
                 patient_id: 'PAT-SPOOF',
                 doctor_id: 'DOC-123',
                 exercise_id: 'EX-LIVE-101',
+                rep_id: 'live-session-rep-001',
                 max_angles: {
                     thumb: 10,
                     index: 11,
@@ -104,6 +109,7 @@ describe('liveAnalyticsController.saveLiveAnalytics Unit Tests', () => {
                 patient_id: 'PAT-001',
                 doctor_id: 'DOC-123',
                 exercise_id: 'EX-LIVE-101',
+                rep_id: 'live-session-rep-001',
                 max_angles: {
                     thumb: 10,
                     index: 11
@@ -117,6 +123,30 @@ describe('liveAnalyticsController.saveLiveAnalytics Unit Tests', () => {
         expect(LiveAnalytics.findOneAndUpdate).not.toHaveBeenCalled();
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({ error: 'max_angles with all 5 finger values is required.' });
+    });
+
+    test('rejects missing rep_id', async () => {
+        const req = {
+            body: {
+                patient_id: 'PAT-001',
+                doctor_id: 'DOC-123',
+                exercise_id: 'EX-LIVE-101',
+                max_angles: {
+                    thumb: 10,
+                    index: 11,
+                    middle: 12,
+                    ring: 13,
+                    pinky: 14
+                }
+            }
+        };
+        const res = mockResponse();
+
+        await saveLiveAnalytics(req, res);
+
+        expect(LiveAnalytics.findOneAndUpdate).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ error: 'rep_id is required.' });
     });
 
     test('lists latest analytics for selected doctor and patient', async () => {

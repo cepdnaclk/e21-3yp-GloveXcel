@@ -24,6 +24,8 @@ describe('preloadedAnalyticsController Unit Tests', () => {
                 patient_id: 'PAT-001',
                 doctor_id: 'DOC-123',
                 exercise_id: 'EX-PRE-101',
+                rep_id: 'preloaded-session-rep-001',
+                rep_number: 1,
                 force_level: 5,
                 max_angles: {
                     thumb: 20,
@@ -40,12 +42,14 @@ describe('preloadedAnalyticsController Unit Tests', () => {
         await savePreloadedAnalytics(req, res);
 
         expect(PreloadedAnalytics.findOneAndUpdate).toHaveBeenCalledWith(
-            { patient_id: 'PAT-001', exercise_id: 'EX-PRE-101' },
+            { patient_id: 'PAT-001', exercise_id: 'EX-PRE-101', rep_id: 'preloaded-session-rep-001' },
             expect.objectContaining({
                 $set: expect.objectContaining({
                     patient_id: 'PAT-001',
                     doctor_id: 'DOC-123',
                     exercise_id: 'EX-PRE-101',
+                    rep_id: 'preloaded-session-rep-001',
+                    rep_number: 1,
                     force_level: 5
                 }),
                 $max: {

@@ -28,7 +28,7 @@
     </section>
 
     <section class="panel progress-group-panel">
-      <div class="panel-title" id="progressGraphTitle">Max Angles by Exercise</div>
+      <div class="panel-title" id="progressGraphTitle">Finger Progress by Exercise</div>
       <div class="progress-legend" aria-label="Finger color legend">
         
       </div>
@@ -49,7 +49,7 @@
     </section>
 
     <section class="panel progress-group-panel">
-      <div class="panel-title" id="progressPreloadedGraphTitle">Max Angles by Preloaded Exercise</div>
+      <div class="panel-title" id="progressPreloadedGraphTitle">Finger Progress by Preloaded Exercise</div>
       <div id="progressPreloadedChart" class="progress-chart">Select a patient to view saved preloaded progress.</div>
     </section>
   </section>
@@ -330,6 +330,148 @@
     .view-namespace-doctor-progress .progress-rep-bars .progress-bar-label {
       font-size: 9px;
     }
+    .view-namespace-doctor-progress .progress-finger-chart-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+    .view-namespace-doctor-progress .progress-finger-chart {
+      --finger-color: var(--c-brand);
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto minmax(158px, 1fr) auto;
+      gap: 11px;
+      min-width: 0;
+      border: 1px solid rgba(7, 59, 92, 0.14);
+      border-radius: var(--radius-sm);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 251, 0.97)),
+        #ffffff;
+      padding: 12px;
+      box-shadow: 0 12px 26px rgba(7, 59, 92, 0.08);
+    }
+    .view-namespace-doctor-progress .progress-finger-chart::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--finger-color), color-mix(in srgb, var(--finger-color) 38%, #ffffff));
+    }
+    .view-namespace-doctor-progress .progress-finger-chart-head {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+    }
+    .view-namespace-doctor-progress .progress-finger-chart-head span:first-child {
+      min-width: 0;
+      color: var(--c-navy);
+      font-size: 14px;
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+    .view-namespace-doctor-progress .progress-finger-chart-head span:last-child {
+      flex: 0 0 auto;
+      border: 1px solid color-mix(in srgb, var(--finger-color) 34%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--finger-color) 12%, #ffffff);
+      color: var(--finger-color);
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+      padding: 6px 8px;
+      white-space: nowrap;
+    }
+    .view-namespace-doctor-progress .progress-line-svg {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 170px;
+      display: block;
+      overflow: hidden;
+      border: 1px solid rgba(7, 59, 92, 0.12);
+      border-radius: 8px;
+      background:
+        linear-gradient(to right, rgba(7, 59, 92, 0.045) 1px, transparent 1px) 0 0 / 25% 100%,
+        linear-gradient(180deg, rgba(248, 252, 251, 0.96), rgba(255, 255, 255, 0.98)),
+        #ffffff;
+    }
+    .view-namespace-doctor-progress .progress-line-grid {
+      stroke: rgba(7, 59, 92, 0.2);
+      stroke-width: 1.2;
+      stroke-dasharray: 5 5;
+    }
+    .view-namespace-doctor-progress .progress-line-axis {
+      stroke: rgba(7, 59, 92, 0.68);
+      stroke-width: 2.1;
+      stroke-linecap: square;
+    }
+    .view-namespace-doctor-progress .progress-line-area {
+      fill: var(--finger-color);
+      opacity: 0.1;
+    }
+    .view-namespace-doctor-progress .progress-line-path {
+      fill: none;
+      stroke: var(--finger-color);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 4.2;
+      filter: drop-shadow(0 4px 7px color-mix(in srgb, var(--finger-color) 22%, transparent));
+    }
+    .view-namespace-doctor-progress .progress-line-point circle {
+      fill: #ffffff;
+      stroke: var(--finger-color);
+      stroke-width: 3.4;
+      filter: drop-shadow(0 2px 4px rgba(7, 59, 92, 0.16));
+    }
+    .view-namespace-doctor-progress .progress-line-point.is-latest circle {
+      fill: var(--finger-color);
+      stroke: #ffffff;
+      stroke-width: 3.6;
+      filter: drop-shadow(0 3px 6px color-mix(in srgb, var(--finger-color) 30%, transparent));
+    }
+    .view-namespace-doctor-progress .progress-line-y-label,
+    .view-namespace-doctor-progress .progress-line-x-label {
+      fill: rgba(7, 59, 92, 0.82);
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .view-namespace-doctor-progress .progress-line-y-label {
+      text-anchor: end;
+    }
+    .view-namespace-doctor-progress .progress-line-x-label {
+      text-anchor: middle;
+    }
+    .view-namespace-doctor-progress .progress-line-axis-title {
+      fill: rgba(7, 59, 92, 0.68);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .view-namespace-doctor-progress .progress-line-y-title {
+      text-anchor: start;
+    }
+    .view-namespace-doctor-progress .progress-line-x-title {
+      text-anchor: end;
+    }
+    .view-namespace-doctor-progress .progress-finger-chart-stats {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--c-text-muted);
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .view-namespace-doctor-progress .progress-finger-chart-stats span:last-child {
+      color: var(--c-navy);
+    }
     .view-namespace-doctor-progress .progress-bar-cell {
       display: grid;
       grid-template-rows: 1fr auto auto;
@@ -375,6 +517,11 @@
       color: var(--c-text-muted);
       font-size: 13px;
     }
+    @media (max-width: 1040px) {
+      .view-namespace-doctor-progress .progress-finger-chart-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
     @media (max-width: 720px) {
       .view-namespace-doctor-progress .progress-controls {
         align-items: stretch;
@@ -398,6 +545,16 @@
       }
       .view-namespace-doctor-progress .progress-rep-bars {
         grid-template-columns: repeat(5, minmax(22px, 1fr));
+      }
+      .view-namespace-doctor-progress .progress-finger-chart-grid {
+        grid-template-columns: 1fr;
+      }
+      .view-namespace-doctor-progress .progress-line-svg {
+        height: 180px;
+      }
+      .view-namespace-doctor-progress .progress-finger-chart-stats {
+        flex-direction: column;
+        gap: 4px;
       }
       .view-namespace-doctor-progress .progress-bar-track {
         width: min(100%, 34px);

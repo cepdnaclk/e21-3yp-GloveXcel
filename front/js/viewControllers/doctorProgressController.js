@@ -124,6 +124,10 @@ function formatAngle(value) {
   return Number.isFinite(num) ? `${num.toFixed(1)} deg` : '--';
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function compareRepRecords(a, b) {
   const aRep = Number(a?.rep_number);
   const bRep = Number(b?.rep_number);
@@ -246,7 +250,7 @@ function renderPatientOptions() {
   patientSelectEl.disabled = patientSelectEl.options.length <= 1;
 }
 
-function renderChartEmpty(message, targetChartEl = chartEl, targetGraphTitleEl = graphTitleEl, title = 'Max Angles by Exercise') {
+function renderChartEmpty(message, targetChartEl = chartEl, targetGraphTitleEl = graphTitleEl, title = 'Finger Progress by Exercise') {
   if (!targetChartEl) return;
   targetChartEl.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
   if (targetGraphTitleEl) targetGraphTitleEl.textContent = title;
@@ -354,18 +358,137 @@ function renderRepGraphGrid(group) {
   }).join('');
 }
 
+function getFingerProgressPoints(group, finger) {
+  const records = Array.isArray(group?.records) ? group.records : [];
+  return records.map((record, index) => {
+    const value = Number(record?.max_angles?.[finger]);
+    return {
+      value: Number.isFinite(value) ? value : null,
+      label: repDisplayName(record, index)
+    };
+  });
+}
+
+function renderFingerLineChart(group, finger, fingerIndex) {
+  const points = getFingerProgressPoints(group, finger);
+  const validPoints = points
+    .map((point, index) => ({ ...point, index }))
+    .filter((point) => Number.isFinite(point.value));
+  const color = [
+    '#2563eb',
+    '#16a56a',
+    '#f59e0b',
+    '#e11d48',
+    '#7c3aed'
+  ][fingerIndex] || '#2563eb';
+
+  if (!validPoints.length) {
+    return `
+      <article class="progress-finger-chart">
+        <div class="progress-finger-chart-head">
+          <span>${escapeHtml(FINGER_LABELS[fingerIndex])}</span>
+          <span>No data</span>
+        </div>
+        <div class="empty-state">No saved max angles for this finger.</div>
+      </article>
+    `;
+  }
+
+  const width = 420;
+  const height = 230;
+  const padding = { top: 16, right: 18, bottom: 28, left: 50 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const maxValue = Math.max(90, ...validPoints.map((point) => point.value));
+  const yMax = Math.max(10, Math.ceil(maxValue / 10) * 10);
+  const xForIndex = (index) => {
+    if (points.length <= 1) return padding.left + (plotWidth / 2);
+    return padding.left + (index / (points.length - 1)) * plotWidth;
+  };
+  const yForValue = (value) => padding.top + plotHeight - (clamp(value, 0, yMax) / yMax) * plotHeight;
+  const linePoints = validPoints
+    .map((point) => `${xForIndex(point.index).toFixed(1)},${yForValue(point.value).toFixed(1)}`)
+    .join(' ');
+  const firstPoint = validPoints[0];
+  const lastPoint = validPoints[validPoints.length - 1];
+  const bestValue = Math.max(...validPoints.map((point) => point.value));
+  const baselineY = padding.top + plotHeight;
+  const areaPoints = validPoints.length > 1
+    ? `${xForIndex(firstPoint.index).toFixed(1)},${baselineY.toFixed(1)} ${linePoints} ${xForIndex(lastPoint.index).toFixed(1)},${baselineY.toFixed(1)}`
+    : '';
+  const gridValues = Array.from(new Set([0, 45, 90, yMax]))
+    .filter((value) => value <= yMax)
+    .sort((a, b) => a - b);
+  const xLabelIndexes = Array.from(new Set([
+    0,
+    Math.floor((points.length - 1) / 2),
+    points.length - 1
+  ])).filter((index) => index >= 0);
+
+  return `
+    <article class="progress-finger-chart" style="--finger-color:${escapeHtml(color)};">
+      <div class="progress-finger-chart-head">
+        <span>${escapeHtml(FINGER_LABELS[fingerIndex])}</span>
+        <span>Best ${escapeHtml(formatAngle(bestValue))}</span>
+      </div>
+      <svg
+        class="progress-line-svg"
+        viewBox="0 0 ${width} ${height}"
+        role="img"
+        aria-label="${escapeHtml(FINGER_LABELS[fingerIndex])} max angle progress across ${points.length} reps"
+      >
+        ${gridValues.map((value) => {
+          const y = yForValue(value);
+          return `
+            <line class="progress-line-grid" x1="${padding.left}" y1="${y.toFixed(1)}" x2="${width - padding.right}" y2="${y.toFixed(1)}"></line>
+            <text class="progress-line-y-label" x="${padding.left - 10}" y="${(y + 4).toFixed(1)}">${escapeHtml(Math.round(value))}</text>
+          `;
+        }).join('')}
+        <line class="progress-line-axis progress-line-y-axis" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${padding.top + plotHeight}"></line>
+        <line class="progress-line-axis progress-line-x-axis" x1="${padding.left}" y1="${padding.top + plotHeight}" x2="${width - padding.right}" y2="${padding.top + plotHeight}"></line>
+        <text class="progress-line-axis-title progress-line-y-title" x="${padding.left}" y="11">deg</text>
+        ${areaPoints ? `<polygon class="progress-line-area" points="${areaPoints}"></polygon>` : ''}
+        ${validPoints.length > 1 ? `<polyline class="progress-line-path" points="${linePoints}"></polyline>` : ''}
+        ${validPoints.map((point) => {
+          const x = xForIndex(point.index);
+          const y = yForValue(point.value);
+          return `
+            <g class="progress-line-point${point.index === lastPoint.index ? ' is-latest' : ''}">
+              <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.8"></circle>
+              <title>${escapeHtml(point.label)}: ${escapeHtml(formatAngle(point.value))}</title>
+            </g>
+          `;
+        }).join('')}
+        ${xLabelIndexes.map((index) => `
+          <text class="progress-line-x-label" x="${xForIndex(index).toFixed(1)}" y="${height - 10}">${escapeHtml(points[index]?.label || '')}</text>
+        `).join('')}
+      </svg>
+      <div class="progress-finger-chart-stats">
+        <span>Start ${escapeHtml(formatAngle(firstPoint.value))}</span>
+        <span>Latest ${escapeHtml(formatAngle(lastPoint.value))}</span>
+      </div>
+    </article>
+  `;
+}
+
+function renderFingerProgressCharts(group) {
+  return FINGER_KEYS.map((finger, fingerIndex) => (
+    renderFingerLineChart(group, finger, fingerIndex)
+  )).join('');
+}
+
 function renderSelectedChart() {
   if (!chartEl) return;
 
   const groups = groupAnalyticsByExercise(_analyticsRecords);
   if (!groups.length) {
-    renderChartEmpty('Select an exercise card to view its max angle graph.');
+    renderChartEmpty('Select an exercise card to view finger progress graphs.');
     return;
   }
 
   const selectedGroup = groups.find((item) => item?.exercise_id === _selectedExerciseId) || groups[0];
   if (!selectedGroup) {
-    renderChartEmpty('Select an exercise card to view its max angle graph.');
+    renderChartEmpty('Select an exercise card to view finger progress graphs.');
     return;
   }
 
@@ -373,7 +496,7 @@ function renderSelectedChart() {
   const selected = selectedGroup.latestRecord || selectedGroup.records[0] || {};
   const selectedIndex = groups.indexOf(selectedGroup);
   const selectedName = exerciseDisplayName(selected, selectedIndex);
-  if (graphTitleEl) graphTitleEl.textContent = `Max Angles - ${selectedName} (${selectedGroup.records.length} reps)`;
+  if (graphTitleEl) graphTitleEl.textContent = `Finger Progress - ${selectedName} (${selectedGroup.records.length} reps)`;
 
   chartEl.innerHTML = `
     <article class="progress-selected-exercise">
@@ -384,7 +507,7 @@ function renderSelectedChart() {
           <div>Updated: ${escapeHtml(formatDate(selected?.updatedAt))}</div>
         </div>
       </div>
-      <div class="progress-rep-grid">${renderRepGraphGrid(selectedGroup)}</div>
+      <div class="progress-finger-chart-grid">${renderFingerProgressCharts(selectedGroup)}</div>
     </article>
   `;
 }
@@ -395,10 +518,10 @@ function renderPreloadedSelectedChart() {
   const groups = groupAnalyticsByExercise(_preloadedAnalyticsRecords);
   if (!groups.length) {
     renderChartEmpty(
-      'Select a preloaded exercise card to view its max angle graph.',
+      'Select a preloaded exercise card to view finger progress graphs.',
       preloadedChartEl,
       preloadedGraphTitleEl,
-      'Max Angles by Preloaded Exercise'
+      'Finger Progress by Preloaded Exercise'
     );
     return;
   }
@@ -406,10 +529,10 @@ function renderPreloadedSelectedChart() {
   const selectedGroup = groups.find((item) => item?.exercise_id === _selectedPreloadedExerciseId) || groups[0];
   if (!selectedGroup) {
     renderChartEmpty(
-      'Select a preloaded exercise card to view its max angle graph.',
+      'Select a preloaded exercise card to view finger progress graphs.',
       preloadedChartEl,
       preloadedGraphTitleEl,
-      'Max Angles by Preloaded Exercise'
+      'Finger Progress by Preloaded Exercise'
     );
     return;
   }
@@ -418,7 +541,7 @@ function renderPreloadedSelectedChart() {
   const selected = selectedGroup.latestRecord || selectedGroup.records[0] || {};
   const selectedIndex = groups.indexOf(selectedGroup);
   const selectedName = exerciseDisplayName(selected, selectedIndex);
-  if (preloadedGraphTitleEl) preloadedGraphTitleEl.textContent = `Max Angles - ${selectedName} (${selectedGroup.records.length} reps)`;
+  if (preloadedGraphTitleEl) preloadedGraphTitleEl.textContent = `Finger Progress - ${selectedName} (${selectedGroup.records.length} reps)`;
 
   preloadedChartEl.innerHTML = `
     <article class="progress-selected-exercise">
@@ -429,7 +552,7 @@ function renderPreloadedSelectedChart() {
           <div>Updated: ${escapeHtml(formatDate(selected?.updatedAt))}</div>
         </div>
       </div>
-      <div class="progress-rep-grid">${renderRepGraphGrid(selectedGroup)}</div>
+      <div class="progress-finger-chart-grid">${renderFingerProgressCharts(selectedGroup)}</div>
     </article>
   `;
 }
@@ -521,13 +644,13 @@ async function loadProgress() {
     _preloadedAnalyticsRecords = [];
     _selectedPreloadedExerciseId = '';
     renderCardsEmpty('Select a patient to view saved exercises.');
-    renderChartEmpty('Select an exercise card to view its max angle graph.');
+    renderChartEmpty('Select an exercise card to view finger progress graphs.');
     renderCardsEmpty('Select a patient to view saved preloaded exercises.', preloadedExerciseCardsEl);
     renderChartEmpty(
-      'Select a preloaded exercise card to view its max angle graph.',
+      'Select a preloaded exercise card to view finger progress graphs.',
       preloadedChartEl,
       preloadedGraphTitleEl,
-      'Max Angles by Preloaded Exercise'
+      'Finger Progress by Preloaded Exercise'
     );
     setStatus('');
     return;
@@ -545,7 +668,7 @@ async function loadProgress() {
       'Doctor session was not found. Please log in again.',
       preloadedChartEl,
       preloadedGraphTitleEl,
-      'Max Angles by Preloaded Exercise'
+      'Finger Progress by Preloaded Exercise'
     );
     setStatus('Doctor session was not found.', 'error');
     return;
@@ -610,7 +733,7 @@ async function loadProgress() {
       'Failed to load preloaded patient progress.',
       preloadedChartEl,
       preloadedGraphTitleEl,
-      'Max Angles by Preloaded Exercise'
+      'Finger Progress by Preloaded Exercise'
     );
     setStatus(`Failed to load progress: ${error.message}`, 'error');
   } finally {
@@ -639,16 +762,16 @@ export function mount(container, gloveState) {
 
   updateHeader();
   renderCardsEmpty(_selectedPatient ? 'Loading saved exercises...' : 'Select a patient to view saved exercises.');
-  renderChartEmpty('Select an exercise card to view its max angle graph.');
+  renderChartEmpty('Select an exercise card to view finger progress graphs.');
   renderCardsEmpty(
     _selectedPatient ? 'Loading saved preloaded exercises...' : 'Select a patient to view saved preloaded exercises.',
     preloadedExerciseCardsEl
   );
   renderChartEmpty(
-    'Select a preloaded exercise card to view its max angle graph.',
+    'Select a preloaded exercise card to view finger progress graphs.',
     preloadedChartEl,
     preloadedGraphTitleEl,
-    'Max Angles by Preloaded Exercise'
+    'Finger Progress by Preloaded Exercise'
   );
 
   patientSelectEl?.addEventListener('change', () => {

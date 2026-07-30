@@ -1,5 +1,7 @@
 # GloveXcel: Home-Based Rehabilitation System
 
+![GloveXcel rehabilitation glove](website/Assets/glove.png)
+
 RehabGlove is an innovative wearable rehabilitation system designed to provide effective, home-based therapy for patients recovering from conditions like stroke, arthritis, and post-surgery. By using advanced motion sensors and real-time feedback, RehabGlove helps ensure proper exercise execution and provides valuable progress tracking, all from the comfort of the patient’s home.
 
 **Key Features**

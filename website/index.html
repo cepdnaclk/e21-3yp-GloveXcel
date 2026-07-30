@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GloveXcel — a university hand rehabilitation technology project for guided, measurable therapy at home.">
+  <meta name="theme-color" content="#020617">
+  <title>GloveXcel | Smart Home-Based Hand Rehabilitation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Reusable icon set -->
+  <svg class="svg-sprite" aria-hidden="true">
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M7.5 11V5.5a1.5 1.5 0 0 1 3 0V10m0-5.5a1.5 1.5 0 0 1 3 0V10m0-4.5a1.5 1.5 0 0 1 3 0V11m0-3.5a1.5 1.5 0 0 1 3 0V15c0 4-2.6 7-7 7h-1c-2.5 0-4.4-1.2-5.8-3L3 15.2a1.7 1.7 0 0 1 2.6-2.1L7.5 15"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12h3l2-7 4 14 3-10 2 3h4"/></symbol>
+    <symbol id="i-vibrate" viewBox="0 0 24 24"><rect x="8" y="4" width="8" height="16" rx="2"/><path d="M4.5 8a6 6 0 0 0 0 8M2 6a9 9 0 0 0 0 12M19.5 8a6 6 0 0 1 0 8M22 6a9 9 0 0 1 0 12"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m5 7H2"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-13a3 3 0 0 1 0 6m2 1a5 5 0 0 1 3 4v2"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v9H4v-9"/><path d="M9 20v-6h6v6"/></symbol>
+    <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 1v5m6-5v5M9 18v5m6-5v5M1 9h5m-5 6h5m12-6h5m-5 6h5"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/></symbol>
+    <symbol id="i-bluetooth" viewBox="0 0 24 24"><path d="m7 7 10 10-5 4V3l5 4L7 17"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 18a9 9 0 1 1 16 0"/><path d="m12 14 4-5"/><path d="M6 18h12"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5m0 3h.01"/></symbol>
+    <symbol id="i-mobility" viewBox="0 0 24 24"><circle cx="12" cy="4" r="2"/><path d="m10 8 3 4 4 2m-7-6-3 5 4 2-2 6m4-9 1 5h5"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 5-6 7 6 7m8-14 6 7-6 7m-2-16-4 18"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  </svg>
+
+  <!-- Navigation -->
+  <header class="site-header" id="top">
+    <nav class="nav container" aria-label="Primary navigation">
+      <a class="brand" href="#home" aria-label="GloveXcel home">
+        <span class="brand-mark"><svg><use href="#i-hand"/></svg></span>
+        <span>Glove<span>Xcel</span></span>
+      </a>
+      <button class="menu-toggle" type="button" aria-label="Open navigation menu" aria-controls="nav-menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-menu" id="nav-menu">
+        <a href="#home">Home</a>
+        <a href="#about">About</a>
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#components">Components</a>
+        <a href="#software">Software</a>
+        <a href="#testing">Testing</a>
+        <a href="#team">Team</a>
+      </div>
+      <a class="button button-small nav-cta" href="#features">View Features <svg><use href="#i-arrow"/></svg></a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero section" id="home">
+      <div class="hero-grid container">
+        <div class="hero-copy reveal">
+          <div class="eyebrow"><span></span> Smart Rehabilitation Technology</div>
+          <p class="hero-name">Introducing GloveXcel</p>
+          <h1>Rehabilitation Made <span class="gradient-text">Smarter at Home.</span></h1>
+          <p class="hero-subtitle">Smart Home-Based Hand Rehabilitation System</p>
+          <p class="hero-description">A wearable rehabilitation glove that helps patients perform hand therapy exercises at home with motion tracking, real-time feedback, and therapist-guided progress monitoring.</p>
+          <div class="hero-actions">
+            <a class="button" href="#features">View Project Features <svg><use href="#i-arrow"/></svg></a>
+            <a class="button button-ghost" href="#how-it-works">How It Works</a>
+          </div>
+          <ul class="hero-indicators" aria-label="Core capabilities">
+            <li><span></span>Wearable Motion Tracking</li>
+            <li><span></span>Real-Time Haptic Feedback</li>
+            <li><span></span>Remote Therapist Monitoring</li>
+            <li><span></span>Home-Based Rehabilitation</li>
+          </ul>
+        </div>
+        <div class="hero-visual reveal" aria-label="GloveXcel prototype visual">
+          <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+          <div class="hero-image-frame">
+            <img src="Assets/glove.png" alt="GloveXcel wearable hand rehabilitation glove prototype" width="1536" height="1024">
+          </div>
+          <div class="float-card fc-one"><span class="pulse"></span><div><b>Motion Sensors</b><small>Movement capture</small></div></div>
+          <div class="float-card fc-two"><svg><use href="#i-chip"/></svg><div><b>ESP32 Control</b><small>Live processing</small></div></div>
+          <div class="float-card fc-three"><svg><use href="#i-vibrate"/></svg><div><b>Haptic Feedback</b><small>Guided response</small></div></div>
+          <div class="float-card fc-four"><svg><use href="#i-gauge"/></svg><div><b>Force Control</b><small>Adjustable resistance</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Introductory features -->
+    <section class="section intro-features" aria-labelledby="intro-title">
+      <div class="container">
+        <div class="section-heading reveal">
+          <span class="kicker">Purpose-built technology</span>
+          <h2 id="intro-title">Technology Designed to Support <span class="gradient-text">Better Rehabilitation</span></h2>
+          <p>Connected tools that turn repeated hand therapy into a guided, visible process.</p>
+        </div>
+        <div class="card-grid four-col">
+          <article class="feature-card reveal"><div class="icon-box"><svg><use href="#i-wave"/></svg></div><h3>Motion Tracking</h3><p>Tracks finger bending, hand orientation, and rehabilitation movements using embedded wearable sensors.</p><span class="card-index">01</span></article>
+          <article class="feature-card reveal"><div class="icon-box"><svg><use href="#i-vibrate"/></svg></div><h3>Haptic Guidance</h3><p>Provides vibration feedback when the patient performs an incorrect or incomplete movement.</p><span class="card-index">02</span></article>
+          <article class="feature-card reveal"><div class="icon-box"><svg><use href="#i-chart"/></svg></div><h3>Exercise Analytics</h3><p>Records repetitions, angles, force levels, exercise sessions, and rehabilitation progress.</p><span class="card-index">03</span></article>
+          <article class="feature-card reveal"><div class="icon-box"><svg><use href="#i-users"/></svg></div><h3>Remote Monitoring</h3><p>Allows doctors and therapists to review patient performance and rehabilitation history remotely.</p><span class="card-index">04</span></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- About -->
+    <section class="section about" id="about">
+      <div class="container about-grid">
+        <div class="screen-showcase reveal">
+          <div class="browser-bar"><span></span><span></span><span></span><p>GloveXcel Rehabilitation Platform</p></div>
+          <img src="Assets/screens.png" alt="GloveXcel patient and therapist dashboard interface shown on desktop and mobile screens" width="1536" height="1024" loading="lazy">
+          <div class="screen-badge"><svg><use href="#i-chart"/></svg><span><b>Connected insights</b><small>Patient &amp; therapist views</small></span></div>
+        </div>
+        <div class="about-copy reveal">
+          <span class="kicker">About GloveXcel</span>
+          <h2>Accessible and Measurable <span class="gradient-text">Home Rehabilitation</span></h2>
+          <p>GloveXcel is a rehabilitation system created to make hand therapy more accessible, interactive, and measurable. It is designed for patients who require repeated hand exercises but may experience difficulty travelling to therapy centres regularly.</p>
+          <p>GloveXcel combines wearable sensors, an ESP32-based control unit, haptic feedback, and a web or mobile dashboard to guide patients through rehabilitation exercises. The system allows patients to complete therapy sessions from home while giving therapists access to progress data.</p>
+          <ul class="check-list">
+            <li><svg><use href="#i-check"/></svg>Patient-specific calibration</li>
+            <li><svg><use href="#i-check"/></svg>Therapist-defined exercise targets</li>
+            <li><svg><use href="#i-check"/></svg>Live movement monitoring</li>
+            <li><svg><use href="#i-check"/></svg>Session and progress analytics</li>
+            <li><svg><use href="#i-check"/></svg>Resistive force adjustment</li>
+            <li><svg><use href="#i-check"/></svg>Remote therapy supervision</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Problem statement -->
+    <section class="section problems" aria-labelledby="problems-title">
+      <div class="container">
+        <div class="section-heading reveal"><span class="kicker">The need</span><h2 id="problems-title">The Rehabilitation Challenges <span class="gradient-text">GloveXcel Addresses</span></h2></div>
+        <div class="problem-grid">
+          <article class="problem-card reveal"><div class="problem-number">01</div><svg><use href="#i-hand"/></svg><p>Patients recovering from stroke, arthritis, or surgery often require continuous hand therapy.</p></article>
+          <article class="problem-card reveal"><div class="problem-number">02</div><svg><use href="#i-mobility"/></svg><p>Travelling to therapy centres can be difficult for patients with mobility limitations.</p></article>
+          <article class="problem-card reveal"><div class="problem-number">03</div><svg><use href="#i-home"/></svg><p>Home rehabilitation exercises are difficult to monitor accurately.</p></article>
+          <article class="problem-card reveal"><div class="problem-number">04</div><svg><use href="#i-alert"/></svg><p>Patients may perform movements incorrectly without real-time feedback.</p></article>
+          <article class="problem-card reveal"><div class="problem-number">05</div><svg><use href="#i-chart"/></svg><p>Therapists need better methods to monitor patient progress remotely.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Objectives -->
+    <section class="section objectives" aria-labelledby="objectives-title">
+      <div class="container">
+        <div class="split-heading reveal"><div><span class="kicker">What we set out to do</span><h2 id="objectives-title">Project <span class="gradient-text">Objectives</span></h2></div><p>Seven engineering goals connect wearable sensing with practical, supervised therapy outside the clinic.</p></div>
+        <ol class="objective-list">
+          <li class="reveal"><span>01</span><p>Track finger and hand movements using embedded sensors.</p></li>
+          <li class="reveal"><span>02</span><p>Provide real-time feedback when movements deviate from therapy targets.</p></li>
+          <li class="reveal"><span>03</span><p>Support patient calibration and doctor calibration.</p></li>
+          <li class="reveal"><span>04</span><p>Allow patients to complete self-guided rehabilitation exercises.</p></li>
+          <li class="reveal"><span>05</span><p>Allow therapists to monitor patient progress remotely.</p></li>
+          <li class="reveal"><span>06</span><p>Store and visualise exercise and session data.</p></li>
+          <li class="reveal"><span>07</span><p>Improve access to rehabilitation outside clinical environments.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Functionalities -->
+    <section class="section functionalities" id="features">
+      <div class="container">
+        <div class="section-heading reveal"><span class="kicker">Key functionalities</span><h2>A Connected System for <span class="gradient-text">Guided Recovery</span></h2><p>From the first calibration to long-term session review, each feature supports a clearer rehabilitation workflow.</p></div>
+        <div class="card-grid three-col">
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-wave"/></svg></div><h3>Motion Tracking</h3><p>Tracks finger and hand movement using embedded wearable sensors.</p></article>
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-vibrate"/></svg></div><h3>Real-Time Haptic Feedback</h3><p>Uses vibration motors to alert patients when a movement requires correction.</p></article>
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-target"/></svg></div><h3>Patient Calibration</h3><p>Stores patient-specific minimum and maximum finger movement values.</p></article>
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-settings"/></svg></div><h3>Doctor Calibration</h3><p>Stores doctor or reference movement values for comparison with patient performance.</p></article>
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-hand"/></svg></div><h3>Live Exercise Mode</h3><p>Displays real-time glove movement and monitors the patient’s current hand motion.</p></article>
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-check"/></svg></div><h3>Preloaded Exercise Mode</h3><p>Supports assigned rehabilitation exercises with target repetitions, sets, and force levels.</p></article>
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-chart"/></svg></div><h3>Progress Analytics</h3><p>Tracks exercise performance, maximum angles, repetitions, and session history.</p></article>
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-users"/></svg></div><h3>Therapist Monitoring</h3><p>Allows therapists to review patients, assigned exercises, and rehabilitation progress.</p></article>
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-gauge"/></svg></div><h3>Resistive Force Control</h3><p>Uses adjustable motor force levels to provide therapeutic resistance during exercises.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section process" id="how-it-works">
+      <div class="container">
+        <div class="section-heading reveal"><span class="kicker">How it works</span><h2>From Hand Movement to <span class="gradient-text">Meaningful Feedback</span></h2><p>A five-stage path converts physical movement into guidance and reviewable progress data.</p></div>
+        <div class="process-line" aria-label="GloveXcel five-step system process">
+          <article class="process-card reveal"><span class="step">01</span><div class="process-icon"><svg><use href="#i-wave"/></svg></div><h3>Sensor Data Collection</h3><p>Sensors capture finger bending, hand orientation, force, and hand movement.</p></article>
+          <div class="connector" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
+          <article class="process-card reveal"><span class="step">02</span><div class="process-icon"><svg><use href="#i-chip"/></svg></div><h3>ESP32 Processing</h3><p>The ESP32 reads sensor values and communicates with the rehabilitation application.</p></article>
+          <div class="connector" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
+          <article class="process-card reveal"><span class="step">03</span><div class="process-icon"><svg><use href="#i-target"/></svg></div><h3>Movement Comparison</h3><p>Live movements are compared with patient calibration, doctor calibration, or exercise targets.</p></article>
+          <div class="connector" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
+          <article class="process-card reveal"><span class="step">04</span><div class="process-icon"><svg><use href="#i-vibrate"/></svg></div><h3>Haptic Feedback</h3><p>Vibration motors alert the patient when movement correction is required.</p></article>
+          <div class="connector" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
+          <article class="process-card reveal"><span class="step">05</span><div class="process-icon"><svg><use href="#i-chart"/></svg></div><h3>Progress Recording</h3><p>Exercise results and analytics are stored for patient and therapist review.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hardware -->
+    <section class="section hardware" id="components">
+      <div class="container">
+        <div class="split-heading reveal"><div><span class="kicker">Hardware components</span><h2>Engineering the <span class="gradient-text">Wearable System</span></h2></div><p>A coordinated set of sensors, feedback devices, control electronics, and mechanical elements.</p></div>
+        <div class="hardware-grid">
+          <article class="hardware-card reveal"><span>01</span><div><h3>Potentiometers</h3><p>Measure finger joint movement.</p></div></article>
+          <article class="hardware-card reveal"><span>02</span><div><h3>Strain Gauges</h3><p>Detect bending and force-related changes.</p></div></article>
+          <article class="hardware-card reveal"><span>03</span><div><h3>Accelerometers</h3><p>Track hand orientation and motion.</p></div></article>
+          <article class="hardware-card reveal"><span>04</span><div><h3>ESP32 Microcontroller</h3><p>Processes sensor data and manages wireless communication.</p></div></article>
+          <article class="hardware-card reveal"><span>05</span><div><h3>Vibration Motors</h3><p>Provide haptic correction feedback to the patient.</p></div></article>
+          <article class="hardware-card reveal"><span>06</span><div><h3>Encoder Motor</h3><p>Supports adjustable resistive force control.</p></div></article>
+          <article class="hardware-card reveal"><span>07</span><div><h3>Spring Mechanism</h3><p>Creates therapeutic resistance during finger movement.</p></div></article>
+          <article class="hardware-card reveal"><span>08</span><div><h3>Rechargeable Battery</h3><p>Powers the wearable glove system.</p></div></article>
+          <article class="hardware-card reveal"><span>09</span><div><h3>Glove Structure</h3><p>Holds sensors, control components, and feedback devices securely on the hand.</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Software architecture -->
+    <section class="section software" id="software">
+      <div class="container software-shell">
+        <div class="software-copy reveal">
+          <span class="kicker">Software &amp; technologies</span>
+          <h2>A Complete Project <span class="gradient-text">Architecture</span></h2>
+          <p>The wider GloveXcel project connects role-based interfaces, wireless communication, APIs, and structured data services. This website is a static project showcase only; these services are presented as system architecture and are not implemented here.</p>
+          <div class="tech-pills"><span>Node.js</span><span>Express</span><span>MongoDB</span><span>Bluetooth / BLE</span><span>3D Visualisation</span></div>
+        </div>
+        <div class="architecture-grid reveal">
+          <article><svg><use href="#i-code"/></svg><div><h3>Frontend Experience</h3><p>Patient and doctor dashboards with available 3D hand-model visualisation.</p></div></article>
+          <article><svg><use href="#i-bluetooth"/></svg><div><h3>Device Communication</h3><p>Bluetooth or BLE and wireless glove communication.</p></div></article>
+          <article><svg><use href="#i-lock"/></svg><div><h3>Role Authentication</h3><p>Access architecture for admin, doctor, and patient roles.</p></div></article>
+          <article><svg><use href="#i-database"/></svg><div><h3>Data &amp; Services</h3><p>Node.js, Express, MongoDB or database storage.</p></div></article>
+          <article class="api-card"><svg><use href="#i-settings"/></svg><div><h3>Project APIs</h3><p>Calibration · Exercise · Live analytics · Preloaded analytics · Force control · Therapy sessions</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- User roles -->
+    <section class="section roles" aria-labelledby="roles-title">
+      <div class="container">
+        <div class="section-heading reveal"><span class="kicker">Role-based workflows</span><h2 id="roles-title">Designed Around <span class="gradient-text">Every User</span></h2></div>
+        <div class="role-grid">
+          <article class="role-card reveal"><div class="role-top"><div class="role-icon"><svg><use href="#i-settings"/></svg></div><span>01</span></div><h3>Admin</h3><ul><li>Manages doctor approvals</li><li>Manages system users</li><li>Oversees platform access</li></ul></article>
+          <article class="role-card featured reveal"><div class="role-top"><div class="role-icon"><svg><use href="#i-users"/></svg></div><span>02</span></div><h3>Doctor or Therapist</h3><ul><li>Registers and logs in</li><li>Views assigned patients</li><li>Creates and assigns exercises</li><li>Sets repetitions, sets, and force levels</li><li>Reviews analytics and progress</li></ul></article>
+          <article class="role-card reveal"><div class="role-top"><div class="role-icon"><svg><use href="#i-hand"/></svg></div><span>03</span></div><h3>Patient</h3><ul><li>Logs in and connects the glove</li><li>Completes calibration</li><li>Performs live or preloaded exercises</li><li>Receives real-time feedback</li><li>Reviews rehabilitation progress</li></ul></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modules -->
+    <section class="section modules" aria-labelledby="modules-title">
+      <div class="container">
+        <div class="split-heading reveal"><div><span class="kicker">System modules</span><h2 id="modules-title">One Integrated <span class="gradient-text">Platform</span></h2></div><p>Nine coordinated modules support the complete therapy journey.</p></div>
+        <div class="module-grid">
+          <article class="reveal"><svg><use href="#i-lock"/></svg><span>Authentication Module</span></article>
+          <article class="reveal"><svg><use href="#i-users"/></svg><span>Doctor Dashboard</span></article>
+          <article class="reveal"><svg><use href="#i-hand"/></svg><span>Patient Dashboard</span></article>
+          <article class="reveal"><svg><use href="#i-target"/></svg><span>Calibration Module</span></article>
+          <article class="reveal"><svg><use href="#i-wave"/></svg><span>Live Exercise Module</span></article>
+          <article class="reveal"><svg><use href="#i-check"/></svg><span>Preloaded Exercise Module</span></article>
+          <article class="reveal"><svg><use href="#i-chart"/></svg><span>Analytics &amp; Progress Tracking</span></article>
+          <article class="reveal"><svg><use href="#i-gauge"/></svg><span>Force Control Module</span></article>
+          <article class="reveal"><svg><use href="#i-database"/></svg><span>Therapy Session History</span></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Use cases -->
+    <section class="section use-cases" aria-labelledby="use-cases-title">
+      <div class="container">
+        <div class="section-heading reveal"><span class="kicker">Use cases</span><h2 id="use-cases-title">Rehabilitation That Fits <span class="gradient-text">Real Life</span></h2></div>
+        <div class="use-grid">
+          <article class="reveal"><svg><use href="#i-home"/></svg><h3>Home-Based Therapy</h3><p>Complete guided hand rehabilitation sessions from home.</p></article>
+          <article class="reveal"><svg><use href="#i-hand"/></svg><h3>Stroke Recovery</h3><p>Support repeated hand exercises during recovery workflows.</p></article>
+          <article class="reveal"><svg><use href="#i-wave"/></svg><h3>Arthritis Mobility</h3><p>Support structured hand and finger mobility exercises.</p></article>
+          <article class="reveal"><svg><use href="#i-target"/></svg><h3>Post-Surgery Therapy</h3><p>Guide assigned finger movement exercises after surgery.</p></article>
+          <article class="reveal"><svg><use href="#i-users"/></svg><h3>Remote Guidance</h3><p>Connect patient activity with therapist review and direction.</p></article>
+          <article class="reveal"><svg><use href="#i-gauge"/></svg><h3>Interactive Sessions</h3><p>Make therapy more engaging through visible feedback and goals.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Benefits -->
+    <section class="section benefits" aria-labelledby="benefits-title">
+      <div class="container benefits-grid">
+        <div class="benefits-copy reveal">
+          <span class="kicker">Project benefits</span>
+          <h2 id="benefits-title">Improving Rehabilitation <span class="gradient-text">Beyond the Clinic</span></h2>
+          <p>GloveXcel explores how engineering can make prescribed hand exercises easier to access, follow, and review.</p>
+          <ul class="benefit-list">
+            <li><svg><use href="#i-check"/></svg>Reduces the need for frequent hospital or clinic visits</li>
+            <li><svg><use href="#i-check"/></svg>Helps patients perform exercises correctly</li>
+            <li><svg><use href="#i-check"/></svg>Makes rehabilitation more interactive</li>
+            <li><svg><use href="#i-check"/></svg>Supports remote progress monitoring</li>
+            <li><svg><use href="#i-check"/></svg>Helps therapists adjust therapy using recorded data</li>
+            <li><svg><use href="#i-check"/></svg>Encourages consistent rehabilitation practice at home</li>
+            <li><svg><use href="#i-check"/></svg>Provides measurable progress tracking</li>
+          </ul>
+        </div>
+        <div class="stats-panel reveal">
+          <article><strong>9</strong><span>Core System<br>Modules</span></article>
+          <article><strong>3</strong><span>Main User<br>Roles</span></article>
+          <article><strong>2</strong><span>Exercise<br>Modes</span></article>
+          <div class="stat-note"><span class="pulse"></span>Project scope at a glance</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Testing -->
+    <section class="section testing" id="testing">
+      <div class="container">
+        <div class="split-heading reveal"><div><span class="kicker">Testing &amp; evaluation</span><h2>Prototype Validation <span class="gradient-text">Across the System</span></h2></div><p>Testing covers sensing, calibration, feedback, exercise flows, services, analytics, and prototype usability—without unsupported clinical claims.</p></div>
+        <div class="testing-grid">
+          <article class="reveal"><span class="status tested">Tested</span><h3>Sensor Accuracy</h3><p>Sensor readings reviewed across intended hand movements.</p></article>
+          <article class="reveal"><span class="status verified">Verified</span><h3>Patient Calibration</h3><p>Patient range capture and stored values checked.</p></article>
+          <article class="reveal"><span class="status verified">Verified</span><h3>Doctor Calibration</h3><p>Reference movement capture and comparison checked.</p></article>
+          <article class="reveal"><span class="status tested">Tested</span><h3>Haptic Response</h3><p>Correction feedback behaviour tested against triggers.</p></article>
+          <article class="reveal"><span class="status tested">Tested</span><h3>Exercise Tracking</h3><p>Repetitions, targets, and movement records checked.</p></article>
+          <article class="reveal"><span class="status verified">Verified</span><h3>Live Exercise Mode</h3><p>Real-time movement workflow and display verified.</p></article>
+          <article class="reveal"><span class="status verified">Verified</span><h3>Preloaded Exercise Mode</h3><p>Assigned exercise flow and target handling verified.</p></article>
+          <article class="reveal"><span class="status tested">Tested</span><h3>Backend APIs</h3><p>Project service endpoints tested within the wider system.</p></article>
+          <article class="reveal"><span class="status evaluated">Evaluated</span><h3>Progress Analytics</h3><p>Session records and analytical views evaluated.</p></article>
+          <article class="reveal"><span class="status evaluated">Evaluated</span><h3>Prototype Usability</h3><p>Overall prototype interaction and workflow evaluated.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Gallery -->
+    <section class="section gallery" aria-labelledby="gallery-title">
+      <div class="container">
+        <div class="section-heading reveal"><span class="kicker">Prototype gallery</span><h2 id="gallery-title">Prototype and <span class="gradient-text">System Interface</span></h2></div>
+        <div class="gallery-grid">
+          <button class="gallery-card gallery-image large reveal" type="button" data-full="Assets/glove.png" data-alt="GloveXcel rehabilitation glove prototype">
+            <img src="Assets/glove.png" alt="GloveXcel rehabilitation glove prototype" width="1536" height="1024" loading="lazy"><span><b>Rehabilitation glove prototype</b><small>View image</small></span>
+          </button>
+          <div class="gallery-card placeholder reveal"><svg><use href="#i-chip"/></svg><div><b>Circuit and hardware setup</b><small>Project image placeholder</small></div></div>
+          <button class="gallery-card gallery-image wide reveal" type="button" data-full="Assets/screens.png" data-alt="GloveXcel dashboard interface">
+            <img src="Assets/screens.png" alt="GloveXcel dashboard interface across desktop and mobile devices" width="1536" height="1024" loading="lazy"><span><b>Dashboard interface</b><small>View image</small></span>
+          </button>
+          <div class="gallery-card placeholder reveal"><svg><use href="#i-target"/></svg><div><b>Calibration screen</b><small>Project image placeholder</small></div></div>
+          <div class="gallery-card placeholder reveal"><svg><use href="#i-wave"/></svg><div><b>Live exercise screen</b><small>Project image placeholder</small></div></div>
+          <div class="gallery-card placeholder reveal"><svg><use href="#i-chart"/></svg><div><b>Doctor progress screen</b><small>Project image placeholder</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Team -->
+    <section class="section team" id="team">
+      <div class="container">
+        <div class="section-heading reveal"><span class="kicker">The people behind the project</span><h2>Meet the <span class="gradient-text">GloveXcel Team</span></h2></div>
+        <div class="team-grid">
+          <article class="team-card reveal"><div class="avatar">AA</div><span>E/21/006</span><h3>Abeykoon A.M.U.I.B.</h3></article>
+          <article class="team-card reveal"><div class="avatar">AA</div><span>E/21/007</span><h3>Abeynayake A.G.C.D.</h3></article>
+          <article class="team-card reveal"><div class="avatar">EE</div><span>E/21/124</span><h3>Ekanayake E.M.D.A.</h3></article>
+          <article class="team-card reveal"><div class="avatar">TL</div><span>E/21/410</span><h3>Thilakarathne L.R.O.S.</h3></article>
+        </div>
+        <p class="team-note reveal"><svg><use href="#i-code"/></svg>Developed as a 3rd Year Undergraduate Project in Computer Engineering.</p>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="section final-cta">
+      <div class="container">
+        <div class="cta-panel reveal">
+          <div><span class="kicker">GloveXcel</span><h2>Smart Technology for <span class="gradient-text">Accessible Rehabilitation</span></h2><p>GloveXcel combines wearable sensing, real-time feedback, exercise guidance, and progress monitoring to support effective home-based hand rehabilitation.</p></div>
+          <a class="button" href="#home">Back to Top <svg class="arrow-up"><use href="#i-arrow"/></svg></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand"><a class="brand" href="#home"><span class="brand-mark"><svg><use href="#i-hand"/></svg></span><span>Glove<span>Xcel</span></span></a><p>A smart wearable system supporting accessible, measurable, and therapist-guided home rehabilitation.</p></div>
+      <div><h3>Quick Links</h3><ul><li><a href="#about">About</a></li><li><a href="#features">Features</a></li><li><a href="#components">Components</a></li><li><a href="#testing">Testing</a></li><li><a href="#team">Team</a></li></ul></div>
+      <div><h3>Project</h3><ul><li>Computer Engineering</li><li>3rd Year Undergraduate Project</li><li>Rehabilitation Technology</li></ul></div>
+    </div>
+    <div class="container footer-bottom"><p>© 2026 GloveXcel Project Team. All rights reserved.</p><p>University engineering project showcase</p></div>
+  </footer>
+
+  <!-- Gallery lightbox -->
+  <dialog class="lightbox" aria-label="Gallery image preview">
+    <button class="lightbox-close" type="button" aria-label="Close image preview">×</button>
+    <img src="" alt="">
+    <p></p>
+  </dialog>
+
+  <script src="script.js"></script>
+</body>
+</html>

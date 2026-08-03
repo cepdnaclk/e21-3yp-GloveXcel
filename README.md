@@ -30,92 +30,38 @@ GloveXcel is a wearable hand-rehabilitation system that helps patients complete 
 1. Five sensors measure the movement of the patient's thumb and four fingers.
 2. The ESP32 sends each sample to the browser as a five-value BLE packet.
 3. Patient-specific minimum and maximum calibration values convert raw readings into normalized movement and joint-angle values.
-4. Five visual sliders and a 3D hand update in real time.
-5. Exercise targets show progress and support automatic repetition detection.
-6. Calibration, exercise, force, session, and analytics data are stored for the doctor to review.
+4. The doctor-defined value for each finger is loaded as that exercise's **maximum movement angle**.
+5. Five live sliders and the 3D hand show the patient's current movement relative to those maximums.
+6. The patient approaches the prescribed maximum range without intentionally moving beyond it.
+7. A repetition is recorded when all required fingers enter the accepted range near their maximums, then return below the reset range.
+8. Calibration, exercise, force, session, and analytics data are stored for the doctor to review.
 
-```mermaid
-flowchart LR
-    A[Five finger sensors] --> B[ESP32]
-    B -->|5-value BLE packet| C[Web Bluetooth client]
-    C --> D[Patient calibration]
-    D --> E[Five live movement sliders]
-    D --> F[3D hand model]
-    D --> G[Target and repetition logic]
-    G --> H[Session analytics]
-    H --> I[Doctor progress dashboard]
-```
+![GloveXcel exercise data flow from doctor-defined maximum angles to patient movement](docs/images/readme/exercise-data-flow.png)
 
 ## System architecture
 
-```mermaid
-flowchart TB
-    subgraph Glove[Wearable glove]
-        Sensors[Thumb + four finger sensors]
-        ESP32[ESP32 BLE controller]
-        Resistance[Motor, encoder, and spring resistance unit]
-        Sensors --> ESP32
-        ESP32 --> Resistance
-    end
-
-    subgraph Browser[Browser applications]
-        Patient[Patient dashboard]
-        Doctor[Doctor dashboard]
-        Admin[Admin portal]
-        Visual[Visual sliders + 3D hand]
-        Patient --> Visual
-    end
-
-    subgraph Services[Application services]
-        API[Node.js + Express API]
-        MQTT[MQTT live data channel]
-        Postgres[(PostgreSQL / Supabase)]
-        Mongo[(MongoDB)]
-    end
-
-    ESP32 <-->|Web Bluetooth| Patient
-    Patient <-->|Live sensor sharing| MQTT
-    MQTT -->|Remote monitoring| Doctor
-    Patient <-->|JSON API| API
-    Doctor <-->|JSON API| API
-    Admin <-->|JSON API| API
-    API --> Postgres
-    API --> Mongo
-```
+![GloveXcel hardware, patient application, services, doctor dashboard, and database architecture](docs/images/readme/system-architecture.png)
 
 PostgreSQL/Supabase stores relational data such as users, hospitals, doctor–patient links, exercises, plans, and sessions. MongoDB stores sensor-oriented documents such as calibration records, force settings, exercise maxima, and live/preloaded analytics. Run the backend with `DB_CLIENT=both` for the complete application.
 
 ## Visual finger feedback
 
-The visual feedback system replaces vibration-based guidance.
+The visual feedback system replaces vibration-based guidance. It does **not** ask the patient to reproduce one exact doctor value. Instead, the doctor creates an exercise with a safe maximum angle for Thumb, Index, Middle, Ring, and Pinky.
 
-| Visual channel | What it shows |
-|---|---|
-| Thumb slider | Current calibrated thumb movement against its target |
-| Index slider | Current calibrated index-finger movement against its target |
-| Middle slider | Current calibrated middle-finger movement against its target |
-| Ring slider | Current calibrated ring-finger movement against its target |
-| Pinky slider | Current calibrated little-finger movement against its target |
-| Overall indicator | Whether the active fingers are approaching or meeting the selected target |
-| 3D hand | A live digital twin of the measured hand pose |
+![GloveXcel visual finger movement guide showing current movement, safe maximums, and over-limit zones](docs/images/readme/visual-finger-guide.png)
 
-```mermaid
-sequenceDiagram
-    participant S as Finger sensors
-    participant E as ESP32
-    participant B as Patient browser
-    participant V as Sliders and 3D hand
-    participant A as Analytics API
+During an exercise:
 
-    S->>E: Read five finger positions
-    E->>B: Notify five-value BLE packet
-    B->>B: Apply patient min/max calibration
-    B->>V: Update each finger independently
-    B->>B: Compare movement with exercise targets
-    B->>A: Save repetition and peak-angle results
-```
+- Each potentiometer continuously changes the live value of its corresponding finger.
+- Patient calibration converts each raw sensor value into a movement angle.
+- The blue part of a slider is the patient's current movement.
+- The doctor maximum is the upper movement ceiling for that finger.
+- The bar becomes green from 95% of the maximum, showing that the finger is close to its prescribed ceiling.
+- Moving more than 5% beyond the maximum is shown in red and should be avoided.
+- The application displays `current angle / doctor maximum angle` for every finger.
+- The 3D hand mirrors the same calibrated patient movement.
 
-The sliders provide continuous, finger-by-finger feedback rather than a single pass/fail signal. This makes it clear which finger needs more flexion or extension during an exercise.
+For repetition counting, the current implementation accepts a finger when it reaches the range beginning at `maximum - tolerance`, where tolerance is the larger of 5 degrees or 10% of that finger's maximum. All five required fingers must enter their accepted ranges; the patient then returns below the range before another repetition can be counted. The patient therefore follows a safe movement range rather than trying to hit an exact number.
 
 ## Features
 
@@ -125,7 +71,7 @@ The sliders provide continuous, finger-by-finger feedback rather than a single p
 - Doctor discovery and doctor–patient connection requests.
 - BLE connection, remembered-device reconnection, notifications, and read-polling fallback.
 - Separate minimum and maximum calibration for all five fingers.
-- Live raw readings, calibrated angles, five movement sliders, target matching, and overall status.
+- Live raw readings, calibrated angles, five movement sliders, maximum-range comparison, and overall status.
 - Real-time 3D hand visualization using Three.js and a GLB hand model.
 - Preloaded exercises and doctor-created live exercises.
 - Automatic repetition detection, repetition/set status, and maximum-angle capture.
@@ -140,8 +86,8 @@ The sliders provide continuous, finger-by-finger feedback rather than a single p
 - Patient request approval/rejection and managed patient list.
 - Doctor-glove calibration for reference movements.
 - Patient rehabilitation setup and selection.
-- Preloaded exercise builder with description, dates, repetitions, sets, force level, and five finger targets.
-- Live exercise creation from target angles or a captured glove pose.
+- Preloaded exercise builder with description, dates, repetitions, sets, force level, and five finger maximum angles.
+- Live exercise creation from maximum angles or a captured glove pose.
 - Live patient monitoring through MQTT with raw values, converted angles, message rate, and optional 3D model control.
 - Compliance visualization, repetition peak detection, and resistive-force configuration.
 - Per-finger live/preloaded progress charts and analytics history.
@@ -269,30 +215,19 @@ The BLE interface uses a sensor characteristic for five-byte finger packets and 
 
 ## Using GloveXcel
 
-```mermaid
-flowchart TD
-    A[Admin registers hospital and approves doctor] --> B[Doctor and patient accounts]
-    B --> C[Patient requests doctor connection]
-    C --> D[Doctor approves patient]
-    D --> E[Patient and doctor calibrate their gloves]
-    E --> F[Doctor creates exercise and finger targets]
-    F --> G[Patient selects exercise and connects glove]
-    G --> H[Five sliders and 3D hand show movement]
-    H --> I[Repetitions and peak angles are recorded]
-    I --> J[Doctor reviews progress and adjusts the plan]
-```
+The usual workflow is: an administrator approves the doctor, the patient connects with that doctor, both users complete the required calibration, and the doctor creates an exercise with safe maximum angles. The patient then connects the glove, follows the five live sliders without exceeding the maximums, and completes the prescribed repetitions. Saved peak angles and session results are available in the doctor progress view.
 
 ### Calibration
 
-Calibration records the relaxed and fully moved value for each finger. These personal limits are required because sensor placement and range differ between users. Complete calibration before relying on angles, target matching, or repetition counts.
+Calibration records the relaxed and fully moved value for each finger. These personal limits are required because sensor placement and range differ between users. Complete calibration before relying on angles, maximum-range comparison, or repetition counts.
 
 ### Preloaded session
 
-A doctor creates an exercise with five target angles, repetition/set goals, dates, and resistance. The patient selects the exercise and follows the on-screen movement. The application tracks repetitions and saves maximum achieved angles.
+A doctor creates an exercise with five **maximum movement angles**, repetition/set goals, dates, and resistance. The patient selects the exercise and follows the live potentiometer-driven sliders, approaching the safe maximum for each finger without intentionally exceeding it. The application tracks repetitions and saves the peak angles actually achieved.
 
 ### Live session and progress
 
-Every BLE packet is mapped directly to the five sliders and 3D hand. A manual reference or doctor-created exercise can be selected for comparison. With live sharing enabled, the doctor subscribes to the patient's MQTT topic. Live and preloaded analytics store the exercise, repetition, force level, and maximum angle reached by each finger for the progress charts.
+Every BLE packet is mapped directly to the five sliders and 3D hand. A manual reference or doctor-created maximum-angle exercise can be selected for comparison. With live sharing enabled, the doctor subscribes to the patient's MQTT topic. Live and preloaded analytics store the exercise, repetition, force level, and peak angle reached by each finger for the progress charts.
 
 ## API overview
 
@@ -304,7 +239,7 @@ All API routes use the `/api` prefix.
 | Doctor–patient channels | `/api/channel-requests/*` | Requests, decisions, and patient management |
 | Calibration | `/api/doctor-cal/*`, `/api/patient-cal/*` | Five-finger minimum/maximum values |
 | Glove data and force | `/api/data/*`, `/api/forces/*` | Sensor packets and resistance levels |
-| Exercises | `/api/exercises/*`, `/api/exercise-max/*`, `/api/live-exercises/*` | Preloaded/live exercises and targets |
+| Exercises | `/api/exercises/*`, `/api/exercise-max/*`, `/api/live-exercises/*` | Preloaded/live exercises and maximum movement angles |
 | Plans and sessions | `/api/therapy-plans/*`, `/api/therapy-sessions/*` | Assignments and session history |
 | Analytics | `/api/live-analytics/*`, `/api/preloaded-analytics/*` | Per-repetition finger results |
 

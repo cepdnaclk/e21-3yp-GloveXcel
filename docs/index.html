@@ -18,7 +18,7 @@
   <svg class="svg-sprite" aria-hidden="true">
     <symbol id="i-hand" viewBox="0 0 24 24"><path d="M7.5 11V5.5a1.5 1.5 0 0 1 3 0V10m0-5.5a1.5 1.5 0 0 1 3 0V10m0-4.5a1.5 1.5 0 0 1 3 0V11m0-3.5a1.5 1.5 0 0 1 3 0V15c0 4-2.6 7-7 7h-1c-2.5 0-4.4-1.2-5.8-3L3 15.2a1.7 1.7 0 0 1 2.6-2.1L7.5 15"/></symbol>
     <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12h3l2-7 4 14 3-10 2 3h4"/></symbol>
-    <symbol id="i-vibrate" viewBox="0 0 24 24"><rect x="8" y="4" width="8" height="16" rx="2"/><path d="M4.5 8a6 6 0 0 0 0 8M2 6a9 9 0 0 0 0 12M19.5 8a6 6 0 0 1 0 8M22 6a9 9 0 0 1 0 12"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="11" cy="18" r="2"/></symbol>
     <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m5 7H2"/></symbol>
     <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-13a3 3 0 0 1 0 6m2 1a5 5 0 0 1 3 4v2"/></symbol>
     <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v9H4v-9"/><path d="M9 20v-6h6v6"/></symbol>
@@ -70,14 +70,14 @@
           <p class="hero-name">Introducing GloveXcel</p>
           <h1>Rehabilitation Made <span class="gradient-text">Smarter at Home.</span></h1>
           <p class="hero-subtitle">Smart Home-Based Hand Rehabilitation System</p>
-          <p class="hero-description">A wearable rehabilitation glove that helps patients perform hand therapy exercises at home with motion tracking, real-time feedback, and therapist-guided progress monitoring.</p>
+          <p class="hero-description">A wearable rehabilitation glove that helps patients perform hand therapy exercises at home with motion tracking, real-time visual guidance, and therapist-guided progress monitoring.</p>
           <div class="hero-actions">
             <a class="button" href="#features">View Project Features <svg><use href="#i-arrow"/></svg></a>
             <a class="button button-ghost" href="#how-it-works">How It Works</a>
           </div>
           <ul class="hero-indicators" aria-label="Core capabilities">
             <li><span></span>Wearable Motion Tracking</li>
-            <li><span></span>Real-Time Haptic Feedback</li>
+            <li><span></span>Five-Finger Visual Guidance</li>
             <li><span></span>Remote Therapist Monitoring</li>
             <li><span></span>Home-Based Rehabilitation</li>
           </ul>
@@ -89,7 +89,7 @@
           </div>
           <div class="float-card fc-one"><span class="pulse"></span><div><b>Motion Sensors</b><small>Movement capture</small></div></div>
           <div class="float-card fc-two"><svg><use href="#i-chip"/></svg><div><b>ESP32 Control</b><small>Live processing</small></div></div>
-          <div class="float-card fc-three"><svg><use href="#i-vibrate"/></svg><div><b>Haptic Feedback</b><small>Guided response</small></div></div>
+          <div class="float-card fc-three"><svg><use href="#i-sliders"/></svg><div><b>Visual Limits</b><small>Per-finger guidance</small></div></div>
           <div class="float-card fc-four"><svg><use href="#i-gauge"/></svg><div><b>Force Control</b><small>Adjustable resistance</small></div></div>
         </div>
       </div>
@@ -105,7 +105,7 @@
         </div>
         <div class="card-grid four-col">
           <article class="feature-card reveal"><div class="icon-box"><svg><use href="#i-wave"/></svg></div><h3>Motion Tracking</h3><p>Tracks finger bending, hand orientation, and rehabilitation movements using embedded wearable sensors.</p><span class="card-index">01</span></article>
-          <article class="feature-card reveal"><div class="icon-box"><svg><use href="#i-vibrate"/></svg></div><h3>Haptic Guidance</h3><p>Provides vibration feedback when the patient performs an incorrect or incomplete movement.</p><span class="card-index">02</span></article>
+          <article class="feature-card reveal"><div class="icon-box"><svg><use href="#i-sliders"/></svg></div><h3>Visual Finger Guidance</h3><p>Five live sliders show each finger’s current angle, prescribed limit, and exceeded-limit state.</p><span class="card-index">02</span></article>
           <article class="feature-card reveal"><div class="icon-box"><svg><use href="#i-chart"/></svg></div><h3>Exercise Analytics</h3><p>Records repetitions, angles, force levels, exercise sessions, and rehabilitation progress.</p><span class="card-index">03</span></article>
           <article class="feature-card reveal"><div class="icon-box"><svg><use href="#i-users"/></svg></div><h3>Remote Monitoring</h3><p>Allows doctors and therapists to review patient performance and rehabilitation history remotely.</p><span class="card-index">04</span></article>
         </div>
@@ -124,7 +124,7 @@
           <span class="kicker">About GloveXcel</span>
           <h2>Accessible and Measurable <span class="gradient-text">Home Rehabilitation</span></h2>
           <p>GloveXcel is a rehabilitation system created to make hand therapy more accessible, interactive, and measurable. It is designed for patients who require repeated hand exercises but may experience difficulty travelling to therapy centres regularly.</p>
-          <p>GloveXcel combines wearable sensors, an ESP32-based control unit, haptic feedback, and a web or mobile dashboard to guide patients through rehabilitation exercises. The system allows patients to complete therapy sessions from home while giving therapists access to progress data.</p>
+          <p>GloveXcel combines wearable sensors, an ESP32-based control unit, visual finger guidance, and a responsive dashboard to guide patients through rehabilitation exercises. The system allows patients to complete therapy sessions from home while giving therapists access to progress data.</p>
           <ul class="check-list">
             <li><svg><use href="#i-check"/></svg>Patient-specific calibration</li>
             <li><svg><use href="#i-check"/></svg>Therapist-defined exercise targets</li>
@@ -157,7 +157,7 @@
         <div class="split-heading reveal"><div><span class="kicker">What we set out to do</span><h2 id="objectives-title">Project <span class="gradient-text">Objectives</span></h2></div><p>Seven engineering goals connect wearable sensing with practical, supervised therapy outside the clinic.</p></div>
         <ol class="objective-list">
           <li class="reveal"><span>01</span><p>Track finger and hand movements using embedded sensors.</p></li>
-          <li class="reveal"><span>02</span><p>Provide real-time feedback when movements deviate from therapy targets.</p></li>
+          <li class="reveal"><span>02</span><p>Show each finger’s movement, safe limit, and exceeded-limit warning in real time.</p></li>
           <li class="reveal"><span>03</span><p>Support patient calibration and doctor calibration.</p></li>
           <li class="reveal"><span>04</span><p>Allow patients to complete self-guided rehabilitation exercises.</p></li>
           <li class="reveal"><span>05</span><p>Allow therapists to monitor patient progress remotely.</p></li>
@@ -173,7 +173,7 @@
         <div class="section-heading reveal"><span class="kicker">Key functionalities</span><h2>A Connected System for <span class="gradient-text">Guided Recovery</span></h2><p>From the first calibration to long-term session review, each feature supports a clearer rehabilitation workflow.</p></div>
         <div class="card-grid three-col">
           <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-wave"/></svg></div><h3>Motion Tracking</h3><p>Tracks finger and hand movement using embedded wearable sensors.</p></article>
-          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-vibrate"/></svg></div><h3>Real-Time Haptic Feedback</h3><p>Uses vibration motors to alert patients when a movement requires correction.</p></article>
+          <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-sliders"/></svg></div><h3>Per-Finger Visual Sliders</h3><p>Displays the live angle and doctor-defined maximum separately for the thumb, index, middle, ring, and pinky.</p></article>
           <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-target"/></svg></div><h3>Patient Calibration</h3><p>Stores patient-specific minimum and maximum finger movement values.</p></article>
           <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-settings"/></svg></div><h3>Doctor Calibration</h3><p>Stores doctor or reference movement values for comparison with patient performance.</p></article>
           <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-hand"/></svg></div><h3>Live Exercise Mode</h3><p>Displays real-time glove movement and monitors the patient’s current hand motion.</p></article>
@@ -182,6 +182,29 @@
           <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-users"/></svg></div><h3>Therapist Monitoring</h3><p>Allows therapists to review patients, assigned exercises, and rehabilitation progress.</p></article>
           <article class="function-card reveal"><div class="icon-box"><svg><use href="#i-gauge"/></svg></div><h3>Resistive Force Control</h3><p>Uses adjustable motor force levels to provide therapeutic resistance during exercises.</p></article>
         </div>
+      </div>
+    </section>
+
+    <!-- Visual feedback guide -->
+    <section class="section visual-guide" aria-labelledby="visual-guide-title">
+      <div class="container visual-guide-grid">
+        <div class="visual-guide-copy reveal">
+          <span class="kicker">Clear visual feedback</span>
+          <h2 id="visual-guide-title">Understand Every Finger <span class="gradient-text">at a Glance</span></h2>
+          <p>GloveXcel turns the five live sensor readings into simple movement sliders, making the prescribed range easy for patients and therapists to understand.</p>
+          <ul class="check-list">
+            <li><svg><use href="#i-check"/></svg>A separate slider identifies every finger</li>
+            <li><svg><use href="#i-check"/></svg>Blue fill follows the current calibrated angle</li>
+            <li><svg><use href="#i-check"/></svg>A clear marker shows the doctor-defined maximum</li>
+            <li><svg><use href="#i-check"/></svg>Green indicates movement close to the target</li>
+            <li><svg><use href="#i-check"/></svg>Red highlights the individual finger that exceeds its safe limit</li>
+            <li><svg><use href="#i-check"/></svg>Current and maximum angles remain visible side by side</li>
+          </ul>
+        </div>
+        <button class="visual-guide-image reveal" type="button" data-full="images/readme/visual-finger-guide.png" data-alt="Five visual finger sliders showing live movement, doctor maximums, and exceeded-limit zones">
+          <img src="images/readme/visual-finger-guide.png" alt="Five visual sliders comparing each finger's live angle with its doctor-defined maximum and exceeded-limit zone" width="1792" height="1024" loading="lazy">
+          <span>Open the visual guide</span>
+        </button>
       </div>
     </section>
 
@@ -196,7 +219,7 @@
           <div class="connector" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
           <article class="process-card reveal"><span class="step">03</span><div class="process-icon"><svg><use href="#i-target"/></svg></div><h3>Movement Comparison</h3><p>Live movements are compared with patient calibration, doctor calibration, or exercise targets.</p></article>
           <div class="connector" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
-          <article class="process-card reveal"><span class="step">04</span><div class="process-icon"><svg><use href="#i-vibrate"/></svg></div><h3>Haptic Feedback</h3><p>Vibration motors alert the patient when movement correction is required.</p></article>
+          <article class="process-card reveal"><span class="step">04</span><div class="process-icon"><svg><use href="#i-sliders"/></svg></div><h3>Visual Limit Guidance</h3><p>Five sliders identify fingers approaching their targets and clearly highlight any exceeded limit.</p></article>
           <div class="connector" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
           <article class="process-card reveal"><span class="step">05</span><div class="process-icon"><svg><use href="#i-chart"/></svg></div><h3>Progress Recording</h3><p>Exercise results and analytics are stored for patient and therapist review.</p></article>
         </div>
@@ -206,17 +229,16 @@
     <!-- Hardware -->
     <section class="section hardware" id="components">
       <div class="container">
-        <div class="split-heading reveal"><div><span class="kicker">Hardware components</span><h2>Engineering the <span class="gradient-text">Wearable System</span></h2></div><p>A coordinated set of sensors, feedback devices, control electronics, and mechanical elements.</p></div>
+        <div class="split-heading reveal"><div><span class="kicker">Hardware components</span><h2>Engineering the <span class="gradient-text">Wearable System</span></h2></div><p>A coordinated set of sensors, control electronics, resistance hardware, and mechanical elements.</p></div>
         <div class="hardware-grid">
           <article class="hardware-card reveal"><span>01</span><div><h3>Potentiometers</h3><p>Measure finger joint movement.</p></div></article>
           <article class="hardware-card reveal"><span>02</span><div><h3>Strain Gauges</h3><p>Detect bending and force-related changes.</p></div></article>
           <article class="hardware-card reveal"><span>03</span><div><h3>Accelerometers</h3><p>Track hand orientation and motion.</p></div></article>
           <article class="hardware-card reveal"><span>04</span><div><h3>ESP32 Microcontroller</h3><p>Processes sensor data and manages wireless communication.</p></div></article>
-          <article class="hardware-card reveal"><span>05</span><div><h3>Vibration Motors</h3><p>Provide haptic correction feedback to the patient.</p></div></article>
-          <article class="hardware-card reveal"><span>06</span><div><h3>Encoder Motor</h3><p>Supports adjustable resistive force control.</p></div></article>
-          <article class="hardware-card reveal"><span>07</span><div><h3>Spring Mechanism</h3><p>Creates therapeutic resistance during finger movement.</p></div></article>
-          <article class="hardware-card reveal"><span>08</span><div><h3>Rechargeable Battery</h3><p>Powers the wearable glove system.</p></div></article>
-          <article class="hardware-card reveal"><span>09</span><div><h3>Glove Structure</h3><p>Holds sensors, control components, and feedback devices securely on the hand.</p></div></article>
+          <article class="hardware-card reveal"><span>05</span><div><h3>Encoder Motor</h3><p>Supports adjustable resistive force control.</p></div></article>
+          <article class="hardware-card reveal"><span>06</span><div><h3>Spring Mechanism</h3><p>Creates therapeutic resistance during finger movement.</p></div></article>
+          <article class="hardware-card reveal"><span>07</span><div><h3>Rechargeable Battery</h3><p>Powers the wearable glove system.</p></div></article>
+          <article class="hardware-card reveal"><span>08</span><div><h3>Glove Structure</h3><p>Holds the sensors, control components, and mechanical elements securely on the hand.</p></div></article>
         </div>
       </div>
     </section>
@@ -247,7 +269,7 @@
         <div class="role-grid">
           <article class="role-card reveal"><div class="role-top"><div class="role-icon"><svg><use href="#i-settings"/></svg></div><span>01</span></div><h3>Admin</h3><ul><li>Secure administrator access</li><li>Registers hospital information</li><li>Reviews and approves doctor requests</li><li>Manages system users and access</li></ul></article>
           <article class="role-card featured reveal"><div class="role-top"><div class="role-icon"><svg><use href="#i-users"/></svg></div><span>02</span></div><h3>Doctor or Therapist</h3><ul><li>Account registration, approval, and profile management</li><li>Accepts requests and manages patient relationships</li><li>Captures reference calibration poses</li><li>Builds dated live and preloaded exercise plans</li><li>Sets five-finger targets, repetitions, sets, and force</li><li>Monitors raw values, angles, message rate, and 3D motion</li><li>Reviews compliance, repetition peaks, and per-finger charts</li></ul></article>
-          <article class="role-card reveal"><div class="role-top"><div class="role-icon"><svg><use href="#i-hand"/></svg></div><span>03</span></div><h3>Patient</h3><ul><li>Secure sign-in with an optional Google account</li><li>Finds a doctor and requests guidance</li><li>Connects the glove through BLE with reconnection support</li><li>Calibrates minimum and maximum movement for five fingers</li><li>Follows live or assigned exercise plans</li><li>Sees calibrated angles, safe limits, and a responsive 3D hand</li><li>Receives visual and haptic feedback</li><li>Tracks repetitions, sets, peak angles, sessions, and progress</li></ul></article>
+          <article class="role-card reveal"><div class="role-top"><div class="role-icon"><svg><use href="#i-hand"/></svg></div><span>03</span></div><h3>Patient</h3><ul><li>Secure sign-in with an optional Google account</li><li>Finds a doctor and requests guidance</li><li>Connects the glove through BLE with reconnection support</li><li>Calibrates minimum and maximum movement for five fingers</li><li>Follows live or assigned exercise plans</li><li>Sees calibrated angles, safe limits, and a responsive 3D hand</li><li>Receives separate visual guidance for every finger</li><li>Tracks repetitions, sets, peak angles, sessions, and progress</li></ul></article>
         </div>
       </div>
     </section>
@@ -319,7 +341,7 @@
           <article class="reveal"><span class="status tested">Tested</span><h3>Sensor Accuracy</h3><p>Sensor readings reviewed across intended hand movements.</p></article>
           <article class="reveal"><span class="status verified">Verified</span><h3>Patient Calibration</h3><p>Patient range capture and stored values checked.</p></article>
           <article class="reveal"><span class="status verified">Verified</span><h3>Doctor Calibration</h3><p>Reference movement capture and comparison checked.</p></article>
-          <article class="reveal"><span class="status tested">Tested</span><h3>Haptic Response</h3><p>Correction feedback behaviour tested against triggers.</p></article>
+          <article class="reveal"><span class="status tested">Tested</span><h3>Visual Limit Feedback</h3><p>Per-finger target, near-limit, and exceeded-limit states tested against calibrated angles.</p></article>
           <article class="reveal"><span class="status tested">Tested</span><h3>Exercise Tracking</h3><p>Repetitions, targets, and movement records checked.</p></article>
           <article class="reveal"><span class="status verified">Verified</span><h3>Live Exercise Mode</h3><p>Real-time movement workflow and display verified.</p></article>
           <article class="reveal"><span class="status verified">Verified</span><h3>Preloaded Exercise Mode</h3><p>Assigned exercise flow and target handling verified.</p></article>

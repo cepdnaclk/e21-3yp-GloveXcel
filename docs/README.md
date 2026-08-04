@@ -7,7 +7,7 @@ The published page presents the complete project story and feature set, includin
 - wearable five-finger motion sensing and ESP32 processing;
 - patient and doctor calibration;
 - live and preloaded rehabilitation exercises;
-- 3D movement visualisation and real-time haptic guidance;
+- 3D movement visualisation and five-finger visual limit guidance;
 - automatic repetition, set, peak-angle, and session tracking;
 - configurable therapeutic resistance;
 - therapist monitoring and role-based patient management;

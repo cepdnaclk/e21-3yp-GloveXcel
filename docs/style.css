@@ -182,6 +182,17 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .function-card { min-height: 235px; }
 .function-card .icon-box { width: 44px; height: 44px; margin-bottom: 20px; }
 
+/* ===== Visual finger guidance ===== */
+.visual-guide { overflow: hidden; }
+.visual-guide::before { position: absolute; inset: 12% 0 auto 45%; height: 65%; content: ""; background: radial-gradient(circle, rgba(34,211,238,.1), transparent 66%); pointer-events: none; }
+.visual-guide-grid { display: grid; grid-template-columns: .78fr 1.22fr; align-items: center; gap: 52px; }
+.visual-guide-copy h2 { margin-bottom: 22px; }
+.visual-guide-copy > p { max-width: 530px; font-size: .88rem; }
+.visual-guide-copy .check-list { grid-template-columns: 1fr; }
+.visual-guide-image { position: relative; overflow: hidden; padding: 9px; border: 1px solid var(--border-bright); border-radius: 22px; background: #f8fbff; box-shadow: 0 30px 80px rgba(0,0,0,.38), 0 0 45px rgba(37,99,235,.12); cursor: zoom-in; }
+.visual-guide-image img { width: 100%; border-radius: 14px; }
+.visual-guide-image span { position: absolute; right: 18px; bottom: 17px; padding: 7px 11px; border-radius: 8px; color: white; background: rgba(2,6,23,.82); font-size: .64rem; font-weight: 700; backdrop-filter: blur(8px); }
+
 /* ===== Process ===== */
 .process-line { display: grid; grid-template-columns: 1fr 34px 1fr 34px 1fr 34px 1fr 34px 1fr; align-items: stretch; }
 .process-card { position: relative; min-width: 0; padding: 23px 18px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); text-align: center; }
@@ -316,7 +327,8 @@ button.gallery-card { width: 100%; padding: 0; cursor: zoom-in; text-align: left
   .nav-menu a { padding: 13px 3px; border-bottom: 1px solid rgba(59,130,246,.1); font-size: .84rem; }.nav-menu a::after { display: none; }
   .hero { min-height: auto; padding-top: 125px; }.hero-grid { grid-template-columns: 1fr; }.hero-copy { text-align: center; }.hero h1,.hero-description { margin-inline: auto; }.hero-actions { justify-content: center; }.hero-indicators { max-width: 550px; margin-inline: auto; text-align: left; }
   .hero-visual { width: min(100%,650px); min-height: 500px; margin: 25px auto 0; }
-  .about-grid,.software-shell,.benefits-grid { grid-template-columns: 1fr; }.about-grid { gap: 65px; }.screen-showcase { transform: none; }
+  .about-grid,.visual-guide-grid,.software-shell,.benefits-grid { grid-template-columns: 1fr; }.about-grid { gap: 65px; }.screen-showcase { transform: none; }
+  .visual-guide-grid { gap: 42px; }
   .three-col,.hardware-grid,.module-grid,.use-grid { grid-template-columns: repeat(2,1fr); }
   .hardware-grid { border-radius: 0; }
   .problem-grid { grid-template-columns: repeat(2,1fr); }.problem-card:nth-child(n) { grid-column: span 1; }.problem-card:last-child { grid-column: 1/-1; }
